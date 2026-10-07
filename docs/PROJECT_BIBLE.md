@@ -16,13 +16,21 @@ Example: on Monday morning a user can move the time machine to Sunday before gam
 
 The user has a selected information timestamp, for example Sunday 15:00 ET.
 
+The app resumes at the user's last timeline position rather than automatically snapping to real-world now. The cursor is visible and user-controlled.
+
+For MVP, the timeline is **forward-only** once established. A user can advance the NBA world, but moving the cursor backward to reconstruct an earlier world is deferred to a future "full time machine" mode. Advancing the timeline means the user has intentionally accepted everything that became knowable before the new cursor.
+
 Content learned after the cursor is hidden by default.
 
-### Watched state
+### Sealed and acknowledged games
 
-Time alone is insufficient. A user may watch one Sunday game while keeping the rest sealed.
+"Watched" is the wrong primitive. A user may watch a game, read the result, or simply decide they no longer care about being protected from it.
 
-The system tracks watched/unwatched games. Consequences of a watched game may be revealed while consequences of unwatched games remain hidden.
+A game is therefore either **sealed** or **acknowledged**.
+
+A sealed game protects result-dependent information. The user can acknowledge it explicitly by revealing the game. Advancing the timeline beyond older games also makes those games non-sensitive; the app should not continue protecting games that the user has deliberately moved past.
+
+Acknowledging one game does **not** advance the global media timeline. It can expose that game's result, box score, game-linked stats and other game-specific downstream information while general news/social/podcast feeds remain constrained by the selected time cursor.
 
 ### Spoiler policy
 
@@ -78,20 +86,24 @@ A jump from a low pregame score to a 9.8 postgame score already tells the user t
 
 "What should I watch?" means **watchability, not fandom**.
 
-Favorite teams may be a separate filter or subscription, but they do not alter the canonical game-quality ordering.
+The user may have multiple favorite teams, but favorites are a separate product concern and never alter the canonical watchability ordering. A favorite-team game can be surfaced separately from the recommendation engine.
 
-## 4. Historic-event hints
+The engine may maintain a rich internal postgame score so it can distinguish two games that are both worth watching. The default UI should not expose that numeric score because the magnitude is itself a spoiler signal. A first disclosure layer should be coarse; exact wording and thresholds remain a product-tuning decision.
 
-Some users want strict ignorance. Others would rather accept a soft spoiler than miss a legendary game.
+## 4. Layered game disclosure
 
-The system can eventually support graduated hints such as:
+Game information should open like layers rather than through one binary spoiler switch.
 
-- "There is one game from last night you probably should not skip."
-- "One game contains an exceptional individual performance."
-- "MIA-ORL contains an exceptional individual performance."
-- full reveal.
+A sealed game can expose, independently:
 
-The user chooses the leakage level.
+1. **Pregame information** — matchup, rosters, injuries, availability, form, standings context and other information knowable before tip-off.
+2. **Watchability verdict** — a deliberately coarse signal derived from the hidden postgame-quality model.
+3. **Why** — only on explicit request, reveal increasingly specific reasons such as exceptional performance, comeback, chaos or high-level basketball.
+4. **Full game reveal** — result, score, box score, recap, highlights and postgame information.
+
+The game list should provide direct actions for watchability and full result reveal; entering a dedicated game page must not be required.
+
+This layered model also supports historic-event hints. Some users want strict ignorance; others would rather accept a soft spoiler than miss a legendary game. The user controls how much of the onion is peeled.
 
 ## 5. Temporal truth model
 
@@ -175,7 +187,7 @@ Major domains expected:
 - item-to-game/team/player links;
 - spoiler classification;
 - recommendation score versions;
-- user time cursor, watched games and spoiler preferences;
+- user time cursor, sealed/acknowledged game state, favorite teams and spoiler preferences;
 - AI jobs/results with prompt/schema/model version metadata.
 
 Schema work is intentionally a separate issue after the Neon project is created.
@@ -209,17 +221,23 @@ React web app first.
 
 Initial product surfaces:
 
+- a balanced home dashboard combining games, media/buzz and "What should I watch?";
 - Time Machine / Today;
 - Games;
 - "What should I watch?";
 - Standings;
 - News / Buzz;
 - user spoiler controls;
-- watched-game state.
+- sealed/acknowledged game state;
+- separate favorite-team surfaces, supporting multiple favorites.
 
 The selected time cursor must be visible and difficult to confuse with real "now".
 
-The UI must avoid secondary spoiler channels such as postgame thumbnails, highlight counts and exact runtime unless policy permits them.
+Game cards should support layered disclosure directly from the list: safe pregame context, a coarse watchability reveal, optional "why" detail, and full-game reveal.
+
+General news, social/X and podcast surfaces remain **strictly timeline-based**. Revealing one game does not inject later media into those feeds.
+
+The UI must avoid secondary spoiler channels such as postgame thumbnails, highlight counts, exact runtime, numeric postgame quality scores or outcome-dependent ordering unless policy permits them.
 
 ## 12. Backend
 
@@ -256,14 +274,17 @@ Architecture changes update this bible or an architecture document in the same P
 
 The first useful MVP should provide:
 
-1. selectable time cursor;
+1. persistent, visible, forward-only time cursor;
 2. historical schedule/standings/stats/injuries;
-3. spoiler-safe game cards;
-4. deterministic pregame ranking;
-5. "what should I watch?";
-6. watched-game tracking;
-7. news/media constrained by time and watched state;
-8. explicit optional postgame-quality signal.
+3. spoiler-safe game cards with safe pregame information;
+4. sealed/acknowledged game state and explicit full-game reveal;
+5. deterministic pregame ranking;
+6. "what should I watch?" using hidden comparative quality scores and optional time-budget optimization;
+7. layered postgame watchability disclosure without exposing numeric scores by default;
+8. news, social/X and podcast feeds constrained strictly by the selected timeline;
+9. multiple favorite teams surfaced separately from canonical watchability ranking.
+
+Backward time travel/full historical replay is intentionally deferred beyond MVP.
 
 Social breadth, advanced personalization, large-scale transcript processing and cross-sport support can come later.
 
