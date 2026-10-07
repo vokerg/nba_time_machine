@@ -28,6 +28,40 @@ pytest
 uvicorn nba_time_machine.main:app --reload
 ```
 
+The API can start without PostgreSQL configured. Database configuration is loaded only when a database-backed operation is requested.
+
+## Local PostgreSQL and migrations
+
+Tests that exercise persistence use real PostgreSQL semantics; SQLite is not a substitute.
+
+A minimal local database can be started with Docker:
+
+```bash
+docker run --rm --name nba-time-machine-postgres \
+  -e POSTGRES_DB=nba_time_machine_test \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 \
+  postgres:17
+```
+
+In another shell:
+
+```bash
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nba_time_machine_test
+export DIRECT_DATABASE_URL=$DATABASE_URL
+
+cd backend
+alembic upgrade head
+pytest -q
+```
+
+`DATABASE_URL` is the application connection. `DIRECT_DATABASE_URL` is preferred for migrations/admin operations and may point at a non-pooled Neon endpoint. If `DIRECT_DATABASE_URL` is absent, migrations fall back to `DATABASE_URL`.
+
+CI starts PostgreSQL, applies all Alembic migrations from an empty database, then runs the backend test suite including the integration smoke.
+
+Live Neon provisioning and migration smoke remain tracked separately under issue #2.
+
 ## Frontend
 
 ```bash
