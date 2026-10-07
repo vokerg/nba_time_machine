@@ -1,0 +1,59 @@
+name: Agent task
+description: A bounded implementation or discovery task for an agent
+title: "[task] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / outcome
+      description: What must be true when this issue is complete?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and required reading
+      description: Link the relevant project-bible/architecture sections and prior issues.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Other issues, external configuration, credentials, or data contracts required first.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / expected paths
+      description: Files/modules this task is expected to touch.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Explicitly out of scope
+      description: Prevent the agent from solving adjacent work implicitly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Concrete observable behavior, one item per line.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: Tests, smoke checks, fixtures, migrations, screenshots, or manual evidence required.
+    validations:
+      required: true

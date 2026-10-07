@@ -1,0 +1,542 @@
+{
+  "schema_version": 1,
+  "status": "seed_research_backlog",
+  "notes": [
+    "These entries define the desired source universe, not verified working collectors.",
+    "All entries remain disabled until an issue verifies identity, access method, cadence, retention policy, and a bounded smoke result.",
+    "Runtime registry and health will move to PostgreSQL/Neon; this file remains the reviewable desired-state seed."
+  ],
+  "sources": [
+    {
+      "id": "nba-official-news",
+      "name": "NBA.com News",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "league_news"
+      ],
+      "locator": "https://www.nba.com/news",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "nba-official-stats",
+      "name": "NBA.com Stats",
+      "kind": "structured",
+      "adapter": "nba_structured",
+      "category": [
+        "official",
+        "stats"
+      ],
+      "locator": "https://www.nba.com/stats",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "nba-official-schedule",
+      "name": "NBA schedule",
+      "kind": "structured",
+      "adapter": "nba_structured",
+      "category": [
+        "official",
+        "schedule"
+      ],
+      "locator": "https://www.nba.com/schedule",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "nba-official-injuries",
+      "name": "NBA official injury reports",
+      "kind": "document",
+      "adapter": "web",
+      "category": [
+        "official",
+        "injuries"
+      ],
+      "locator": "NBA official injury report publication surface",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 15,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "nba-official-transactions",
+      "name": "NBA transactions",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "transactions"
+      ],
+      "locator": "NBA official transactions surface",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 30,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "espn-nba",
+      "name": "ESPN NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "league_news"
+      ],
+      "locator": "https://www.espn.com/nba/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "the-athletic-nba",
+      "name": "The Athletic NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "analysis"
+      ],
+      "locator": "The Athletic NBA",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 15,
+      "requires_auth": true,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "yahoo-sports-nba",
+      "name": "Yahoo Sports NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "league_news"
+      ],
+      "locator": "Yahoo Sports NBA",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 15,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "cbs-sports-nba",
+      "name": "CBS Sports NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "league_news"
+      ],
+      "locator": "CBS Sports NBA",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 15,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "nbc-sports-nba",
+      "name": "NBC Sports NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "league_news"
+      ],
+      "locator": "NBC Sports NBA",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 15,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "bleacher-report-nba",
+      "name": "Bleacher Report NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "buzz"
+      ],
+      "locator": "Bleacher Report NBA",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 10,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "the-ringer-nba",
+      "name": "The Ringer NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "analysis"
+      ],
+      "locator": "The Ringer NBA",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 30,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "sb-nation-nba",
+      "name": "SB Nation NBA",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "analysis"
+      ],
+      "locator": "SB Nation NBA",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 30,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "nba-x",
+      "name": "NBA on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "official",
+        "social"
+      ],
+      "locator": "@NBA",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 5,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "nba-pr-x",
+      "name": "NBA Communications on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "official",
+        "social",
+        "transactions"
+      ],
+      "locator": "@NBAPR",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 5,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "shams-charania-x",
+      "name": "Shams Charania on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "reporter",
+        "breaking_news"
+      ],
+      "locator": "@ShamsCharania",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 3,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "chris-haynes-x",
+      "name": "Chris Haynes on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "reporter",
+        "breaking_news"
+      ],
+      "locator": "@ChrisBHaynes",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 5,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "marc-spears-x",
+      "name": "Marc J. Spears on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "reporter",
+        "league_news"
+      ],
+      "locator": "@MarcJSpears",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "bobby-marks-x",
+      "name": "Bobby Marks on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "analyst",
+        "transactions",
+        "salary_cap"
+      ],
+      "locator": "@BobbyMarks42",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "tim-bontemps-x",
+      "name": "Tim Bontemps on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "reporter",
+        "league_news"
+      ],
+      "locator": "@TimBontemps",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "brian-windhorst-x",
+      "name": "Brian Windhorst on X",
+      "kind": "x_account",
+      "adapter": "x",
+      "category": [
+        "reporter",
+        "analysis"
+      ],
+      "locator": "@WindhorstESPN",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10,
+      "requires_auth": true,
+      "retention_policy": "full"
+    },
+    {
+      "id": "basketball-reference",
+      "name": "Basketball Reference",
+      "kind": "stats_site",
+      "adapter": "web_or_provider",
+      "category": [
+        "stats",
+        "history"
+      ],
+      "locator": "https://www.basketball-reference.com/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "pbpstats",
+      "name": "PBP Stats",
+      "kind": "stats_site",
+      "adapter": "web_or_provider",
+      "category": [
+        "stats",
+        "play_by_play"
+      ],
+      "locator": "https://www.pbpstats.com/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 30,
+      "requires_auth": false,
+      "retention_policy": "metadata_excerpt"
+    },
+    {
+      "id": "cleaning-the-glass",
+      "name": "Cleaning the Glass",
+      "kind": "stats_site",
+      "adapter": "provider_specific",
+      "category": [
+        "stats",
+        "analysis"
+      ],
+      "locator": "Cleaning the Glass",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 60,
+      "requires_auth": true,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "pod-no-dunks",
+      "name": "No Dunks",
+      "kind": "podcast",
+      "adapter": "podcast_rss",
+      "category": [
+        "podcast",
+        "daily_buzz"
+      ],
+      "locator": "No Dunks podcast feed",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "pod-duncd-on",
+      "name": "Dunc'd On Basketball NBA Podcast",
+      "kind": "podcast",
+      "adapter": "podcast_rss",
+      "category": [
+        "podcast",
+        "analysis"
+      ],
+      "locator": "Dunc'd On podcast feed",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 120,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "pod-thinking-basketball",
+      "name": "Thinking Basketball",
+      "kind": "podcast",
+      "adapter": "podcast_rss",
+      "category": [
+        "podcast",
+        "analysis"
+      ],
+      "locator": "Thinking Basketball podcast feed",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 120,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "pod-locked-on-nba",
+      "name": "Locked On NBA",
+      "kind": "podcast",
+      "adapter": "podcast_rss",
+      "category": [
+        "podcast",
+        "daily_buzz"
+      ],
+      "locator": "Locked On NBA podcast feed",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "pod-hoop-collective",
+      "name": "The Hoop Collective",
+      "kind": "podcast",
+      "adapter": "podcast_rss",
+      "category": [
+        "podcast",
+        "league_news"
+      ],
+      "locator": "The Hoop Collective podcast feed",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 120,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "pod-bill-simmons",
+      "name": "The Bill Simmons Podcast",
+      "kind": "podcast",
+      "adapter": "podcast_rss",
+      "category": [
+        "podcast",
+        "analysis",
+        "buzz"
+      ],
+      "locator": "The Bill Simmons Podcast feed",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 120,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "pod-the-mismatch",
+      "name": "The Mismatch",
+      "kind": "podcast",
+      "adapter": "podcast_rss",
+      "category": [
+        "podcast",
+        "analysis"
+      ],
+      "locator": "The Mismatch podcast feed",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 120,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
+      "id": "youtube-nba",
+      "name": "NBA YouTube",
+      "kind": "youtube",
+      "adapter": "youtube",
+      "category": [
+        "official",
+        "video"
+      ],
+      "locator": "NBA YouTube channel",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 15,
+      "requires_auth": true,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "youtube-thinking-basketball",
+      "name": "Thinking Basketball YouTube",
+      "kind": "youtube",
+      "adapter": "youtube",
+      "category": [
+        "analysis",
+        "video"
+      ],
+      "locator": "Thinking Basketball YouTube channel",
+      "enabled": false,
+      "verification_status": "discovery_required",
+      "cadence_minutes": 60,
+      "requires_auth": true,
+      "retention_policy": "metadata_only"
+    }
+  ]
+}
