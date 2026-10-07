@@ -21,8 +21,17 @@ paste commands / hosted checks here
 
 -
 
+## Handoff checkpoint
+
+Keep this current while the PR is unfinished so a different agent can resume from GitHub alone.
+
+- Completed:
+- Remaining:
+- Current failures/blockers:
+- Next concrete action:
+
 ## Spoiler-safety review
 
-- [ ] No forbidden post-cursor/unwatched-game data reaches user output
+- [ ] No forbidden post-cursor/sealed-game data reaches user output
 - [ ] No forbidden data reaches AI context
 - [ ] Postgame ranking/hints remain explicitly gated where relevant
