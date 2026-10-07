@@ -32,7 +32,7 @@ class TheSportsDBClient:
         self._sleep = sleep
         self._owns_client = http_client is None
         self._http = http_client or httpx.AsyncClient(
-            base_url=settings.base_url.rstrip("/"),
+            base_url=settings.base_url.rstrip("/") + "/",
             timeout=settings.timeout_seconds,
         )
 
