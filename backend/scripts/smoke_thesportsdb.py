@@ -44,6 +44,14 @@ async def main() -> None:
             else []
         )
 
+        players = await client.team_players(str(event["idHomeTeam"]))
+        first_player = players[0] if players else None
+        player_stats = (
+            await client.player_stats(str(first_player["idPlayer"]))
+            if first_player and first_player.get("idPlayer")
+            else []
+        )
+
         summary = {
             "provider": settings.provider,
             "league_id": settings.nba_league_id,
@@ -75,6 +83,17 @@ async def main() -> None:
             ),
             "event_stat_count": len(stats),
             "first_event_stat": stats[0] if stats else None,
+            "team_player_count": len(players),
+            "first_player": (
+                {
+                    "id": first_player.get("idPlayer"),
+                    "name": first_player.get("strPlayer"),
+                }
+                if first_player
+                else None
+            ),
+            "player_stat_count": len(player_stats),
+            "first_player_stat": player_stats[0] if player_stats else None,
             "event_fields": sorted(event.keys()),
         }
         print(json.dumps(summary, indent=2, sort_keys=True))
