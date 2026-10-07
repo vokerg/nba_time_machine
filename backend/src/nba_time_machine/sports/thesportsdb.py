@@ -84,6 +84,10 @@ class TheSportsDBClient:
         payload = await self._get("lookupeventstats.php", {"id": event_id})
         return self._list_field(payload, "eventstats")
 
+    async def player_stats(self, player_id: str) -> list[dict[str, Any]]:
+        payload = await self._get("lookupplayerstats.php", {"id": player_id})
+        return self._list_field(payload, "playerstats")
+
     async def _get(
         self,
         endpoint: str,
