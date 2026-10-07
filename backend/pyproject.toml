@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nba-time-machine"
+version = "0.1.0"
+description = "Spoiler-controlled historical NBA information environment"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
+  "pydantic>=2.10,<3",
+  "pydantic-settings>=2.7,<3",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.25,<1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
