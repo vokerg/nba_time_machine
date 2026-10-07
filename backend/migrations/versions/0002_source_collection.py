@@ -22,7 +22,7 @@ def upgrade() -> None:
         sa.Column("kind", sa.String(length=64), nullable=False),
         sa.Column("adapter", sa.String(length=96), nullable=False),
         sa.Column(
-            "categories",
+            "category",
             postgresql.JSONB(astext_type=sa.Text()),
             server_default=sa.text("'[]'::jsonb"),
             nullable=False,
