@@ -64,20 +64,30 @@ async def test_capture_history_preserves_temporal_provenance_across_runs() -> No
                         id=run_one_id,
                         started_at=first_capture_at - timedelta(minutes=1),
                     ),
-                    SourceItemRecord(
-                        id=item_id,
-                        source_id=source_id,
-                        canonical_identity="article:42",
-                        external_id="42",
-                        canonical_url="https://example.test/articles/42",
-                        title="Pregame context",
-                        author="Example",
-                        text_content="Normalized content",
-                        published_at=published_at,
-                        discovered_at=discovered_at,
-                        captured_at=first_capture_at,
-                        available_at=available_at,
-                    ),
+                ]
+            )
+            await session.flush()
+
+            session.add(
+                SourceItemRecord(
+                    id=item_id,
+                    source_id=source_id,
+                    canonical_identity="article:42",
+                    external_id="42",
+                    canonical_url="https://example.test/articles/42",
+                    title="Pregame context",
+                    author="Example",
+                    text_content="Normalized content",
+                    published_at=published_at,
+                    discovered_at=discovered_at,
+                    captured_at=first_capture_at,
+                    available_at=available_at,
+                )
+            )
+            await session.flush()
+
+            session.add_all(
+                [
                     RawCaptureRecord(
                         id=uuid4(),
                         source_id=source_id,
@@ -110,31 +120,32 @@ async def test_capture_history_preserves_temporal_provenance_across_runs() -> No
             await session.commit()
 
         async with session_factory() as session:
-            session.add_all(
-                [
-                    CollectionRunRecord(
-                        id=run_two_id,
-                        started_at=second_capture_at - timedelta(minutes=1),
-                    ),
-                    RawCaptureRecord(
-                        id=uuid4(),
-                        source_id=source_id,
-                        collection_run_id=run_two_id,
-                        source_item_id=item_id,
-                        external_id="42",
-                        canonical_url="https://example.test/articles/42",
-                        published_at=published_at,
-                        discovered_at=discovered_at,
-                        captured_at=second_capture_at,
-                        available_at=available_at,
-                        content_type="text/html",
-                        title="Pregame context",
-                        author="Example",
-                        text_content="Normalized content",
-                        raw_payload="<html>capture one</html>",
-                        content_hash="same-payload-hash",
-                    ),
-                ]
+            session.add(
+                CollectionRunRecord(
+                    id=run_two_id,
+                    started_at=second_capture_at - timedelta(minutes=1),
+                )
+            )
+            await session.flush()
+            session.add(
+                RawCaptureRecord(
+                    id=uuid4(),
+                    source_id=source_id,
+                    collection_run_id=run_two_id,
+                    source_item_id=item_id,
+                    external_id="42",
+                    canonical_url="https://example.test/articles/42",
+                    published_at=published_at,
+                    discovered_at=discovered_at,
+                    captured_at=second_capture_at,
+                    available_at=available_at,
+                    content_type="text/html",
+                    title="Pregame context",
+                    author="Example",
+                    text_content="Normalized content",
+                    raw_payload="<html>capture one</html>",
+                    content_hash="same-payload-hash",
+                )
             )
             await session.commit()
 
@@ -191,27 +202,35 @@ async def test_schema_enforces_logical_identity_and_per_run_idempotency() -> Non
                         retention_policy="metadata_excerpt",
                     ),
                     CollectionRunRecord(id=run_id, started_at=now),
-                    SourceItemRecord(
-                        id=item_id,
-                        source_id=source_id,
-                        canonical_identity="post:99",
-                        external_id="99",
-                        discovered_at=now,
-                        captured_at=now,
-                        available_at=now,
-                    ),
-                    RawCaptureRecord(
-                        id=uuid4(),
-                        source_id=source_id,
-                        collection_run_id=run_id,
-                        source_item_id=item_id,
-                        external_id="99",
-                        discovered_at=now,
-                        captured_at=now,
-                        available_at=now,
-                        content_hash="hash-99",
-                    ),
                 ]
+            )
+            await session.flush()
+
+            session.add(
+                SourceItemRecord(
+                    id=item_id,
+                    source_id=source_id,
+                    canonical_identity="post:99",
+                    external_id="99",
+                    discovered_at=now,
+                    captured_at=now,
+                    available_at=now,
+                )
+            )
+            await session.flush()
+
+            session.add(
+                RawCaptureRecord(
+                    id=uuid4(),
+                    source_id=source_id,
+                    collection_run_id=run_id,
+                    source_item_id=item_id,
+                    external_id="99",
+                    discovered_at=now,
+                    captured_at=now,
+                    available_at=now,
+                    content_hash="hash-99",
+                )
             )
             await session.commit()
 
