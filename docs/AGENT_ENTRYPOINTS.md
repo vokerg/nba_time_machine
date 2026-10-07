@@ -2,6 +2,8 @@
 
 Choose the smallest path that matches the GitHub Issue.
 
+Start with `docs/IMPLEMENTATION_PHASES.md` when an issue's place in the dependency graph is unclear.
+
 ## Product or spoiler behavior
 
 Read:
@@ -10,7 +12,7 @@ Read:
 2. `docs/architecture/01-temporal-and-spoiler-model.md`
 3. relevant backend/frontend modules
 
-Expected tests: policy fixtures around pregame/in-game/postgame leakage.
+Expected tests: policy fixtures around pregame/in-game/postgame leakage, timeline advancement, explicit acknowledgement and layered disclosure.
 
 ## Collection/source work
 
@@ -49,7 +51,7 @@ Read:
 2. temporal/spoiler architecture
 3. API contracts for the issue
 
-The visible time cursor and spoiler mode are part of correctness, not decoration.
+The visible time cursor and spoiler state are part of correctness, not decoration. Do not model "watched" as the core state; use sealed/acknowledged semantics and layered reveal contracts.
 
 ## Ranking work
 
