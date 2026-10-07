@@ -16,6 +16,7 @@ from nba_time_machine.ai import (
     AISettings,
     AITimeoutError,
     OpenAICompatibleJSONClient,
+    load_ai_settings,
 )
 
 
