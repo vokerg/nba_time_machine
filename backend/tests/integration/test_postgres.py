@@ -1,4 +1,8 @@
+from pathlib import Path
+
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 
 from nba_time_machine.db import DatabaseSettings, create_database_engine
@@ -6,10 +10,13 @@ from nba_time_machine.db import DatabaseSettings, create_database_engine
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_real_postgres_and_baseline_migration() -> None:
+async def test_real_postgres_and_current_migration_head() -> None:
     settings = DatabaseSettings(_env_file=None)
     if not settings.is_configured:
         pytest.skip("DATABASE_URL is not configured")
+
+    alembic_config = Config(str(Path(__file__).parents[2] / "alembic.ini"))
+    expected_head = ScriptDirectory.from_config(alembic_config).get_current_head()
 
     engine = create_database_engine(settings)
     try:
@@ -23,6 +30,7 @@ async def test_real_postgres_and_baseline_migration() -> None:
 
         assert isinstance(version_num, int)
         assert version_num > 0
-        assert migration_revision == "0001_baseline"
+        assert expected_head is not None
+        assert migration_revision == expected_head
     finally:
         await engine.dispose()
