@@ -46,7 +46,7 @@ The ingestion model deliberately borrows the raw-first, per-source-isolation pat
 
 Humans and agents should read, in order:
 
-1. `docs/PROJECT_BIBLE.md` and `docs/IMPLEMENTATION_PHASES.md`
+1. `docs/PROJECT_BIBLE.md`, `docs/IMPLEMENTATION_PHASES.md`, and `docs/AGENT_FACTORY.md`
 2. `docs/architecture/00-overview.md`
 3. `docs/architecture/01-temporal-and-spoiler-model.md`
 4. `docs/architecture/02-ingestion.md`
@@ -75,3 +75,8 @@ npm run dev
 ```
 
 The initial scaffold intentionally does not connect to Neon, collect live sources, or call DeepSeek. Those are separate GitHub Issues so agents can implement and review them independently.
+
+
+## Agent entry
+
+When a coding agent is told only **`Go`**, it must follow the recovery-first factory protocol in `AGENTS.md`: finish/recover unfinished PR work first, otherwise select the next unblocked issue, and leave all partial work resumable from GitHub-visible state.
