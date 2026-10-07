@@ -46,7 +46,7 @@ The ingestion model deliberately borrows the raw-first, per-source-isolation pat
 
 Humans and agents should read, in order:
 
-1. `docs/PROJECT_BIBLE.md`
+1. `docs/PROJECT_BIBLE.md` and `docs/IMPLEMENTATION_PHASES.md`
 2. `docs/architecture/00-overview.md`
 3. `docs/architecture/01-temporal-and-spoiler-model.md`
 4. `docs/architecture/02-ingestion.md`
