@@ -2,48 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-from typing import Any
 
-import httpx
-
-BASE_URL = "https://www.thesportsdb.com/api/v1/json"
-NBA_LEAGUE_ID = "4387"
-
-
-async def _get(
-    client: httpx.AsyncClient,
-    api_key: str,
-    endpoint: str,
-    **params: str,
-) -> dict[str, Any]:
-    response = await client.get(
-        f"{BASE_URL}/{api_key}/{endpoint}",
-        params=params,
-        timeout=20.0,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"{endpoint} returned a non-object JSON payload")
-    return payload
+from nba_time_machine.sports import SportsProviderSettings, TheSportsDBClient
 
 
 async def main() -> None:
-    api_key = os.getenv("THESPORTSDB_API_KEY", "123")
+    settings = SportsProviderSettings()
 
-    async with httpx.AsyncClient() as client:
-        next_payload = await _get(
-            client,
-            api_key,
-            "eventsnextleague.php",
-            id=NBA_LEAGUE_ID,
-        )
-        events = next_payload.get("events") or []
-        if not events:
+    async with TheSportsDBClient(settings) as client:
+        next_events = await client.next_nba_events()
+        if not next_events:
             raise RuntimeError("TheSportsDB NBA next-event response contained no events")
 
-        event = events[0]
+        event = next_events[0]
         required_event_fields = {
             "idEvent",
             "idLeague",
@@ -51,37 +22,31 @@ async def main() -> None:
             "idAwayTeam",
             "strEvent",
             "dateEvent",
+            "strTimestamp",
+            "strStatus",
         }
         missing = sorted(required_event_fields - set(event))
         if missing:
             raise RuntimeError(f"NBA event is missing expected fields: {missing}")
 
-        if str(event["idLeague"]) != NBA_LEAGUE_ID:
+        if str(event["idLeague"]) != settings.nba_league_id:
             raise RuntimeError(
-                f"Expected NBA league {NBA_LEAGUE_ID}, got {event['idLeague']}"
+                f"Expected NBA league {settings.nba_league_id}, got {event['idLeague']}"
             )
 
-        team_payload = await _get(
-            client,
-            api_key,
-            "lookupteam.php",
-            id=str(event["idHomeTeam"]),
-        )
-        teams = team_payload.get("teams") or []
-        if not teams or not teams[0].get("idTeam"):
-            raise RuntimeError("TheSportsDB home-team lookup returned no team")
+        team = await client.team(str(event["idHomeTeam"]))
 
-        previous_payload = await _get(
-            client,
-            api_key,
-            "eventspastleague.php",
-            id=NBA_LEAGUE_ID,
+        previous_events = await client.previous_nba_events()
+        previous = previous_events[0] if previous_events else None
+        stats = (
+            await client.event_stats(str(previous["idEvent"]))
+            if previous and previous.get("idEvent")
+            else []
         )
-        previous_events = previous_payload.get("events") or []
 
         summary = {
-            "provider": "thesportsdb",
-            "league_id": NBA_LEAGUE_ID,
+            "provider": settings.provider,
+            "league_id": settings.nba_league_id,
             "next_event": {
                 "id": event.get("idEvent"),
                 "name": event.get("strEvent"),
@@ -92,11 +57,24 @@ async def main() -> None:
                 "away_team_id": event.get("idAwayTeam"),
             },
             "home_team": {
-                "id": teams[0].get("idTeam"),
-                "name": teams[0].get("strTeam"),
-                "league": teams[0].get("strLeague"),
+                "id": team.get("idTeam"),
+                "name": team.get("strTeam"),
+                "league": team.get("strLeague"),
             },
-            "previous_event_count": len(previous_events),
+            "previous_event": (
+                {
+                    "id": previous.get("idEvent"),
+                    "date": previous.get("dateEvent"),
+                    "timestamp": previous.get("strTimestamp"),
+                    "status": previous.get("strStatus"),
+                    "home_score": previous.get("intHomeScore"),
+                    "away_score": previous.get("intAwayScore"),
+                }
+                if previous
+                else None
+            ),
+            "event_stat_count": len(stats),
+            "first_event_stat": stats[0] if stats else None,
             "event_fields": sorted(event.keys()),
         }
         print(json.dumps(summary, indent=2, sort_keys=True))
