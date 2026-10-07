@@ -44,6 +44,7 @@ jobs:
       - run: alembic downgrade -1
       - run: alembic upgrade head
       - run: alembic check
+      - run: python scripts/smoke_thesportsdb.py
       - run: pytest -q
 
   frontend:
