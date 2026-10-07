@@ -56,6 +56,24 @@
       "retention_policy": "normalized_full"
     },
     {
+      "id": "thesportsdb-nba",
+      "name": "TheSportsDB NBA",
+      "kind": "structured",
+      "adapter": "thesportsdb",
+      "category": [
+        "third_party",
+        "schedule",
+        "games",
+        "stats"
+      ],
+      "locator": "https://www.thesportsdb.com/api/v1/json",
+      "enabled": false,
+      "verification_status": "verified",
+      "cadence_minutes": 10,
+      "requires_auth": false,
+      "retention_policy": "normalized_full"
+    },
+    {
       "id": "nba-official-injuries",
       "name": "NBA official injury reports",
       "kind": "document",
