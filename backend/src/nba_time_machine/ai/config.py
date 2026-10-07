@@ -9,7 +9,7 @@ from nba_time_machine.ai.errors import AIConfigurationError
 class AISettings(BaseSettings):
     """Environment-backed configuration for an OpenAI-compatible JSON provider."""
 
-    model_config = SettingsConfigDict(env_prefix="", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="", extra="ignore", populate_by_name=True)
 
     enabled: bool = Field(default=False, validation_alias="AI_ENABLED")
     provider: str = Field(default="openai-compatible", validation_alias="LLM_PROVIDER")
