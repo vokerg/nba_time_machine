@@ -1,6 +1,6 @@
 # Database schema
 
-This document describes the persistence model introduced by issue #18. It covers the source registry, collection provenance, raw capture history, and normalized source-item identity. Collector behavior, registry synchronization, retention enforcement, and live Neon validation remain separate work.
+This document describes the current PostgreSQL persistence model. It covers source/collection provenance plus the structured sports identity and temporal-history substrate. Collector behavior, provider adapters, spoiler policy, retention enforcement, and live Neon validation remain separate work.
 
 ## Relationships
 
@@ -13,6 +13,21 @@ sources
 ```
 
 A raw capture may link to one normalized `source_item`. The link is nullable because capture can precede normalization.
+
+The structured sports domain adds:
+
+```text
+seasons ──< games >── teams
+                    ↗
+teams/players/seasons/games
+  ├──< sports_external_identities
+  └──< temporal_facts
+
+games ──< game_observations >── sources
+temporal_facts >── sources
+```
+
+Sports entities use internal UUIDs. Provider IDs live in a separate mapping table so a provider switch does not redefine internal identity.
 
 ## Tables
 
@@ -85,3 +100,69 @@ Alembic metadata is wired to the SQLAlchemy model metadata. CI validates migrati
 4. running the backend suite, including PostgreSQL integration tests.
 
 Live Neon migration/smoke validation remains tracked under issue #2 and requires owner-provided credentials.
+
+
+## Structured sports domain
+
+### `seasons`, `teams`, `players`, and `games`
+
+These tables hold stable internal identities, not provider IDs.
+
+A game references one season plus distinct home/away team UUIDs. Mutable schedule/status/result state is intentionally not stored by overwriting the `games` row.
+
+Season boundaries are calendar dates. Observation, availability, validity, tip, and final timestamps are timezone-aware instants.
+
+### `sports_external_identities`
+
+Maps one provider namespace and external ID to exactly one internal season, team, player, or game.
+
+The database enforces:
+
+- uniqueness of `(provider_key, entity_type, external_id)`;
+- exactly one internal target column per mapping;
+- agreement between `entity_type` and the populated target.
+
+This lets #5 normalize multiple providers into stable internal identities without coupling core IDs to one provider.
+
+### `game_observations`
+
+Append-only snapshots of schedule/status/result state from a structured source.
+
+Each observation carries:
+
+- `observed_at`: when NBA Time Machine obtained/confirmed the state;
+- `available_at`: when that state can conservatively be treated as publicly knowable;
+- normalized game `status`;
+- optional scheduled/actual tip and final timestamps;
+- optional scores;
+- source provenance.
+
+A scheduled observation remains stored after a final observation arrives. This is the key persistence guarantee that prevents completed-game data from destroying the historical pregame world.
+
+Outcome-bearing fields in this table are not authorization to display them. Spoiler policy must still choose a safe projection before any user or AI output.
+
+### `temporal_facts`
+
+Append-only structured facts for one season, team, player, or game.
+
+Examples include standings records, player/team statistics, injury/availability state, or other provider-normalized facts. A fact carries:
+
+- `fact_type` plus a JSONB `value`;
+- exactly one typed subject;
+- source provenance;
+- `valid_from` and nullable `valid_to` for domain validity;
+- `observed_at` for collection/provenance time;
+- `available_at` for time-machine visibility.
+
+The database rejects non-forward validity intervals. New versions are inserted instead of overwriting the older version.
+
+## Structured-data history rules
+
+For structured sports data:
+
+- internal entity IDs are provider-neutral;
+- provider identifiers are mappings, not primary keys;
+- scheduled/pregame game observations remain queryable after later live/final observations;
+- mutable standings/stats/availability facts keep validity history;
+- source provenance and public-availability time remain explicit;
+- deleting a referenced sports entity is restricted while identity mappings, observations, or facts still depend on it.

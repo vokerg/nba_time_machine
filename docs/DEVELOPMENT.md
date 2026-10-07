@@ -56,12 +56,13 @@ alembic upgrade head
 # Optional rollback smoke for the latest revision:
 alembic downgrade -1
 alembic upgrade head
+alembic check
 pytest -q
 ```
 
 `DATABASE_URL` is the application connection. `DIRECT_DATABASE_URL` is preferred for migrations/admin operations and may point at a non-pooled Neon endpoint. If `DIRECT_DATABASE_URL` is absent, migrations fall back to `DATABASE_URL`.
 
-CI starts PostgreSQL, applies all Alembic migrations from an empty database, rolls the latest revision back and forward again, then runs the backend test suite including PostgreSQL integration coverage.
+CI starts PostgreSQL, applies all Alembic migrations from an empty database, rolls the latest revision back and forward again, verifies SQLAlchemy metadata with `alembic check`, then runs the backend test suite including PostgreSQL integration coverage.
 
 See `docs/DATABASE_SCHEMA.md` for the current source/collection/capture persistence model.
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID as UUIDType
 from uuid import uuid4
@@ -8,6 +8,7 @@ from uuid import uuid4
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -279,6 +280,304 @@ class RawCaptureRecord(Base):
     raw_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     content_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     capture_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+
+
+class SeasonRecord(Base):
+    __tablename__ = "seasons"
+    __table_args__ = (
+        UniqueConstraint("league", "label", name="uq_seasons_league_label"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    league: Mapped[str] = mapped_column(String(32), nullable=False)
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    starts_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class TeamRecord(Base):
+    __tablename__ = "teams"
+    __table_args__ = (
+        Index("ix_teams_league_abbreviation", "league", "abbreviation"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    league: Mapped[str] = mapped_column(String(32), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    abbreviation: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class PlayerRecord(Base):
+    __tablename__ = "players"
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    full_name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class GameRecord(Base):
+    __tablename__ = "games"
+    __table_args__ = (
+        CheckConstraint("home_team_id <> away_team_id", name="different_teams"),
+        Index("ix_games_season", "season_id"),
+        Index("ix_games_home_team", "home_team_id"),
+        Index("ix_games_away_team", "away_team_id"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    season_id: Mapped[UUIDType] = mapped_column(
+        ForeignKey("seasons.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    home_team_id: Mapped[UUIDType] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    away_team_id: Mapped[UUIDType] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    game_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class SportsExternalIdentityRecord(Base):
+    __tablename__ = "sports_external_identities"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_key",
+            "entity_type",
+            "external_id",
+            name="uq_sports_external_identity_provider_type_external",
+        ),
+        CheckConstraint(
+            "num_nonnulls(season_id, team_id, player_id, game_id) = 1",
+            name="one_target",
+        ),
+        CheckConstraint(
+            "(entity_type = 'season' AND season_id IS NOT NULL) OR "
+            "(entity_type = 'team' AND team_id IS NOT NULL) OR "
+            "(entity_type = 'player' AND player_id IS NOT NULL) OR "
+            "(entity_type = 'game' AND game_id IS NOT NULL)",
+            name="target_matches_type",
+        ),
+        Index("ix_sports_external_identity_season", "season_id"),
+        Index("ix_sports_external_identity_team", "team_id"),
+        Index("ix_sports_external_identity_player", "player_id"),
+        Index("ix_sports_external_identity_game", "game_id"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    provider_key: Mapped[str] = mapped_column(String(96), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(192), nullable=False)
+    season_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("seasons.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    team_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    player_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    game_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("games.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    identity_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+
+
+class GameObservationRecord(Base):
+    __tablename__ = "game_observations"
+    __table_args__ = (
+        UniqueConstraint(
+            "game_id",
+            "source_id",
+            "observed_at",
+            name="uq_game_observations_game_source_observed",
+        ),
+        CheckConstraint(
+            "status IN "
+            "('scheduled', 'in_progress', 'final', 'postponed', 'canceled', 'suspended')",
+            name="status_valid",
+        ),
+        CheckConstraint(
+            "home_score IS NULL OR home_score >= 0",
+            name="home_score_nonnegative",
+        ),
+        CheckConstraint(
+            "away_score IS NULL OR away_score >= 0",
+            name="away_score_nonnegative",
+        ),
+        Index("ix_game_observations_game_observed", "game_id", "observed_at"),
+        Index("ix_game_observations_available", "available_at"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    game_id: Mapped[UUIDType] = mapped_column(
+        ForeignKey("games.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sources.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    available_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    scheduled_tip_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    actual_tip_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    final_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    home_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    observation_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+
+
+class TemporalFactRecord(Base):
+    __tablename__ = "temporal_facts"
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(season_id, team_id, player_id, game_id) = 1",
+            name="one_subject",
+        ),
+        CheckConstraint(
+            "(subject_type = 'season' AND season_id IS NOT NULL) OR "
+            "(subject_type = 'team' AND team_id IS NOT NULL) OR "
+            "(subject_type = 'player' AND player_id IS NOT NULL) OR "
+            "(subject_type = 'game' AND game_id IS NOT NULL)",
+            name="subject_matches_type",
+        ),
+        CheckConstraint(
+            "valid_to IS NULL OR valid_to > valid_from",
+            name="valid_interval_ordered",
+        ),
+        Index("ix_temporal_facts_season_type_valid", "season_id", "fact_type", "valid_from"),
+        Index("ix_temporal_facts_team_type_valid", "team_id", "fact_type", "valid_from"),
+        Index("ix_temporal_facts_player_type_valid", "player_id", "fact_type", "valid_from"),
+        Index("ix_temporal_facts_game_type_valid", "game_id", "fact_type", "valid_from"),
+        Index("ix_temporal_facts_available", "available_at"),
+    )
+
+    id: Mapped[UUIDType] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
+    subject_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    season_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("seasons.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    team_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    player_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("players.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    game_id: Mapped[UUIDType | None] = mapped_column(
+        ForeignKey("games.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    fact_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sources.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    valid_to: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    available_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    fact_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,
         default=dict,
