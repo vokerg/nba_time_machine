@@ -51,7 +51,7 @@ class SourceRecord(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
     adapter: Mapped[str] = mapped_column(String(96), nullable=False)
-    categories: Mapped[list[str]] = mapped_column(
+    category: Mapped[list[str]] = mapped_column(
         JSONB,
         nullable=False,
         default=list,
