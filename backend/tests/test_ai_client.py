@@ -27,13 +27,13 @@ class Summary(BaseModel):
 
 def settings(**overrides: object) -> AISettings:
     values: dict[str, object] = {
-        "AI_ENABLED": True,
-        "LLM_PROVIDER": "openai-compatible",
-        "LLM_BASE_URL": "https://provider.example",
-        "LLM_MODEL": "example-model",
-        "LLM_API_KEY": "super-secret-key",
-        "LLM_TIMEOUT_SECONDS": 5,
-        "LLM_MAX_RETRIES": 1,
+        "enabled": True,
+        "provider": "openai-compatible",
+        "base_url": "https://provider.example",
+        "model": "example-model",
+        "api_key": "super-secret-key",
+        "timeout_seconds": 5,
+        "max_retries": 1,
     }
     values.update(overrides)
     return AISettings(**values)
@@ -96,7 +96,7 @@ async def test_disabled_client_fails_before_network() -> None:
 async def test_enabled_client_requires_complete_configuration() -> None:
     http = httpx.AsyncClient(base_url="https://provider.example")
     client = OpenAICompatibleJSONClient(
-        settings(LLM_API_KEY="", LLM_MODEL=""),
+        settings(api_key="", model=""),
         http_client=http,
     )
 
