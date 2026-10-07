@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID as UUIDType
 from uuid import uuid4
@@ -300,8 +300,8 @@ class SeasonRecord(Base):
     )
     league: Mapped[str] = mapped_column(String(32), nullable=False)
     label: Mapped[str] = mapped_column(String(64), nullable=False)
-    starts_on: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
-    ends_on: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    starts_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -415,19 +415,19 @@ class SportsExternalIdentityRecord(Base):
     entity_type: Mapped[str] = mapped_column(String(16), nullable=False)
     external_id: Mapped[str] = mapped_column(String(192), nullable=False)
     season_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("seasons.id", ondelete="CASCADE"),
+        ForeignKey("seasons.id", ondelete="RESTRICT"),
         nullable=True,
     )
     team_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"),
+        ForeignKey("teams.id", ondelete="RESTRICT"),
         nullable=True,
     )
     player_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("players.id", ondelete="CASCADE"),
+        ForeignKey("players.id", ondelete="RESTRICT"),
         nullable=True,
     )
     game_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("games.id", ondelete="CASCADE"),
+        ForeignKey("games.id", ondelete="RESTRICT"),
         nullable=True,
     )
     identity_metadata: Mapped[dict[str, Any]] = mapped_column(
@@ -540,19 +540,19 @@ class TemporalFactRecord(Base):
     )
     subject_type: Mapped[str] = mapped_column(String(16), nullable=False)
     season_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("seasons.id", ondelete="CASCADE"),
+        ForeignKey("seasons.id", ondelete="RESTRICT"),
         nullable=True,
     )
     team_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("teams.id", ondelete="CASCADE"),
+        ForeignKey("teams.id", ondelete="RESTRICT"),
         nullable=True,
     )
     player_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("players.id", ondelete="CASCADE"),
+        ForeignKey("players.id", ondelete="RESTRICT"),
         nullable=True,
     )
     game_id: Mapped[UUIDType | None] = mapped_column(
-        ForeignKey("games.id", ondelete="CASCADE"),
+        ForeignKey("games.id", ondelete="RESTRICT"),
         nullable=True,
     )
     fact_type: Mapped[str] = mapped_column(String(128), nullable=False)
