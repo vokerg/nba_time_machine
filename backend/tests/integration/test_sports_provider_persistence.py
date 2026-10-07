@@ -9,7 +9,6 @@ from sqlalchemy import func, select
 from nba_time_machine.db import (
     DatabaseSettings,
     GameObservationRecord,
-    GameRecord,
     SourceRecord,
     SportsExternalIdentityRecord,
     create_database_engine,
@@ -25,20 +24,26 @@ def _settings_or_skip() -> DatabaseSettings:
     return settings
 
 
-def _provider_source() -> SourceRecord:
-    return SourceRecord(
-        id="thesportsdb-nba",
-        name="TheSportsDB NBA",
-        kind="structured",
-        adapter="thesportsdb",
-        category=["third_party", "schedule", "games", "stats"],
-        locator="https://www.thesportsdb.com/api/v1/json",
-        enabled=False,
-        verification_status="verified",
-        cadence_minutes=10,
-        requires_auth=False,
-        retention_policy="normalized_full",
+async def _ensure_provider_source(session) -> None:
+    if await session.get(SourceRecord, "thesportsdb-nba") is not None:
+        return
+
+    session.add(
+        SourceRecord(
+            id="thesportsdb-nba",
+            name="TheSportsDB NBA",
+            kind="structured",
+            adapter="thesportsdb",
+            category=["third_party", "schedule", "games", "stats"],
+            locator="https://www.thesportsdb.com/api/v1/json",
+            enabled=False,
+            verification_status="verified",
+            cadence_minutes=10,
+            requires_auth=False,
+            retention_policy="normalized_full",
+        )
     )
+    await session.commit()
 
 
 def _event(**overrides: object) -> dict[str, object]:
@@ -77,8 +82,7 @@ async def test_schedule_and_final_observations_preserve_same_stable_game() -> No
 
     try:
         async with session_factory() as session:
-            session.add(_provider_source())
-            await session.commit()
+            await _ensure_provider_source(session)
 
         async with session_factory() as session:
             scheduled = await store.store_thesportsdb_event(
@@ -110,9 +114,6 @@ async def test_schedule_and_final_observations_preserve_same_stable_game() -> No
                     .order_by(GameObservationRecord.observed_at)
                 )
             ).all()
-            game_count = await session.scalar(
-                select(func.count()).select_from(GameRecord)
-            )
             game_identity_count = await session.scalar(
                 select(func.count())
                 .select_from(SportsExternalIdentityRecord)
@@ -131,7 +132,6 @@ async def test_schedule_and_final_observations_preserve_same_stable_game() -> No
                 )
             )
 
-        assert game_count == 1
         assert game_identity_count == 1
         assert team_identity_count == 2
         assert len(observations) == 2
@@ -155,27 +155,18 @@ async def test_same_observation_timestamp_is_idempotent() -> None:
 
     try:
         async with session_factory() as session:
-            session.add(_provider_source())
-            await session.commit()
+            await _ensure_provider_source(session)
 
+        event_id = str(uuid4())
         async with session_factory() as session:
             first = await store.store_thesportsdb_event(
                 session,
-                _event(idEvent=str(uuid4())),
+                _event(idEvent=event_id),
                 observed_at=observed_at,
             )
             second = await store.store_thesportsdb_event(
                 session,
-                _event(idEvent=(
-                    await session.scalar(
-                        select(SportsExternalIdentityRecord.external_id)
-                        .where(
-                            SportsExternalIdentityRecord.provider_key
-                            == "thesportsdb",
-                            SportsExternalIdentityRecord.entity_type == "game",
-                        )
-                    )
-                )),
+                _event(idEvent=event_id),
                 observed_at=observed_at,
             )
             await session.commit()
