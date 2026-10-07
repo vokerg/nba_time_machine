@@ -47,6 +47,29 @@ def request(prompt: str = "sensitive source body") -> AIJSONRequest:
     )
 
 
+def test_load_ai_settings_reads_documented_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_ENABLED", "true")
+    monkeypatch.setenv("LLM_PROVIDER", "openai-compatible")
+    monkeypatch.setenv("LLM_BASE_URL", "https://alternate-provider.example")
+    monkeypatch.setenv("LLM_MODEL", "alternate-model")
+    monkeypatch.setenv("LLM_API_KEY", "environment-secret")
+    monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "9")
+    monkeypatch.setenv("LLM_MAX_RETRIES", "2")
+    monkeypatch.setenv("LLM_DEBUG_LOGGING", "true")
+
+    loaded = load_ai_settings()
+
+    assert loaded.enabled is True
+    assert loaded.provider == "openai-compatible"
+    assert loaded.base_url == "https://alternate-provider.example"
+    assert loaded.model == "alternate-model"
+    assert loaded.api_key is not None
+    assert loaded.api_key.get_secret_value() == "environment-secret"
+    assert loaded.timeout_seconds == 9
+    assert loaded.max_retries == 2
+    assert loaded.debug_logging is True
+
+
 @pytest.mark.asyncio
 async def test_disabled_client_fails_before_network() -> None:
     calls = 0
