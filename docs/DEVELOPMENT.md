@@ -39,6 +39,8 @@ npm run dev
 
 ## Issue-driven delivery
 
+Read `docs/IMPLEMENTATION_PHASES.md` before seeding or selecting larger work. It defines dependency order and phase exit criteria.
+
 Use the `Agent task` GitHub Issue template.
 
 An issue should be implementable without the agent inventing missing product decisions. If a decision is genuinely unresolved, create a discovery/architecture issue first.
