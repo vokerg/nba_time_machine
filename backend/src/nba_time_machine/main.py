@@ -1,6 +1,39 @@
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI
 
-app = FastAPI(title="NBA Time Machine API", version="0.1.0")
+from nba_time_machine.api import timeline_router
+from nba_time_machine.db import (
+    DatabaseSettings,
+    create_database_engine,
+    create_session_factory,
+)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = DatabaseSettings()
+    engine = None
+    app.state.session_factory = None
+
+    if settings.is_configured:
+        engine = create_database_engine(settings)
+        app.state.session_factory = create_session_factory(engine)
+
+    try:
+        yield
+    finally:
+        if engine is not None:
+            await engine.dispose()
+
+
+app = FastAPI(
+    title="NBA Time Machine API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+app.include_router(timeline_router)
 
 
 @app.get("/health")
