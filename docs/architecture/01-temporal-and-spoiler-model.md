@@ -21,6 +21,22 @@ This design deliberately separates:
 - **global timeline state** — controls what general world/media information may appear;
 - **per-game acknowledgement** — allows one sealed game to be opened without advancing the global media world.
 
+### Persistent timeline service contract
+
+MVP timeline persistence uses an opaque UUID `profile_id`. It is only a durable state key; it does not create or imply an authentication/account model.
+
+The timeline service:
+
+- initializes a profile cursor exactly once;
+- stores timezone-aware timestamps canonically in UTC;
+- resumes the last persisted cursor after process restart;
+- permits equal or later cursor updates;
+- rejects any attempt to move the cursor backward;
+- performs the monotonic comparison in the database update so concurrent requests cannot regress the cursor;
+- has no hidden game-reveal or media side effects.
+
+The timeline layer deliberately does not infer when a specific game stops needing spoiler protection. A caller supplies a defensible `protection_ends_at` boundary, derived later by the spoiler-policy/game-state layer from temporally valid game information. A game is considered past that boundary when `time_cursor >= protection_ends_at`; equality counts because information available exactly at the cursor belongs to the reconstructed world.
+
 ## Core timestamps
 
 A content item should preserve:

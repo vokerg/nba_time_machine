@@ -17,6 +17,7 @@ from .models import (
     TemporalFactRecord,
 )
 from .session import create_database_engine, create_session_factory
+from .timeline_models import TimelineStateRecord
 
 __all__ = [
     "Base",
@@ -34,6 +35,7 @@ __all__ = [
     "SportsExternalIdentityRecord",
     "TeamRecord",
     "TemporalFactRecord",
+    "TimelineStateRecord",
     "create_database_engine",
     "create_session_factory",
 ]

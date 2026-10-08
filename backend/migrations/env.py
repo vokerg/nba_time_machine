@@ -7,8 +7,8 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from nba_time_machine.db import Base
 from nba_time_machine.db.config import DatabaseSettings
-from nba_time_machine.db.models import Base
 
 config = context.config
 
