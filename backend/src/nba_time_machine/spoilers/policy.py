@@ -223,7 +223,7 @@ def _media_item_visible(item: MediaItem, cursor: datetime, games: dict[UUID, Gam
     if not item.related_game_ids:
         return False  # Classification without complete game linkage is not evidence.
     related = [games.get(game_id) for game_id in item.related_game_ids]
-    if any(game is None or _cursor(game.time_cursor) != cursor for game in related):
+    if any(game is None or _utc(game.time_cursor) != cursor for game in related):
         return False
     if item.sensitivity == MediaSensitivity.PREGAME:
         return all(
