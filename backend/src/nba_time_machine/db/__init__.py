@@ -1,5 +1,6 @@
 """Database configuration, models, and session boundaries."""
 
+from .acknowledgement_models import GameAcknowledgementRecord
 from .config import DatabaseNotConfiguredError, DatabaseSettings
 from .models import (
     Base,
@@ -24,6 +25,7 @@ __all__ = [
     "CollectionRunRecord",
     "DatabaseNotConfiguredError",
     "DatabaseSettings",
+    "GameAcknowledgementRecord",
     "GameObservationRecord",
     "GameRecord",
     "PlayerRecord",
