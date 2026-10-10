@@ -8,7 +8,7 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
-from nba_time_machine.api.game_list import get_game_list_service
+from nba_time_machine.api.game_list import game_list_response, get_game_list_service
 from nba_time_machine.main import app
 from nba_time_machine.spoilers.game_list import GameListService, nba_day_bounds
 from nba_time_machine.spoilers.policy import GameField, GameFieldName
@@ -98,7 +98,7 @@ def setup():
 @pytest.mark.asyncio
 async def test_known_pregame_games_only_and_no_hidden_field_or_order_leakage():
     service, timeline, slates, acks = setup()
-    before = await service.list_games(PROFILE, slate_date=DAY)
+    before = game_list_response(await service.list_games(PROFILE, slate_date=DAY))
     assert before.time_cursor == CURSOR
     assert slates.calls == [(DAY, CURSOR)]
     assert [c.game_id for c in before.games] == [FIRST, SECOND]  # stable UUID fallback
@@ -109,7 +109,7 @@ async def test_known_pregame_games_only_and_no_hidden_field_or_order_leakage():
         assert "home_score" not in wire and "pregame_interest" not in wire
         assert "highlight_runtime_seconds" not in wire
     acks.acknowledged.add((PROFILE, SECOND))
-    after = await service.list_games(PROFILE, slate_date=DAY)
+    after = game_list_response(await service.list_games(PROFILE, slate_date=DAY))
     assert [c.game_id for c in after.games] == [FIRST, SECOND]
     assert [c.state for c in after.games] == ["sealed", "acknowledged"]
     assert timeline.cursor == CURSOR
