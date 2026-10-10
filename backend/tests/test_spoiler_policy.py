@@ -198,3 +198,10 @@ def test_invalid_request_and_untyped_field_are_not_accidental_permissions() -> N
         project_game(context, 99, ())  # type: ignore[arg-type]
     fake = GameField("home_team", "not a trusted enum", CURSOR, CURSOR)  # type: ignore[arg-type]
     assert project_game(context, DisclosureLayer.PREGAME, (fake,)).fields == {}
+
+
+def test_ranking_invalid_numeric_signal_stably_falls_back() -> None:
+    a, b = game(), game()
+    bad = project_game(a, DisclosureLayer.PREGAME, (field(GameFieldName.PREGAME_INTEREST, 10**500),))
+    missing = project_game(b, DisclosureLayer.PREGAME, ())
+    assert [c.game_id for c in order_game_cards((bad, missing))] == sorted([a.game_id, b.game_id], key=str)
