@@ -170,6 +170,41 @@ def test_media_pregame_and_indirect_image_runtime_spoilers() -> None:
     assert not project_general_media((media,), time_cursor=CURSOR, games={})
 
 
+
+def test_pregame_media_post_tip_edits_do_not_leak_a_sealed_result() -> None:
+    # The original preview was published pre-tip, but its fields were edited
+    # after tipoff and before the cursor while the game remained sealed.
+    later_cursor = TIP + timedelta(minutes=30)
+    context = game(cursor=later_cursor)
+    early = CURSOR - timedelta(hours=1)
+    edit = TIP + timedelta(minutes=10)
+    preview = item(
+        "edited-preview", MediaSensitivity.PREGAME,
+        frozenset({context.game_id}), early,
+        media_field(MediaFieldName.HEADLINE, "Pregame preview", early),
+        media_field(MediaFieldName.EXCERPT, "Pregame analysis", early),
+        media_field(MediaFieldName.THUMBNAIL_URL, "winning-shot.png", edit),
+        media_field(MediaFieldName.RUNTIME_SECONDS, 3600, edit),
+    )
+    visible = project_general_media(
+        (preview,), time_cursor=later_cursor, games={context.game_id: context},
+    )
+    assert [row.item_id for row in visible] == ["edited-preview"]
+    assert visible[0].fields == {
+        "headline": "Pregame preview", "excerpt": "Pregame analysis",
+    }
+
+    # A post-tip headline edit is unsafe even if the parent item's original
+    # published time is still pregame. No safe headline means omit the item.
+    edited_headline = replace(
+        preview, fields=(media_field(MediaFieldName.HEADLINE, "Home wins", edit),),
+    )
+    assert project_general_media(
+        (edited_headline,), time_cursor=later_cursor, games={context.game_id: context},
+    ) == ()
+
+
+
 def test_ai_context_and_card_order_consume_only_safe_projections() -> None:
     a, b = game(), game()
     a_card = project_game(a, DisclosureLayer.PREGAME, (
