@@ -261,7 +261,10 @@ flag. These inputs must come from trusted server repositories.
   calls are idempotent. No `watched` field is stored.
 - The cursor reaching an observed final protection boundary unseals a game
   without writing an acknowledgement. A missing or invalid boundary never
-  unseals from an inferred scheduled end; equality counts.
+  unseals from an inferred scheduled end; equality counts. A passive FULL
+  read of a timeline-unsealed game still omits fields first known after the
+  cursor; a deliberate POST reveal may authorize those game-specific updates
+  and persist the explicit acknowledgement.
 - Media remains governed by the global cursor. `general_media` still calls
   `project_general_media` after loading linked game state, and even an
   acknowledged game cannot make post-cursor general articles appear.
