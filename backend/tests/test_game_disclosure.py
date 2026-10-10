@@ -139,7 +139,7 @@ async def test_timeline_boundary_unseals_without_writing_fake_acknowledgement() 
     assert (await service.disclose(profile, GAME_ID, DisclosureLayer.PREGAME)).state == "acknowledged"
     assert (await service.disclose(profile, GAME_ID, DisclosureLayer.FULL)).projection.fields["home_score"] == 110
     await service.reveal_full(profile, GAME_ID)
-    assert not acks.rows
+    assert acks.rows == {(profile, GAME_ID)}  # Only the explicit POST writes a record.
 
     protected, late_clock, late_acks = setup(boundary=None)
     late_clock.cursor = FINAL + timedelta(days=4)
@@ -174,6 +174,31 @@ async def test_unknown_games_fail_closed() -> None:
     with pytest.raises(GameNotFoundError):
         await service.disclose(uuid4(), uuid4(), DisclosureLayer.PREGAME)
 
+
+
+@pytest.mark.asyncio
+async def test_timeline_unsealing_does_not_leak_future_score_corrections() -> None:
+    clock = FakeTimeline(cursor=FINAL)
+    acks = FakeAcks()
+    future_correction = fact(
+        GameFieldName.HOME_SCORE, 120, FINAL + timedelta(days=1),
+    )
+    original = snapshot()
+    corrected = TrustedGameSnapshot(
+        GAME_ID, TIP, FINAL,
+        tuple(f for f in original.fields if f.name is not GameFieldName.HOME_SCORE)
+        + (future_correction,),
+        full_available=True,
+    )
+    service = GameDisclosureService(clock, FakeGames(corrected), acks)
+    profile = uuid4()
+    passive = await service.disclose(profile, GAME_ID, DisclosureLayer.FULL)
+    assert "home_score" not in passive.projection.fields
+    assert acks.rows == set()
+    explicit = await service.reveal_full(profile, GAME_ID)
+    assert explicit.projection.fields["home_score"] == 120
+    assert acks.rows == {(profile, GAME_ID)}
+    assert (await service.disclose(profile, GAME_ID, DisclosureLayer.FULL)).projection.fields["home_score"] == 120
 
 def test_api_requires_explicit_post_for_full_result_and_exposes_sparse_models() -> None:
     service, _, _ = setup()
