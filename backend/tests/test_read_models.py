@@ -186,3 +186,18 @@ def test_composable_game_list_and_cursor_serialization() -> None:
     assert payload["games"][0]["game_id"] == str(GAME_ID)
     with pytest.raises(ValidationError, match="timezone-aware"):
         GameListResponse(time_cursor=datetime(2026, 10, 8, 19), games=(card,))
+
+
+def test_checked_in_frontend_fixture_is_generated_from_contracts() -> None:
+    from pathlib import Path
+    from runpy import run_path
+
+    backend = Path(__file__).resolve().parents[1]
+    generated = run_path(str(backend / "scripts/export_read_model_fixtures.py"))[
+        "make_fixture_payloads"
+    ]()
+    checked_in = json.loads(
+        (backend.parent / "frontend/src/fixtures/read-models.json").read_text()
+    )
+    assert generated == checked_in
+    assert "Postgame spoiler" not in json.dumps(generated)
