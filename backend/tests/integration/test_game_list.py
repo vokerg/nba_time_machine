@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from nba_time_machine.api.game_list import game_list_response
 from nba_time_machine.db import (
     DatabaseSettings, GameObservationRecord, GameRecord, SeasonRecord,
     SourceRecord, TeamRecord, create_database_engine, create_session_factory,
@@ -46,7 +47,7 @@ async def test_game_list_uses_pre_tip_asof_snapshot_not_later_outcomes():
     try:
         async with factory() as session:
             session.add_all([
-                SeasonRecord(id=season, league="NBA", label="test-list"),
+                SeasonRecord(id=season, league="NBA", label=f"test-list-{season}"),
                 TeamRecord(id=home, league="NBA", name="Home"),
                 TeamRecord(id=away, league="NBA", name="Away"),
                 SourceRecord(
@@ -90,7 +91,7 @@ async def test_game_list_uses_pre_tip_asof_snapshot_not_later_outcomes():
             acks = SqlAlchemyGameAcknowledgementRepository(session)
             listing = GameListService(clock, slates, reader, acks)
             disclosure = GameDisclosureService(clock, reader, acks)
-            before = await listing.list_games(profile, slate_date=date(2026, 10, 8))
+            before = game_list_response(await listing.list_games(profile, slate_date=date(2026, 10, 8)))
             assert [card.game_id for card in before.games] == [first]
             assert before.games[0].state == "sealed"
             assert before.games[0].home_team == "Home"
@@ -100,15 +101,15 @@ async def test_game_list_uses_pre_tip_asof_snapshot_not_later_outcomes():
                 slate_date=date(2026, 10, 8), time_cursor=CURSOR,
             )
             # Changes in a pre-tip schedule are observed as of the cursor.
-            next_day = await listing.list_games(profile, slate_date=date(2026, 10, 9))
+            next_day = game_list_response(await listing.list_games(profile, slate_date=date(2026, 10, 9)))
             assert [card.game_id for card in next_day.games] == [moved]
 
             await disclosure.reveal_full(profile, first)
-            after = await listing.list_games(profile, slate_date=date(2026, 10, 8))
+            after = game_list_response(await listing.list_games(profile, slate_date=date(2026, 10, 8)))
             assert [card.game_id for card in after.games] == [first]
             assert after.games[0].state == "acknowledged"
             assert after.time_cursor == before.time_cursor == CURSOR
-            assert (await listing.list_games(other, slate_date=date(2026, 10, 8))).games[0].state == "sealed"
+            assert game_list_response(await listing.list_games(other, slate_date=date(2026, 10, 8))).games[0].state == "sealed"
             assert (await clock.resume(profile)).time_cursor == CURSOR
             assert not await acks.is_acknowledged(other, first)
     finally:
