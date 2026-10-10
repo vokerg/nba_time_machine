@@ -111,7 +111,9 @@ class GameDisclosureService:
                 part for part in fields
                 if part.available_at is not None and part.observed_at is not None
                 and part.available_at.tzinfo is not None
+                and part.available_at.utcoffset() is not None
                 and part.observed_at.tzinfo is not None
+                and part.observed_at.utcoffset() is not None
                 and part.available_at <= timeline.time_cursor
                 and part.observed_at <= timeline.time_cursor
             )
@@ -124,7 +126,7 @@ class GameDisclosureService:
     async def reveal_full(self, profile_id: UUID, game_id: UUID) -> DisclosedGame:
         timeline = await self._timeline.resume(profile_id)
         context, snapshot = await self._context(profile_id, game_id, timeline)
-        if not game_is_unsealed(context) and not snapshot.full_available:
+        if not snapshot.full_available and not context.acknowledged:
             raise GameResultNotAvailableError(
                 "trusted final result is not available for this game"
             )
