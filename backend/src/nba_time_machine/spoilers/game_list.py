@@ -6,6 +6,7 @@ persisted time cursor. Current/final game rows are never used to select a slate.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Protocol
 from uuid import UUID
@@ -14,13 +15,12 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from nba_time_machine.api.read_models import GameListResponse, game_card_from_projection
 from nba_time_machine.db import GameObservationRecord, GameRecord, SeasonRecord
 from nba_time_machine.spoilers.policy import (
     DisclosureLayer, GameContext, game_is_unsealed, order_game_cards, project_game,
 )
 from nba_time_machine.spoilers.service import (
-    GameAcknowledgementRepository, GameSnapshotRepository, TrustedGameSnapshot,
+    DisclosedGame, GameAcknowledgementRepository, GameSnapshotRepository, TrustedGameSnapshot,
 )
 from nba_time_machine.temporal.timeline import TimelineService
 
@@ -32,6 +32,14 @@ def nba_day_bounds(day: date) -> tuple[datetime, datetime]:
     start = datetime.combine(day, time.min, tzinfo=_NBA_CLOCK)
     end = datetime.combine(day + timedelta(days=1), time.min, tzinfo=_NBA_CLOCK)
     return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+
+
+@dataclass(frozen=True, slots=True)
+class SafeGameList:
+    """Policy-only result. HTTP conversion belongs to the API boundary."""
+
+    time_cursor: datetime
+    games: tuple[DisclosedGame, ...]
 
 
 class GameSlateRepository(Protocol):
@@ -105,7 +113,7 @@ class GameListService:
         self._games = games
         self._acknowledgements = acknowledgements
 
-    async def list_games(self, profile_id: UUID, *, slate_date: date) -> GameListResponse:
+    async def list_games(self, profile_id: UUID, *, slate_date: date) -> SafeGameList:
         timeline = await self._timeline.resume(profile_id)
         cursor = timeline.time_cursor
         candidates = await self._slates.game_ids_on_date(
@@ -145,10 +153,10 @@ class GameListService:
             projections.append(projection)
             states[game_id] = "acknowledged" if game_is_unsealed(context) else "sealed"
         ordered = order_game_cards(tuple(projections))
-        return GameListResponse(
+        return SafeGameList(
             time_cursor=cursor,
             games=tuple(
-                game_card_from_projection(projection, state=states[projection.game_id])
+                DisclosedGame(state=states[projection.game_id], projection=projection)
                 for projection in ordered
             ),
         )
