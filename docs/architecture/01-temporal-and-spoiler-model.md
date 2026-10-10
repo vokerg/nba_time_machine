@@ -135,3 +135,62 @@ No model is asked to "remove spoilers" from forbidden content.
 Forbidden content never enters the prompt.
 
 This invariant should have regression tests using deliberately spoiler-heavy fixtures.
+
+
+## Pure spoiler-policy kernel (issue #7)
+
+The backend `nba_time_machine.spoilers` package is the deterministic, in-memory
+filter. The API/read models and persistence services integrate this boundary in
+separate issues (#15 and #14). Neither the collector nor the AI client authorizes
+information disclosure.
+
+**Caller contract**
+
+- Construct `GameContext` using the persisted global `time_cursor`, trusted
+  `acknowledged` state, a timezone-aware `tip_at`, and a conservatively derived
+  `protection_ends_at`. The boundary is a caller-supplied observation-based
+  timestamp, not guessed from a scheduled end or current score.
+- Supply individual `GameField` values with trusted, explicit field kinds,
+  `available_at` and `observed_at` provenance. A pregame field requires
+  both timestamps no later than the cursor and `available_at < tip_at`.
+  This initial contract conservatively hides historically backfilled facts that
+  were first observed after the cursor, even if they appear to have been
+  published earlier.
+- Call `project_game` with the exact requested `DisclosureLayer`. A sealed
+  game's full projection additionally needs `explicit_full_reveal=True`;
+  only #14 may convert that explicit action into a durable acknowledgement.
+  Opt-in watchability and why require separate disclosure requests. A numeric
+  postgame-quality score is intentionally not a projected field.
+- Construct `MediaItem` with complete game linkage and a trusted classification:
+  `GENERAL` for unlinked world news, `PREGAME` for pre-tip game-linked items,
+  or `OUTCOME_DEPENDENT` for a fully linked downstream item. Unknown classifications,
+  missing linked-game state, ambiguous timestamps or mixed sealed-game outcomes
+  hide the **entire item**. Every media field, including thumbnails and runtime,
+  must independently pass the global timestamp check.
+- Only pass `GameProjection`/`MediaProjection` into
+  `build_safe_ai_context`. Do not forward raw provider observations, source
+  capture text, extra metadata, or unrestricted headlines to models or the UI.
+  `order_game_cards` accepts projections and sorts using only the admitted
+  pregame-interest signal with a stable game-ID fallback; favorite teams and
+  hidden postgame scores are not inputs.
+
+**Trust and implementation boundary**
+
+These are pure policy functions, not a complete ingest classifier or enforcement
+gateway. The upstream read-model adapter must establish valid provenance,
+complete cross-game linkage, trusted sensitivity classification, and canonical
+as-of values. Untrusted source claims and AI output must **never** create these
+trusted assertions directly. A later API service must authorize explicit reveal
+requests, persist acknowledgements, and return only the safe projections.
+
+Game acknowledgement permits game-specific downstream facts but **never**
+relaxes the global `time_cursor` for general media. The conservative kernel
+does not redact mixed articles; it omits them rather than guessing which
+phrases could reveal still-sealed games.
+
+**Test scope**
+
+`backend/tests/test_spoiler_policy.py` exercises late standings/observations,
+in-game and final fields, hints versus scores, boundary inclusivity,
+ambiguous/naive timestamps, cross-game contamination, updated headlines,
+post-cursor thumbnails and runtimes, ranking order, and AI projection inputs.
