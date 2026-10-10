@@ -36,6 +36,7 @@ async def test_game_list_uses_pre_tip_asof_snapshot_not_later_outcomes():
     first, moved, backfill, finalized_only = (uuid4() for _ in range(4))
     season, home, away = uuid4(), uuid4(), uuid4()
     source = f"list-fixture-{uuid4()}"
+    fixture_ids = {first, moved, backfill, finalized_only}
 
     def observation(game_id, when, tip, status="scheduled", **kwargs):
         return GameObservationRecord(
@@ -92,24 +93,29 @@ async def test_game_list_uses_pre_tip_asof_snapshot_not_later_outcomes():
             listing = GameListService(clock, slates, reader, acks)
             disclosure = GameDisclosureService(clock, reader, acks)
             before = game_list_response(await listing.list_games(profile, slate_date=date(2026, 10, 8)))
-            assert [card.game_id for card in before.games] == [first]
-            assert before.games[0].state == "sealed"
-            assert before.games[0].home_team == "Home"
-            assert before.games[0].scheduled_tip == TIP.isoformat()
+            # CI's PostgreSQL database is shared with other integration tests.
+            # Assert only our newly seeded identities, not every NBA game that
+            # may have been legitimately observed on the same historical day.
+            assert [card.game_id for card in before.games if card.game_id in fixture_ids] == [first]
+            first_card = next(card for card in before.games if card.game_id == first)
+            assert first_card.state == "sealed"
+            assert first_card.home_team == "Home"
+            assert first_card.scheduled_tip == TIP.isoformat()
             assert "home_score" not in before.model_dump_json()
             assert backfill not in await slates.game_ids_on_date(
                 slate_date=date(2026, 10, 8), time_cursor=CURSOR,
             )
             # Changes in a pre-tip schedule are observed as of the cursor.
             next_day = game_list_response(await listing.list_games(profile, slate_date=date(2026, 10, 9)))
-            assert [card.game_id for card in next_day.games] == [moved]
+            assert [card.game_id for card in next_day.games if card.game_id in fixture_ids] == [moved]
 
             await disclosure.reveal_full(profile, first)
             after = game_list_response(await listing.list_games(profile, slate_date=date(2026, 10, 8)))
-            assert [card.game_id for card in after.games] == [first]
-            assert after.games[0].state == "acknowledged"
+            assert [card.game_id for card in after.games if card.game_id in fixture_ids] == [first]
+            assert next(card for card in after.games if card.game_id == first).state == "acknowledged"
             assert after.time_cursor == before.time_cursor == CURSOR
-            assert game_list_response(await listing.list_games(other, slate_date=date(2026, 10, 8))).games[0].state == "sealed"
+            other_cards = game_list_response(await listing.list_games(other, slate_date=date(2026, 10, 8))).games
+            assert next(card for card in other_cards if card.game_id == first).state == "sealed"
             assert (await clock.resume(profile)).time_cursor == CURSOR
             assert not await acks.is_acknowledged(other, first)
     finally:
