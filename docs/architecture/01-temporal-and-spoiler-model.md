@@ -286,3 +286,40 @@ future adapters, but source backfill must not silently become pre-tip truth.
 The game-specific endpoints currently expose only available structured
 facts. The postgame watchability classifier/labels belong to #10, and
 general feed endpoint wiring remains a later dashboard integration task.
+
+
+## Trusted historical game-list composition (issue #28)
+
+`GET /profiles/{profile_id}/games?date=YYYY-MM-DD` returns the existing strict
+`GameListResponse` shape: the **persisted** UTC `time_cursor` and safe pregame
+cards with real canonical game UUIDs. `date` is required and is an NBA/Eastern
+(`America/New_York`) calendar date, not the requester's local date nor a
+24-hour interval assumed in UTC. Separate Eastern midnights handle DST.
+
+Membership and schedule use **only** observations with both `available_at`
+and `observed_at` no later than the persisted cursor and strictly before the
+observation's `scheduled_tip_at`. Per game, select the latest such observation
+(by observation time and stable UUID tie-break) **before** testing its
+scheduled state and whether its scheduled tip lies within the requested day.
+A changed date, known cancellation or later correction cannot leak into an
+earlier cursor, and a game does not appear twice on both its old and new slate.
+Finals, final-result counts, real-world status, acknowledgment and favorite
+teams do not participate in selection or canonical card order.
+
+For each selected UUID, the trusted snapshot reader supplies fields and temporal
+provenance; the service creates a server-side `GameContext` from persisted
+cursor and per-game acknowledgement, runs `project_game(PREGAME)`, then
+`order_game_cards` and `game_card_from_projection`. Missing pregame team
+identity/tip, conflicting as-of date, no historically observed pregame state
+or an uninitialized profile fail closed. Unknown/uninitialized profiles return
+404; an unconfigured database returns 503. An empty slate can mean **missing
+historical coverage**, not proof that no NBA games occurred. There is no fake
+game-count or guessed tip/protection-end time.
+
+Explicit `POST .../{game_id}/reveal` only changes that game's stored
+acknowledgement; the list's membership, order and global cursor remain
+unchanged. Actual observation ingestion/Neon provisioning and frontend live
+wiring remain separate tasks. Unit tests cover route validation, layer
+exclusion, acknowledgement isolation and ET/DST dates; PostgreSQL integration
+tests cover latest as-of selection, rescheduling, future backfill and stable
+canonical identity.
