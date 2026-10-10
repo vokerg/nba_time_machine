@@ -275,9 +275,15 @@ def order_game_cards(cards: tuple[GameProjection, ...]) -> tuple[GameProjection,
     """Use safe pregame signal, never hidden postgame scores or favorite teams."""
     def key(card: GameProjection) -> tuple[int, float, str]:
         score = card.fields.get(GameFieldName.PREGAME_INTEREST.value)
-        if type(score) not in (int, float) or not isfinite(score):
+        if type(score) not in (int, float):
             return (1, 0.0, str(card.game_id))
-        return (0, -float(score), str(card.game_id))
+        try:
+            numeric = float(score)
+        except (ValueError, OverflowError):
+            return (1, 0.0, str(card.game_id))
+        if not isfinite(numeric):
+            return (1, 0.0, str(card.game_id))
+        return (0, -numeric, str(card.game_id))
 
     return tuple(sorted(cards, key=key))
 
