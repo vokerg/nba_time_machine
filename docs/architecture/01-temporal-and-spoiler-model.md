@@ -238,3 +238,48 @@ The script exercises the real spoiler policy before serializing synthetic
 pregame/verdict/reason/full/media fixtures. The deliberately post-cursor media
 item must not enter the global feed. The fixture is demonstration data, not
 evidence of a live data provider.
+
+## Trusted game disclosure service (issue #14)
+
+The `GameDisclosureService` owns the application-level transition from a
+sealed game to an explicitly acknowledged one. It takes the persisted profile
+cursor from `TimelineService`, a server-side `TrustedGameSnapshot` and a
+profile/game acknowledgement record. No HTTP request accepts raw game facts,
+arbitrary provenance, an `acknowledged` flag, or an `explicit_full_reveal`
+flag. These inputs must come from trusted server repositories.
+
+- `GET /profiles/{profile_id}/games/{game_id}/pregame` exposes only the
+  policy PREGAME projection, regardless of acknowledgement state.
+- `GET .../watchability` and `GET .../why` explicitly request separate
+  disclosure layers without persisting an acknowledgement. Unavailable
+  verdicts/reasons are omitted, never invented from a final score.
+- `GET .../full` works only when the game is already unsealed.
+  For a sealed game it returns HTTP 409 and does not change state.
+- `POST .../reveal` is the deliberate full reveal. For a still-sealed game,
+  it requires a trusted final observation with both scores, persists one
+  acknowledgement per `(profile_id, game_id)`, then projects FULL. Repeated
+  calls are idempotent. No `watched` field is stored.
+- The cursor reaching an observed final protection boundary unseals a game
+  without writing an acknowledgement. A missing or invalid boundary never
+  unseals from an inferred scheduled end; equality counts.
+- Media remains governed by the global cursor. `general_media` still calls
+  `project_general_media` after loading linked game state, and even an
+  acknowledged game cannot make post-cursor general articles appear.
+
+The `game_acknowledgements` table has a composite profile/game primary
+key, FK references to the timeline profile and canonical game, and a
+server-generated acknowledgement timestamp. PostgreSQL `ON CONFLICT DO
+NOTHING` makes concurrent repeat reveals idempotent. Acknowledgement writes
+never update `timeline_states`.
+
+The initial `SqlAlchemyGameSnapshotRepository` is conservative: it uses a
+historical observation made *before tip* for pregame identity/tip fields.
+It derives a protection boundary only from a recorded final observation
+and uses the later of observed, available and explicit final timestamps.
+Postgame score fields retain the final observation's availability and
+observation timestamps. More kinds of historical fields can be added by
+future adapters, but source backfill must not silently become pre-tip truth.
+
+The game-specific endpoints currently expose only available structured
+facts. The postgame watchability classifier/labels belong to #10, and
+general feed endpoint wiring remains a later dashboard integration task.
