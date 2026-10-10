@@ -197,3 +197,44 @@ phrases could reveal still-sealed games.
 in-game and final fields, hints versus scores, boundary inclusivity,
 ambiguous/naive timestamps, cross-game contamination, updated headlines,
 post-cursor thumbnails and runtimes, ranking order, and AI projection inputs.
+
+
+## Strict HTTP read-model boundary (issue #15)
+
+`nba_time_machine.api.read_models` translates **only** pure policy projections
+into Pydantic response schemas. Converters require the exact disclosure layer,
+reject unrecognized fields, and reject direct source/provider records. This is
+serialization, not authorization: callers must first establish a trusted
+`GameContext` and run `project_game` or `project_general_media`.
+
+- `GameCardResponse` and `PregameDetailResponse` accept PREGAME projections
+  only. Cards can include pre-tip interest but never a result, score, runtime,
+  highlight image, or postgame watchability.
+- `WatchabilityResponse` and `WatchabilityReasonResponse` are separate
+  requested layers, with coarse text and optional text reason. Neither can
+  contain a numeric postgame quality signal or full game result.
+- `FullGameResponse` requires a policy FULL projection; the policy produces
+  one only for an unsealed game or an authorized explicit full reveal.
+- `MediaFeedItemResponse` is built from `project_general_media`, which
+  checks the global cursor independently of single-game acknowledgement.
+  `MediaFeedResponse` and `GameListResponse` can serve as composable
+  dashboard endpoints once the service routes exist.
+- Missing optional fields are omitted entirely from JSON, not emitted as
+  `null`. Schemas reject unexpected fields (`extra="forbid"`). HTTP
+  routes must use these typed models instead of unfiltered ORM/AI/raw data.
+  `scheduled_tip` is currently an ISO-8601 string emitted by the policy
+  scalar boundary; no inferred tip times are introduced by the serializer.
+- Card `state` is caller-supplied and **must** be derived by the trusted
+  #14 game-state service, not a client request. This issue intentionally
+  does not introduce database endpoints or durable acknowledgement.
+
+For frontend fixture refresh, from `backend/` run:
+
+```bash
+PYTHONPATH=src python scripts/export_read_model_fixtures.py
+```
+
+The script exercises the real spoiler policy before serializing synthetic
+pregame/verdict/reason/full/media fixtures. The deliberately post-cursor media
+item must not enter the global feed. The fixture is demonstration data, not
+evidence of a live data provider.
