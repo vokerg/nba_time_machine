@@ -103,7 +103,19 @@ class GameDisclosureService:
         unsealed = game_is_unsealed(context)
         if layer is DisclosureLayer.FULL and not unsealed:
             raise SealedGameError("full result requires an explicit reveal")
-        projection = project_game(context, layer, snapshot.fields)
+        fields = snapshot.fields
+        if layer is DisclosureLayer.FULL and not context.acknowledged:
+            # Timeline-derived unsealing accepts only information available by
+            # that cursor. Later score corrections need an explicit reveal.
+            fields = tuple(
+                part for part in fields
+                if part.available_at is not None and part.observed_at is not None
+                and part.available_at.tzinfo is not None
+                and part.observed_at.tzinfo is not None
+                and part.available_at <= timeline.time_cursor
+                and part.observed_at <= timeline.time_cursor
+            )
+        projection = project_game(context, layer, fields)
         return DisclosedGame(
             state="acknowledged" if unsealed else "sealed",
             projection=projection,
@@ -112,14 +124,16 @@ class GameDisclosureService:
     async def reveal_full(self, profile_id: UUID, game_id: UUID) -> DisclosedGame:
         timeline = await self._timeline.resume(profile_id)
         context, snapshot = await self._context(profile_id, game_id, timeline)
-        if not game_is_unsealed(context):
-            if not snapshot.full_available:
-                raise GameResultNotAvailableError(
-                    "trusted final result is not available for this game"
-                )
+        if not game_is_unsealed(context) and not snapshot.full_available:
+            raise GameResultNotAvailableError(
+                "trusted final result is not available for this game"
+            )
+        if not context.acknowledged and snapshot.full_available:
+            # An explicit command is an actual acknowledgement, regardless
+            # of whether the timeline had already unsealed the game.
             await self._acknowledgements.acknowledge(profile_id, game_id)
             context = replace(context, acknowledged=True, explicit_full_reveal=True)
-        # Games unsealed by timeline advancement do not get fake watched/reveal rows.
+        # Cursor advancement and ordinary GETs never write a reveal record.
         return DisclosedGame(
             state="acknowledged",
             projection=project_game(context, DisclosureLayer.FULL, snapshot.fields),
