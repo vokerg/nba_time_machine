@@ -205,3 +205,10 @@ def test_ranking_invalid_numeric_signal_stably_falls_back() -> None:
     bad = project_game(a, DisclosureLayer.PREGAME, (field(GameFieldName.PREGAME_INTEREST, 10**500),))
     missing = project_game(b, DisclosureLayer.PREGAME, ())
     assert [c.game_id for c in order_game_cards((bad, missing))] == sorted([a.game_id, b.game_id], key=str)
+
+
+def test_bad_related_game_timestamp_hides_media_without_crashing() -> None:
+    a = game()
+    preview = item("preview", MediaSensitivity.PREGAME, frozenset({a.game_id}), CURSOR, media_field(MediaFieldName.HEADLINE, "Safe preview"))
+    inconsistent = replace(a, time_cursor=datetime(2026, 10, 8, 19))
+    assert project_general_media((preview,), time_cursor=CURSOR, games={a.game_id: inconsistent}) == ()
