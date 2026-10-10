@@ -258,6 +258,17 @@ def project_general_media(
                 continue
             if not _known_by(part.available_at, part.observed_at, cursor):
                 continue
+            if item.sensitivity is MediaSensitivity.PREGAME:
+                # A pregame item may be edited after tipoff. Gate every field
+                # against all linked tips, not just the original item timestamp.
+                available = _utc(part.available_at)
+                if any(
+                    (tip := _utc(games[game_id].tip_at)) is None
+                    or available is None
+                    or available >= tip
+                    for game_id in item.related_game_ids
+                ):
+                    continue
             name = part.name.value
             if name in safe:
                 duplicates.add(name)
