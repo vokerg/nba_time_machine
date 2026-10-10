@@ -127,6 +127,11 @@ async def test_future_unresolved_game_is_not_preacknowledged() -> None:
     with pytest.raises(GameResultNotAvailableError):
         await service.reveal_full(uuid4(), GAME_ID)
     assert not acks.rows
+    # A derived unsealed state is not proof that a usable score exists.
+    service._timeline.cursor = FINAL
+    with pytest.raises(GameResultNotAvailableError):
+        await service.reveal_full(uuid4(), GAME_ID)
+    assert not acks.rows
 
 
 @pytest.mark.asyncio
