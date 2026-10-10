@@ -166,7 +166,10 @@ information disclosure.
   or `OUTCOME_DEPENDENT` for a fully linked downstream item. Unknown classifications,
   missing linked-game state, ambiguous timestamps or mixed sealed-game outcomes
   hide the **entire item**. Every media field, including thumbnails and runtime,
-  must independently pass the global timestamp check.
+  must independently pass the global timestamp check. For a `PREGAME`
+  media item, each exposed field must also be available before every linked
+  game's tipoff: a post-tip edit to an old preview's headline, thumbnail, or
+  runtime is not pregame-safe even when it precedes the current cursor.
 - Only pass `GameProjection`/`MediaProjection` into
   `build_safe_ai_context`. Do not forward raw provider observations, source
   capture text, extra metadata, or unrestricted headlines to models or the UI.
