@@ -24,9 +24,12 @@ def _score_from_row(row: RecommendationScoreRecord) -> VersionedScore | None:
         parts = tuple(
             ScoreComponent(
                 signal=raw["signal"],
-                normalized_value=float(raw["normalized_value"]),
-                weight=int(raw["weight"]),
-                weighted_contribution=float(raw["weighted_contribution"]),
+                # Preserve JSON number types for the shared evidence check.
+                # Coercing here turns malformed booleans, strings and fractional
+                # weights into apparently valid archived ranking evidence.
+                normalized_value=raw["normalized_value"],
+                weight=raw["weight"],
+                weighted_contribution=raw["weighted_contribution"],
                 source_ref=raw["source_ref"],
                 available_at=datetime.fromisoformat(raw["available_at"]),
                 observed_at=datetime.fromisoformat(raw["observed_at"]),
