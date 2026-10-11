@@ -15,7 +15,7 @@ from xml.etree import ElementTree as ET
 
 import httpx
 
-from nba_time_machine.ingestion.contracts import RawCapture, SourceDefinition
+from nba_time_machine.ingestion.contracts import RawCapture, SourceDefinition, VerificationStatus
 
 MAX_BYTES = 512_000
 MAX_ITEMS = 50
@@ -46,10 +46,14 @@ def canonical_url(value: str | None) -> str | None:
         return None
     try:
         parts = urlsplit(value.strip())
-        host = (parts.hostname or "").lower()
+        host = (parts.hostname or "").lower().rstrip(".")
         if parts.scheme not in {"https", "http"} or not host or parts.username:
             return None
         if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
+            return None
+        # System resolvers may interpret numeric aliases (127.1, 0177.0.0.1,
+        # 0x7f000001 or 2130706433) as loopback even if ipaddress does not.
+        if re.fullmatch(r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host):
             return None
         try:
             address = ipaddress.ip_address(host)
@@ -292,6 +296,10 @@ async def collect_source(
     source: SourceDefinition, client: httpx.AsyncClient, now: datetime
 ) -> AdapterResult:
     """Fetch exactly one configured URL; only reviewed sources are eligible."""
+    # Keep the network gate at the adapter boundary as well as the scheduler:
+    # direct/manual callers must never bypass source review or disablement.
+    if not source.enabled or source.verification_status != VerificationStatus.VERIFIED:
+        raise CollectionFailure("skipped_config", "not_verified_or_enabled")
     if source.adapter not in SUPPORTED_ADAPTERS:
         raise CollectionFailure("skipped_config", "unsupported_adapter")
     if source.requires_auth:
