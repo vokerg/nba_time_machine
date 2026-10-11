@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nba_time_machine.db.ranking_models import RecommendationScoreRecord
-from nba_time_machine.ranking.scoring import VersionedScore
+from nba_time_machine.ranking.scoring import VersionedScore, score_evidence_is_consistent
 
 
 def _components(score: VersionedScore) -> list[dict[str, object]]:
