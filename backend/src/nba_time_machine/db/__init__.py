@@ -17,6 +17,7 @@ from .models import (
     TeamRecord,
     TemporalFactRecord,
 )
+from .ranking_models import RecommendationScoreRecord
 from .session import create_database_engine, create_session_factory
 from .timeline_models import TimelineStateRecord
 
@@ -30,6 +31,7 @@ __all__ = [
     "GameRecord",
     "PlayerRecord",
     "RawCaptureRecord",
+    "RecommendationScoreRecord",
     "SeasonRecord",
     "SourceItemRecord",
     "SourceOutcomeRecord",
