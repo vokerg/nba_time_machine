@@ -107,3 +107,19 @@ Seed validation can be run offline with
 The regression test `test_official_team_site_seed_covers_every_nba_team`
 protects the 30 canonical identity mappings, uniqueness, conservative policy
 and disabled/unverified state. Full #9 source verification remains open.
+
+## Targeted feed-access follow-up (2026-10-11)
+
+A historical [Celtics RSS announcement](https://www.nba.com/celtics/news/rss-news-feedhtml)
+linked `https://www.nba.com/celtics/rss.xml`, but checking that URL now
+redirects to the generic NBA homepage rather than exposing an XML feed.
+The currently linked [Celtics news page](https://www.nba.com/celtics/news)
+returns only an iframe/JavaScript shell to the text-based web reader.
+Neither endpoint qualifies as a team-news collector; `nba-team-bos-site`
+stays **disabled and unverified**. This is a negative access observation, not
+proof that no other official Celtics feed exists.
+
+A separate league-wide RSS candidate was found on NBA Communications. It
+must **not** be mistaken for a team-specific source or count toward the
+0/30 verified team collectors. See [SOURCE_FEED_ACCESS.md](SOURCE_FEED_ACCESS.md)
+for the response observation, robots/terms restrictions and exact next probe.
