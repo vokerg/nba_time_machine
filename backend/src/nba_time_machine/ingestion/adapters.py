@@ -15,7 +15,7 @@ from xml.etree import ElementTree as ET
 
 import httpx
 
-from nba_time_machine.ingestion.contracts import RawCapture, SourceDefinition
+from nba_time_machine.ingestion.contracts import RawCapture, SourceDefinition, VerificationStatus
 
 MAX_BYTES = 512_000
 MAX_ITEMS = 50
@@ -46,8 +46,8 @@ def canonical_url(value: str | None) -> str | None:
         return None
     try:
         parts = urlsplit(value.strip())
-        host = (parts.hostname or "").lower()
-        if parts.scheme not in {"https", "http"} or not host or parts.username:
+        host = (parts.hostname or "").lower().rstrip(".")
+        if parts.scheme not in {"https", "http"} or not host or parts.username is not None or parts.password is not None:
             return None
         if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
             return None
@@ -56,7 +56,11 @@ def canonical_url(value: str | None) -> str | None:
             if not address.is_global:
                 return None
         except ValueError:
-            pass
+            # System resolvers may interpret non-canonical numeric aliases
+            # (127.1, 0177.0.0.1, 0x7f000001, 2130706433) as loopback.
+            # Keep valid globally routed IP literals eligible.
+            if re.fullmatch(r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host):
+                return None
         query = urlencode(
             [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
              if not k.lower().startswith("utm_") and k.lower() not in {"fbclid", "gclid"}]
@@ -292,6 +296,10 @@ async def collect_source(
     source: SourceDefinition, client: httpx.AsyncClient, now: datetime
 ) -> AdapterResult:
     """Fetch exactly one configured URL; only reviewed sources are eligible."""
+    # Keep the network gate at the adapter boundary as well as the scheduler:
+    # direct/manual callers must never bypass source review or disablement.
+    if not source.enabled or source.verification_status != VerificationStatus.VERIFIED:
+        raise CollectionFailure("skipped_config", "not_verified_or_enabled")
     if source.adapter not in SUPPORTED_ADAPTERS:
         raise CollectionFailure("skipped_config", "unsupported_adapter")
     if source.requires_auth:

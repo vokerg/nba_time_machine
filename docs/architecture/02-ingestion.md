@@ -153,7 +153,18 @@ single-response limit is 512 KB, the feed is capped at 50 entries, text at
 20,000 characters, each HTTP attempt at 10 seconds, and retry count at three
 for transport errors and 5xx responses (with bounded backoff). No redirects
 are followed; non-public IP literals and localhost hosts are rejected.
-Network access to unverified sources never starts.
+Network access to unverified sources never starts. The eligibility guard is
+enforced **both** by the collection orchestrator and by the lower-level
+`collect_source` adapter, so direct/manual adapter calls cannot bypass
+`enabled=true` and `verification_status=verified`.
+
+The URL guard also rejects trailing-dot localhost/internal hostnames and
+numeric loopback aliases (including one-integer, octal, and hexadecimal
+IPv4 spellings) that operating-system resolvers can interpret as private
+addresses. These checks are **not** a complete DNS-rebinding defense:
+DNS hostnames are not currently resolved and pinned to public IP addresses.
+Production deployments must restrict collector network egress, and a source
+must remain disabled until its access method and policy have been reviewed.
 
 Run from `backend/` after `python scripts/sync_sources.py` and migrations:
 
