@@ -37,6 +37,19 @@ The existing deterministic `project_game` is still required with the
 requested disclosure layer. An internal numeric postgame quality score is
 never a `GameField`.
 
+## Archived score integrity (Issue #10 follow-up)
+
+At the archive read and consent-gated selection boundaries, a versioned score
+is discarded unless its value exactly matches the deterministic weighted
+calculation from its attached components. Every component must have a unique
+signal in the declared score family, the expected model weight and rounded
+contribution, a finite normalized input in [0, 1], a nonblank source
+reference and timestamps no later than its score snapshot. The score kind
+and version must also agree. Invalid newest snapshots are **withheld**,
+never silently replaced by older values. This is archive consistency
+validation, not source trust, game-finality verification, authorization or
+a change to postgame consent. Numeric scores remain internal.
+
 ## Verification and known gaps
 
 Unit tests cover historical backfills, tip boundaries, invalid evidence,
