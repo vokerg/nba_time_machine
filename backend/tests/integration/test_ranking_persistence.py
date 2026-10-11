@@ -75,8 +75,23 @@ async def test_persist_score_versions_without_overwriting_or_mixing_kinds() -> N
             assert by_kind["postgame"].score_value == 10
             assert by_kind["pregame"].components[0]["source_ref"] == "official:pregame"
             assert by_kind["postgame"].components[0]["observed_at"] == AFTER.isoformat()
+            # A consistent revision at the same archival identity still
+            # collides: no overwrite is permitted.
+            revised = replace(early, components=(
+                replace(early.components[0], source_ref="official:corrected"),
+            ))
             with pytest.raises(ValueError, match="collision"):
-                await SqlAlchemyRankingStore(session).archive(replace(early, value=4.0))
+                await SqlAlchemyRankingStore(session).archive(revised)
+
+            # A new snapshot with inconsistent arithmetic cannot enter the
+            # archive even when no previous key exists to collide with.
+            invalid = replace(late, as_of=AFTER + timedelta(minutes=1), value=9.0)
+            with pytest.raises(ValueError, match="inconsistent ranking evidence"):
+                await SqlAlchemyRankingStore(session).archive(invalid)
+            persisted = (await session.scalars(select(RecommendationScoreRecord).where(
+                RecommendationScoreRecord.game_id == game_id,
+            ))).all()
+            assert len(persisted) == 2
     finally:
         await engine.dispose()
 
