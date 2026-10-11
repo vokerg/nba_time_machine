@@ -46,9 +46,13 @@ signal in the declared score family, the expected model weight and rounded
 contribution, a finite normalized input in [0, 1], a nonblank source
 reference and timestamps no later than its score snapshot. The score kind
 and version must also agree. Invalid newest snapshots are **withheld**,
-never silently replaced by older values. This is archive consistency
-validation, not source trust, game-finality verification, authorization or
-a change to postgame consent. Numeric scores remain internal.
+never silently replaced by older values. If a score repository supplies more
+than one row for a requested game, the recommendation service withholds that
+game entirely (including when one row is corrupt), rather than choosing a
+first result based on unspecified repository order. This also applies to
+time-budget selection. These checks validate archive consistency, not source
+trust, game-finality verification, authorization or a change to postgame
+consent. Numeric scores remain internal.
 
 ## Verification and known gaps
 

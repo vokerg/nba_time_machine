@@ -71,18 +71,23 @@ class WatchabilityRecommendationService:
             candidate_game_ids, as_of=cursor,
         )
         selected: list[VersionedScore] = []
-        seen: set[UUID] = set()
         allowed = set(candidate_game_ids)
+        # Alternate repositories may return duplicate snapshots for a game.
+        # Never let arbitrary row order decide which hidden score ranks it.
+        row_counts: dict[UUID, int] = {}
+        for score in archived:
+            if type(score) is VersionedScore and score.game_id in allowed:
+                row_counts[score.game_id] = row_counts.get(score.game_id, 0) + 1
         for score in archived:
             if (type(score) is not VersionedScore
-                    or score.game_id not in allowed or score.game_id in seen
+                    or score.game_id not in allowed
+                    or row_counts[score.game_id] != 1
                     or score.kind is not ScoreKind.POSTGAME
                     or score.model_version != POSTGAME_VERSION
                     or score.as_of.tzinfo is None or score.as_of.utcoffset() is None
                     or score.as_of > cursor
                     or not score_evidence_is_consistent(score)):
-                continue  # Fail closed on unexpected or future archive evidence.
-            seen.add(score.game_id)
+                continue  # Fail closed on ambiguous, corrupt or future evidence.
             selected.append(score)
         scores = tuple(selected)
         if budget_minutes is None:
