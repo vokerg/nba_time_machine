@@ -4,7 +4,8 @@
   "notes": [
     "These entries define the desired source universe, not verified working collectors.",
     "All entries remain disabled until an issue verifies identity, access method, cadence, retention policy, and a bounded smoke result.",
-    "Runtime registry and health will move to PostgreSQL/Neon; this file remains the reviewable desired-state seed."
+    "Runtime registry and health will move to PostgreSQL/Neon; this file remains the reviewable desired-state seed.",
+    "Official team sites are identity-confirmed against NBA.com/teams on 2026-10-11, but remain unverified and disabled for collection; browser links do not establish extractable news, rights, or successful smoke tests. See docs/SOURCE_TEAM_COVERAGE.md."
   ],
   "sources": [
     {
@@ -554,6 +555,516 @@
       "verification_status": "discovery_required",
       "cadence_minutes": 60,
       "requires_auth": true,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-atl-site",
+      "name": "Atlanta Hawks official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:ATL"
+      ],
+      "locator": "https://www.nba.com/hawks/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-bos-site",
+      "name": "Boston Celtics official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:BOS"
+      ],
+      "locator": "https://www.nba.com/celtics/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-bkn-site",
+      "name": "Brooklyn Nets official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:BKN"
+      ],
+      "locator": "https://www.nba.com/nets/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-cha-site",
+      "name": "Charlotte Hornets official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:CHA"
+      ],
+      "locator": "https://www.nba.com/hornets/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-chi-site",
+      "name": "Chicago Bulls official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:CHI"
+      ],
+      "locator": "https://www.nba.com/bulls/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-cle-site",
+      "name": "Cleveland Cavaliers official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:CLE"
+      ],
+      "locator": "https://www.nba.com/cavaliers/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-dal-site",
+      "name": "Dallas Mavericks official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:DAL"
+      ],
+      "locator": "https://www.nba.com/mavs/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-den-site",
+      "name": "Denver Nuggets official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:DEN"
+      ],
+      "locator": "https://www.nba.com/nuggets/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-det-site",
+      "name": "Detroit Pistons official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:DET"
+      ],
+      "locator": "https://www.nba.com/pistons/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-gsw-site",
+      "name": "Golden State Warriors official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:GSW"
+      ],
+      "locator": "https://www.nba.com/warriors/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-hou-site",
+      "name": "Houston Rockets official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:HOU"
+      ],
+      "locator": "https://www.nba.com/rockets/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-ind-site",
+      "name": "Indiana Pacers official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:IND"
+      ],
+      "locator": "https://www.nba.com/pacers/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-lac-site",
+      "name": "LA Clippers official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:LAC"
+      ],
+      "locator": "https://www.nba.com/clippers/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-lal-site",
+      "name": "Los Angeles Lakers official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:LAL"
+      ],
+      "locator": "https://www.nba.com/lakers/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-mem-site",
+      "name": "Memphis Grizzlies official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:MEM"
+      ],
+      "locator": "https://www.nba.com/grizzlies/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-mia-site",
+      "name": "Miami Heat official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:MIA"
+      ],
+      "locator": "https://www.nba.com/heat/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-mil-site",
+      "name": "Milwaukee Bucks official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:MIL"
+      ],
+      "locator": "https://www.nba.com/bucks/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-min-site",
+      "name": "Minnesota Timberwolves official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:MIN"
+      ],
+      "locator": "https://www.nba.com/timberwolves/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-nop-site",
+      "name": "New Orleans Pelicans official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:NOP"
+      ],
+      "locator": "https://www.nba.com/pelicans/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-nyk-site",
+      "name": "New York Knicks official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:NYK"
+      ],
+      "locator": "https://www.nba.com/knicks/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-okc-site",
+      "name": "Oklahoma City Thunder official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:OKC"
+      ],
+      "locator": "https://www.nba.com/thunder/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-orl-site",
+      "name": "Orlando Magic official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:ORL"
+      ],
+      "locator": "https://www.nba.com/magic/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-phi-site",
+      "name": "Philadelphia 76ers official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:PHI"
+      ],
+      "locator": "https://www.nba.com/sixers/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-phx-site",
+      "name": "Phoenix Suns official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:PHX"
+      ],
+      "locator": "https://www.nba.com/suns/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-por-site",
+      "name": "Portland Trail Blazers official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:POR"
+      ],
+      "locator": "https://www.nba.com/blazers/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-sac-site",
+      "name": "Sacramento Kings official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:SAC"
+      ],
+      "locator": "https://www.nba.com/kings/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-sas-site",
+      "name": "San Antonio Spurs official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:SAS"
+      ],
+      "locator": "https://www.nba.com/spurs/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-tor-site",
+      "name": "Toronto Raptors official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:TOR"
+      ],
+      "locator": "https://www.nba.com/raptors/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-uta-site",
+      "name": "Utah Jazz official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:UTA"
+      ],
+      "locator": "https://www.nba.com/jazz/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "nba-team-was-site",
+      "name": "Washington Wizards official site",
+      "kind": "web",
+      "adapter": "web",
+      "category": [
+        "official",
+        "team_site",
+        "team:WAS"
+      ],
+      "locator": "https://www.nba.com/wizards/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
       "retention_policy": "metadata_only"
     }
   ]
