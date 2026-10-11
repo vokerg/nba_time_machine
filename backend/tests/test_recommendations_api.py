@@ -131,6 +131,29 @@ async def test_recommendations_fail_closed_on_corrupt_archived_score_values() ->
 
 
 @pytest.mark.asyncio
+async def test_duplicate_archive_rows_fail_closed_without_first_row_bias() -> None:
+    # A buggy alternate repository must not rank a game according to the
+    # first of multiple snapshots, even when each snapshot is individually valid.
+    low_a, high_a, valid_b = post(A, .1), post(A, .99), post(B, .7)
+    for rows in (
+        (low_a, high_a, valid_b),
+        (high_a, valid_b, low_a),
+        (low_a, low_a, valid_b),
+        (low_a, replace(high_a, model_version="postgame-v999"), valid_b),
+    ):
+        service, clock, scores = setup(rows)
+        assert await service.recommend(
+            PROFILE, (A, B), consent_to_outcome_ranking=True,
+        ) == (B,)
+        assert await service.recommend(
+            PROFILE, (A, B), consent_to_outcome_ranking=True,
+            budget_minutes=120, planned_minutes_per_game=120,
+        ) == (B,)
+        assert clock.calls == [PROFILE, PROFILE]
+        assert scores.calls == [((A, B), CURSOR), ((A, B), CURSOR)]
+
+
+@pytest.mark.asyncio
 async def test_budget_uses_user_planned_allocation_not_game_runtime() -> None:
     service, _, _ = setup((post(A, .9), post(B, .8), post(C, .7)))
     ids = (C, A, B)
