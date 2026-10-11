@@ -135,3 +135,55 @@ source IDs are retained, not implicitly deleted; disabling requires an
 explicit `enabled: false` desired-state change. Verified and enabled are
 separate flags. Source health is derived from actual collection outcomes, not
 from desired-state flags.
+
+
+## First RSS/Atom and web collector runtime (Issue #4)
+
+`backend/src/nba_time_machine/ingestion/adapters.py` supports explicit
+`rss`, `atom`, `rss_or_web`, and `web` adapters. RSS/Atom entries use GUID/Atom
+ID when available, otherwise a canonical HTTP(S) item URL. A web source fetches
+**one explicitly configured page only**; no link following, general crawling,
+remote redirects, JavaScript, or paywall bypass. Tracking query parameters and
+fragments are omitted from canonical URLs, but meaningful query keys remain.
+
+The collector makes requests **only when a source is both enabled and verified**
+and has no unresolved auth requirement. Existing seed entries remain disabled;
+verification requires separate evidence from a bounded source smoke. The
+single-response limit is 512 KB, the feed is capped at 50 entries, text at
+20,000 characters, each HTTP attempt at 10 seconds, and retry count at three
+for transport errors and 5xx responses (with bounded backoff). No redirects
+are followed; non-public IP literals and localhost hosts are rejected.
+Network access to unverified sources never starts.
+
+Run from `backend/` after `python scripts/sync_sources.py` and migrations:
+
+```bash
+python scripts/collect_sources.py --source-id VERIFIED_ID
+python scripts/collect_sources.py --source-id VERIFIED_ID --force
+```
+
+With no explicit ID, the runtime considers enabled sources only. `--force`
+bypasses cadence but never verification/auth requirements. PostgreSQL stores a
+collection run and one outcome per attempted source, under bounded concurrency
+(default 4, max 16). Non-due sources are excluded rather than generating
+false skipped/idle outcomes. A failed adapter is recorded independently and
+cannot roll back another source's transaction. Exceptions are reported through
+non-content-bearing codes; persistence failures are surfaced in command output
+and **not** falsely claimed as stored outcomes.
+
+At the **persistence boundary**, the source's retention policy governs the
+captured text: `full` stores text + raw payload, `normalized_full` text only,
+`metadata_excerpt` a 280-character excerpt, and `metadata_only` neither.
+Raw adapter metadata cannot bypass that boundary. Same-hash item captures
+are not redundantly stored across runs, while changed hashes append a new
+raw revision. First-discovered normalized item facts are not retroactively
+overwritten by later edits. Publication timestamps are stored separately from
+collection and defensible availability timestamps; availability defaults
+conservatively to first system observation, **not** unverified backdated
+publisher dates. These records are ingestion data, not spoiler-safe reads.
+
+Fixture tests use a mocked HTTP transport; PostgreSQL integration tests cover
+retention, replay, source isolation, cadence, and revision history. The command
+is a bounded live smoke entry point but a live source/Neon smoke **has not been
+performed**. Work outside this issue (authenticated social/podcasts/video,
+production scheduling, and timeline-aware media API projection) remains separate.
