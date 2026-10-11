@@ -110,6 +110,7 @@ def test_html_is_single_page_and_strips_active_elements() -> None:
 @pytest.mark.parametrize("url", [
     "http://localhost/admin", "http://127.0.0.1/", "http://10.0.0.2/",
     "file:///etc/passwd", "https://user:secret@example.com/page", "https://a.local/",
+    "https://admin.localhost/", "https://instance.internal/",
 ])
 def test_refuses_nonpublic_urls(url: str) -> None:
     assert canonical_url(url) is None
