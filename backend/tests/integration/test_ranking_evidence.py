@@ -17,13 +17,14 @@ TIP = datetime(2026, 5, 5, 1, tzinfo=timezone.utc)
 EARLY = TIP - timedelta(hours=3)
 FINAL = TIP + timedelta(hours=3)
 SOURCE_ID = "ranking-evidence-fixture"
+ALT_SOURCE_ID = "ranking-evidence-alternate"
 
 
-async def _source(session):
-    if await session.get(SourceRecord, SOURCE_ID) is None:
+async def _source(session, source_id=SOURCE_ID):
+    if await session.get(SourceRecord, source_id) is None:
         session.add(SourceRecord(
-            id=SOURCE_ID, name="Ranking fixture", kind="structured",
-            adapter="fixture", category=[], locator="https://example.invalid/ranking",
+            id=source_id, name="Ranking fixture", kind="structured",
+            adapter="fixture", category=[], locator=f"https://example.invalid/{source_id}",
             enabled=False, verification_status="verified", cadence_minutes=10,
             requires_auth=False, retention_policy="metadata_only",
         ))
@@ -46,18 +47,21 @@ async def _game(session, *, league="NBA"):
     return game_id
 
 
-def _observation(game_id, *, at, status="scheduled", final_at=None):
+def _observation(game_id, *, at, status="scheduled", final_at=None,
+                 source_id=SOURCE_ID, available=None):
     return GameObservationRecord(
-        game_id=game_id, source_id=SOURCE_ID, observed_at=at, available_at=at,
+        game_id=game_id, source_id=source_id, observed_at=at,
+        available_at=available or at,
         status=status, scheduled_tip_at=TIP, final_at=final_at,
     )
 
 
-def _fact(game_id, kind, signal, value, *, at, available=None):
+def _fact(game_id, kind, signal, value, *, at, available=None,
+          source_id=SOURCE_ID):
     return TemporalFactRecord(
         subject_type="game", game_id=game_id,
         fact_type=f"ranking.{kind}.{signal}", value=value,
-        source_id=SOURCE_ID,
+        source_id=source_id,
         valid_from=TIP - timedelta(days=1), valid_to=None,
         observed_at=at, available_at=available or at,
     )
@@ -202,5 +206,61 @@ async def test_non_nba_games_and_unknown_game_facts_fail_closed():
             repo = SqlAlchemyRankingEvidenceRepository(session)
             assert await repo.pregame(game_id, as_of=EARLY) is None
             assert await repo.pregame(uuid4(), as_of=EARLY) is None
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_equal_time_conflicts_fail_closed_without_uuid_tiebreakers():
+    engine = create_database_engine(_settings_or_skip())
+    factory = create_session_factory(engine)
+    try:
+        async with factory() as session:
+            await _source(session)
+            await _source(session, ALT_SOURCE_ID)
+            ambiguous_game = await _game(session)
+            ambiguous_feature_game = await _game(session)
+            later_available_game = await _game(session)
+            session.add_all([
+                _observation(ambiguous_game, at=EARLY),
+                _observation(ambiguous_game, at=EARLY, status="postponed",
+                             source_id=ALT_SOURCE_ID),
+                _fact(ambiguous_game, "pregame", "rivalry",
+                      {"normalized_value": 0.8}, at=EARLY),
+                _observation(ambiguous_feature_game, at=EARLY),
+                _fact(ambiguous_feature_game, "pregame", "expected_closeness",
+                      {"normalized_value": 0.2}, at=EARLY),
+                _fact(ambiguous_feature_game, "pregame", "expected_closeness",
+                      {"normalized_value": 0.9}, at=EARLY,
+                      source_id=ALT_SOURCE_ID),
+                _fact(ambiguous_feature_game, "pregame", "rivalry",
+                      {"normalized_value": 0.6}, at=EARLY),
+                _observation(later_available_game, at=EARLY),
+                _observation(later_available_game, at=EARLY,
+                             status="postponed", source_id=ALT_SOURCE_ID,
+                             available=EARLY + timedelta(minutes=5)),
+                _fact(later_available_game, "pregame", "rivalry",
+                      {"normalized_value": 0.5}, at=EARLY),
+            ])
+            await session.commit()
+
+        async with factory() as session:
+            repo = SqlAlchemyRankingEvidenceRepository(session)
+            # Exact tied observation timestamps cannot be resolved by UUID.
+            assert await repo.pregame(ambiguous_game, as_of=EARLY) is None
+
+            # One ambiguous feature does not prevent an independently
+            # sourced, unambiguous signal from producing a partial score.
+            partial = await repo.pregame(ambiguous_feature_game, as_of=EARLY)
+            assert partial is not None and partial.value == 6
+            assert [c.signal for c in partial.components] == ["rivalry"]
+
+            # A later-available correction with the same observed_at is
+            # selected only after its availability, not by a random UUID.
+            assert await repo.pregame(later_available_game, as_of=EARLY) is not None
+            assert await repo.pregame(
+                later_available_game, as_of=EARLY + timedelta(minutes=10),
+            ) is None
     finally:
         await engine.dispose()
