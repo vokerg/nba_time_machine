@@ -205,3 +205,56 @@ def score_postgame(
         signals=signals, weights=POSTGAME_WEIGHTS, tip_at=None,
         final_at=final_at, as_of=as_of,
     )
+
+
+def score_evidence_is_consistent(score: VersionedScore) -> bool:
+    """Fail closed if a stored score no longer matches its evidence.
+
+    This checks the *internal arithmetic and temporal shape* of a score, not
+    whether its sources are independently trusted. Callers must still restrict
+    the score family, profile cursor, and spoiler consent separately.
+    """
+    if type(score) is not VersionedScore:
+        return False
+    if score.kind is ScoreKind.PREGAME:
+        weights, version = PREGAME_WEIGHTS, PREGAME_VERSION
+    elif score.kind is ScoreKind.POSTGAME:
+        weights, version = POSTGAME_WEIGHTS, POSTGAME_VERSION
+    else:
+        return False
+    if score.model_version != version or not 1 <= len(score.components) <= len(weights):
+        return False
+    if type(score.value) not in (int, float) or not isfinite(score.value):
+        return False
+    try:
+        cursor = _utc(score.as_of, "as_of")
+        by_name = {signal.value: weight for signal, weight in weights.items()}
+        seen: set[str] = set()
+        total = 0.0
+        total_weight = 0
+        for part in score.components:
+            if type(part) is not ScoreComponent or type(part.signal) is not str:
+                return False
+            if part.signal not in by_name or part.signal in seen:
+                return False
+            seen.add(part.signal)
+            if (type(part.normalized_value) not in (int, float)
+                    or not isfinite(part.normalized_value)
+                    or not 0 <= part.normalized_value <= 1
+                    or type(part.weight) is not int
+                    or part.weight != by_name[part.signal]
+                    or type(part.weighted_contribution) not in (int, float)
+                    or not isfinite(part.weighted_contribution)
+                    or part.weighted_contribution != round(
+                        part.normalized_value * part.weight, 6
+                    )
+                    or type(part.source_ref) is not str
+                    or not part.source_ref.strip()
+                    or _utc(part.available_at, "available_at") > cursor
+                    or _utc(part.observed_at, "observed_at") > cursor):
+                return False
+            total += part.normalized_value * part.weight
+            total_weight += part.weight
+        return score.value == round(10 * total / total_weight, 4)
+    except (TypeError, ValueError, OverflowError, AttributeError):
+        return False
