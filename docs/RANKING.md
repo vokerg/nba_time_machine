@@ -50,7 +50,10 @@ never silently replaced by older values. If a score repository supplies more
 than one row for a requested game, the recommendation service withholds that
 game entirely (including when one row is corrupt), rather than choosing a
 first result based on unspecified repository order. This also applies to
-time-budget selection. These checks validate archive consistency, not source
+time-budget selection. Archived component JSON must carry actual numeric values:
+reader-side decoding preserves original JSON types, so numeric strings,
+booleans and fractional weights cannot be normalized into otherwise plausible
+score evidence before validation. These checks validate archive consistency, not source
 trust, game-finality verification, authorization or a change to postgame
 consent. Numeric scores remain internal.
 
