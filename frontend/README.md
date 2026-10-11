@@ -57,3 +57,31 @@ Node 22. CI runs it before the production build.
 
 No numeric postgame scores, photos, metadata, highlight durations or
 outcome-dependent ordering may be introduced in the default card/read path.
+
+## Frontend postgame ranking client (partial #10)
+
+`src/watchability.ts` adds a **manual-event-only** typed client for the
+existing `POST /profiles/{profile_id}/recommendations/watchability` route.
+A future connected profile view must first load the **backend-projected safe**
+`GameList` for that same profile, and must call
+`requestWatchabilityRecommendations` **only in direct response to a user's
+explicit soft-spoiler consent action**. Never trigger it from a component
+mount, effect, cursor change, demo fixture, or a passive "pregame pick".
+Do not persist this consent as a default preference.
+
+The client checks the profile UUID, 1–32 distinct PREGAME candidate cards
+and optional uniform viewing-time bounds before network access, posts only
+the candidate UUIDs, budget and an explicit true consent flag, and accepts
+only a response with exactly `game_ids`. It rejects duplicate/noncandidate
+IDs or any score, metadata or reason field, then returns freshly allowlisted
+PREGAME cards from the safe input slate in the returned order. Empty results
+mean no eligible historical scored games, **not** poor quality.
+
+This module does **not** connect the current synthetic dashboard, authenticate
+profile ownership, materialize real scores or prove a live backend. Profile
+UUIDs are currently opaque state keys, **not user authentication**; do not
+deploy this pathway for real user data until an authenticated, authorized
+profile session supplies the ID. The eventual view must warn that even a
+ranked game's presence/order is outcome-dependent (a soft spoiler), and
+must not reorder the unconsented game list or change media disclosure.
+Run `npm test` for mock-network consent, input and response regressions.
