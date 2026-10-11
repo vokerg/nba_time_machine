@@ -44,7 +44,7 @@ class SqlAlchemyRankingEvidenceRepository:
     ) -> GameObservationRecord | None:
         # Choose latest knowable observation BEFORE inspecting status. Otherwise
         # an older 'scheduled' or 'final' row could survive a known correction.
-        return await self._session.scalar(
+        observations = (await self._session.scalars(
             select(GameObservationRecord)
             .join(GameRecord, GameRecord.id == GameObservationRecord.game_id)
             .join(SeasonRecord, SeasonRecord.id == GameRecord.season_id)
@@ -55,9 +55,19 @@ class SqlAlchemyRankingEvidenceRepository:
                 GameObservationRecord.available_at <= as_of,
             )
             .order_by(GameObservationRecord.observed_at.desc(),
+                      GameObservationRecord.available_at.desc(),
                       GameObservationRecord.id.desc())
-            .limit(1)
-        )
+            .limit(2)
+        )).all()
+        if not observations:
+            return None
+        if (len(observations) > 1
+                and observations[0].observed_at == observations[1].observed_at
+                and observations[0].available_at == observations[1].available_at):
+            # Competing latest observations have no defensible winner; never
+            # infer a trusted scheduled tip or final state from UUID ordering.
+            return None
+        return observations[0]
 
     async def _features(
         self, game_id: UUID, as_of: datetime, kind: str,
@@ -80,12 +90,22 @@ class SqlAlchemyRankingEvidenceRepository:
                       TemporalFactRecord.available_at.desc(),
                       TemporalFactRecord.id.desc())
         )).all()
-        signals = {}
-        visited: set[str] = set()
+        latest: dict[str, TemporalFactRecord] = {}
+        ambiguous: set[str] = set()
         for fact in facts:
-            if fact.fact_type in visited:
+            previous = latest.get(fact.fact_type)
+            if previous is None:
+                latest[fact.fact_type] = fact
+            elif (fact.observed_at == previous.observed_at
+                  and fact.available_at == previous.available_at):
+                # A same-time competing revision must not be chosen by UUID.
+                ambiguous.add(fact.fact_type)
+
+        signals = {}
+        for fact_type, fact in latest.items():
+            # Both tied and malformed latest revisions mask older values.
+            if fact_type in ambiguous:
                 continue
-            visited.add(fact.fact_type)  # Invalid latest value masks stale older data.
             if (type(fact.value) is not dict
                     or set(fact.value) != {"normalized_value"}):
                 continue
@@ -98,7 +118,7 @@ class SqlAlchemyRankingEvidenceRepository:
                 )
             except (TypeError, ValueError):
                 continue
-            signals[mapping[fact.fact_type]] = feature
+            signals[mapping[fact_type]] = feature
         return signals
 
     async def pregame(
