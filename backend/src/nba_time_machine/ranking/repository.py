@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nba_time_machine.db.ranking_models import RecommendationScoreRecord
-from nba_time_machine.ranking.scoring import VersionedScore
+from nba_time_machine.ranking.scoring import VersionedScore, score_evidence_is_consistent
 
 
 def _components(score: VersionedScore) -> list[dict[str, object]]:
@@ -38,6 +38,10 @@ class SqlAlchemyRankingStore:
         """
         if type(score) is not VersionedScore:
             raise TypeError("only a typed VersionedScore may be archived")
+        # Validate BEFORE encoding JSON or looking up existing rows. Direct store
+        # callers must not bypass the materialization service's evidence guard.
+        if not score_evidence_is_consistent(score):
+            raise ValueError("cannot archive inconsistent ranking evidence")
         evidence = _components(score)
         as_of = score.as_of.astimezone(timezone.utc)
         current = await self._session.scalar(

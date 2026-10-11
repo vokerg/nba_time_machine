@@ -12,6 +12,7 @@ from uuid import UUID
 
 from nba_time_machine.ranking.scoring import (
     POSTGAME_VERSION, PREGAME_VERSION, ScoreKind, VersionedScore,
+    score_evidence_is_consistent,
 )
 
 
@@ -64,10 +65,7 @@ class RankingMaterializationService:
             or score.kind is not kind
             or score.model_version != version
             or score.as_of != cursor
-            or any(
-                part.available_at > cursor or part.observed_at > cursor
-                for part in score.components
-            )
+            or not score_evidence_is_consistent(score)
         ):
             raise ValueError("trusted ranking reader returned inconsistent evidence")
 
