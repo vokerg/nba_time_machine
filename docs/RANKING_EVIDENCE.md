@@ -57,3 +57,41 @@ facts, and non-NBA identities. The consent-gated recommendation endpoint
 is documented in RANKING.md and was implemented separately in PR #33;
 trusted feature producers, calibration, front-end disclosure and live Neon
 validation remain separate follow-up work.
+
+## Explicit score materialization (PR #37)
+
+The internal `RankingMaterializationService` in
+`ranking/materialize.py` connects this trusted reader to
+`SqlAlchemyRankingStore.archive`. It requires a canonical UUID, a typed
+`pregame` or `postgame` family and a **timezone-aware, explicit** `as_of`
+instant. It verifies the returned game, score family, current model version,
+snapshot time and component timestamps before invoking the append-only archive.
+A missing, malformed or not-yet-observed feature is **not** imputed: when the
+reader returns no score, nothing is written. The caller owns the transaction;
+the existing archive rejects changing an already archived
+`(game, kind, version, as_of)` snapshot rather than overwriting history.
+
+For a one-game operational run from `backend/`, with migrations applied and
+`DATABASE_URL` configured, use:
+
+```bash
+python scripts/archive_ranking.py \
+  --game-id 11111111-1111-4111-8111-111111111111 \
+  --kind pregame --as-of 2026-05-04T23:00:00+00:00
+```
+
+The UUID and date above are **illustrative**, not evidence of a real NBA
+game. To archive postgame, explicitly use `--kind postgame` and a historical
+instant after a trusted final and post-final feature observations. A missing
+`final_at` or missing curated normalized features results in no archive;
+the script never infers them from score, game duration or real-world now.
+The CLI prints only whether a trusted snapshot was archived or unavailable,
+not the internal value/components. It is an operator tool, not an API or
+permission mechanism. Public postgame ordering still requires per-request
+consent at the existing `/recommendations/watchability` endpoint; the general
+dashboard remains sealed unless its spoiler policy explicitly allows a layer.
+
+Unit checks: `pytest -q tests/test_ranking_materialize.py`. PostgreSQL
+integration: `pytest -q tests/integration/test_ranking_materialization_persistence.py`.
+No production feature producer, live data coverage or calibrated score is
+claimed by this wiring slice.
