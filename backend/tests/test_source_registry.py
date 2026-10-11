@@ -39,6 +39,64 @@ def test_real_seed_loads_with_validated_unique_ids() -> None:
     assert all(source.enabled is False for source in seed.sources)
 
 
+def test_official_team_site_seed_covers_every_nba_team() -> None:
+    """Team identity research is complete; none is assumed collectible yet."""
+    expected_slugs = {
+        "ATL": "hawks",
+        "BOS": "celtics",
+        "BKN": "nets",
+        "CHA": "hornets",
+        "CHI": "bulls",
+        "CLE": "cavaliers",
+        "DAL": "mavs",
+        "DEN": "nuggets",
+        "DET": "pistons",
+        "GSW": "warriors",
+        "HOU": "rockets",
+        "IND": "pacers",
+        "LAC": "clippers",
+        "LAL": "lakers",
+        "MEM": "grizzlies",
+        "MIA": "heat",
+        "MIL": "bucks",
+        "MIN": "timberwolves",
+        "NOP": "pelicans",
+        "NYK": "knicks",
+        "OKC": "thunder",
+        "ORL": "magic",
+        "PHI": "sixers",
+        "PHX": "suns",
+        "POR": "blazers",
+        "SAC": "kings",
+        "SAS": "spurs",
+        "TOR": "raptors",
+        "UTA": "jazz",
+        "WAS": "wizards",
+    }
+    seed = load_source_seed(ROOT / "config" / "sources.seed.json")
+    team_sources = [source for source in seed.sources if "team_site" in source.category]
+
+    assert len(team_sources) == len(expected_slugs) == 30
+    assert len({source.id for source in team_sources}) == 30
+    assert len({source.locator for source in team_sources}) == 30
+    assert {source.category[2] for source in team_sources} == {
+        f"team:{code}" for code in expected_slugs
+    }
+    for code, slug in expected_slugs.items():
+        (source,) = (
+            source for source in team_sources if source.id == f"nba-team-{code.lower()}-site"
+        )
+        assert source.locator == f"https://www.nba.com/{slug}/"
+        assert source.kind == "web"
+        assert source.adapter == "web"
+        assert source.category == ["official", "team_site", f"team:{code}"]
+        assert source.cadence_minutes == 60
+        assert source.requires_auth is False
+        assert source.retention_policy == "metadata_only"
+        assert source.verification_status == "unverified"
+        assert source.enabled is False
+
+
 def test_seed_rejects_duplicate_source_ids() -> None:
     with pytest.raises(ValidationError, match="duplicate source id"):
         SourceSeed.model_validate(

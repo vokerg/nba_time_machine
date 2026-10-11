@@ -53,3 +53,13 @@ a successful sync.
 Unit validation works offline. Integration tests exercise sync/health with
 migrated PostgreSQL in CI; **a production Neon smoke test is not claimed**.
 Collectors, source verification and ingestion health UI are separate issues.
+
+## Official team-site discovery (Issue #9)
+
+All 30 NBA teams now have canonical official homepage entries in the seed.
+See [SOURCE_TEAM_COVERAGE.md](SOURCE_TEAM_COVERAGE.md) for the 2026-10-11
+identity research, team-by-team URLs, access caveats and next verification
+checks. **These 30 entries are disabled and unverified for collection**;
+identifying a public website is not equivalent to a passing collector smoke,
+rights approval, a reliable news feed or historical availability provenance.
+No existing sources were auto-enabled by this expansion.
