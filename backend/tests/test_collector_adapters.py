@@ -114,9 +114,18 @@ def test_html_is_single_page_and_strips_active_elements() -> None:
     "https://localhost./", "https://stats.local./",
     "https://instance.internal./", "http://2130706433/",
     "http://0177.0.0.1/", "http://0x7f000001/", "http://127.1/",
+    "https://:secret@example.com/page",
 ])
 def test_refuses_nonpublic_urls(url: str) -> None:
     assert canonical_url(url) is None
+
+
+@pytest.mark.parametrize("url", [
+    "https://8.8.8.8/",
+    "https://[2606:4700:4700::1111]/",
+])
+def test_allows_globally_routed_ip_literals(url: str) -> None:
+    assert canonical_url(url) == url
 
 
 @pytest.mark.asyncio
