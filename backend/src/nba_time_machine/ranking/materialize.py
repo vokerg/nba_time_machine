@@ -12,6 +12,7 @@ from uuid import UUID
 
 from nba_time_machine.ranking.scoring import (
     POSTGAME_VERSION, PREGAME_VERSION, ScoreKind, VersionedScore,
+    score_evidence_is_consistent,
 )
 
 
