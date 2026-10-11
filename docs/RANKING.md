@@ -54,6 +54,16 @@ time-budget selection. These checks validate archive consistency, not source
 trust, game-finality verification, authorization or a change to postgame
 consent. Numeric scores remain internal.
 
+**Write-side integrity (#10):** The ranking materialization service rejects
+internally inconsistent evidence returned by an alternate feature reader, and
+`SqlAlchemyRankingStore.archive` independently rejects such scores *before*
+serializing their components or querying/inserting rows. Both reuse the same
+version/signal/weight/arithmetic/timestamp consistency contract as the read
+boundary. A well-formed change to an existing (game, kind, version, as-of)
+snapshot still raises an append-only revision collision; an identical valid
+replay remains idempotent. These guards do not establish whether the input
+sports facts were genuinely observed from a licensed, trusted source.
+
 ## Verification and known gaps
 
 Unit tests cover historical backfills, tip boundaries, invalid evidence,
