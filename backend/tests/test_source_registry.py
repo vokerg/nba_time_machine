@@ -39,6 +39,25 @@ def test_real_seed_loads_with_validated_unique_ids() -> None:
     assert all(source.enabled is False for source in seed.sources)
 
 
+
+def test_nba_communications_feed_candidate_remains_disabled_pending_verification() -> None:
+    """A reachable RSS MIME alone is not an approved collector."""
+    seed = load_source_seed(ROOT / "config" / "sources.seed.json")
+    (feed,) = (source for source in seed.sources if source.id == "nba-communications-feed")
+
+    assert feed.locator == "https://pr.nba.com/feed/"
+    assert feed.kind == "web"
+    assert feed.adapter == "rss"
+    assert feed.category == ["official", "league_news", "press_releases"]
+    assert feed.requires_auth is False
+    assert feed.cadence_minutes == 60
+    assert feed.retention_policy == "metadata_only"
+    assert feed.verification_status == "unverified"
+    assert feed.enabled is False
+    assert feed.id != "nba-official-news"
+    assert all(source.id != "nba-communications-feed" or not source.enabled
+               for source in seed.sources)
+
 def test_official_team_site_seed_covers_every_nba_team() -> None:
     """Team identity research is complete; none is assumed collectible yet."""
     expected_slugs = {

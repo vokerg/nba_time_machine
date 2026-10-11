@@ -63,3 +63,10 @@ checks. **These 30 entries are disabled and unverified for collection**;
 identifying a public website is not equivalent to a passing collector smoke,
 rights approval, a reliable news feed or historical availability provenance.
 No existing sources were auto-enabled by this expansion.
+
+## Feed-access research (Issue #9)
+
+[Source feed-access research](SOURCE_FEED_ACCESS.md) tracks a distinct NBA
+Communications RSS candidate and a now-redirecting Celtics legacy RSS URL.
+The candidate remains disabled and unverified pending bounded feed parsing,
+terms/retention review and an operator-approved live collector smoke.
