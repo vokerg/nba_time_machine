@@ -51,16 +51,16 @@ def canonical_url(value: str | None) -> str | None:
             return None
         if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
             return None
-        # System resolvers may interpret numeric aliases (127.1, 0177.0.0.1,
-        # 0x7f000001 or 2130706433) as loopback even if ipaddress does not.
-        if re.fullmatch(r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host):
-            return None
         try:
             address = ipaddress.ip_address(host)
             if not address.is_global:
                 return None
         except ValueError:
-            pass
+            # System resolvers may interpret non-canonical numeric aliases
+            # (127.1, 0177.0.0.1, 0x7f000001, 2130706433) as loopback.
+            # Keep valid globally routed IP literals eligible.
+            if re.fullmatch(r"(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*", host):
+                return None
         query = urlencode(
             [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
              if not k.lower().startswith("utm_") and k.lower() not in {"fbclid", "gclid"}]
