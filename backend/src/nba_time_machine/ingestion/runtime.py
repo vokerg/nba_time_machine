@@ -262,9 +262,7 @@ async def collect_once(
     limit = asyncio.Semaphore(concurrency)
 
     async def process(row: SourceRecord, http: httpx.AsyncClient) -> SourceRun | None:
-        if not force and row.enabled and _is_due(row, stamp):
-            pass
-        elif row.enabled and not force and not _is_due(row, stamp):
+        if row.enabled and not force and not _is_due(row, stamp):
             return None  # a not-due source is not an attempted source
         async with limit:
             if not row.enabled or row.verification_status != "verified":
