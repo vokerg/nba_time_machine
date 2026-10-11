@@ -8,6 +8,7 @@ from uuid import uuid4
 import pytest
 
 from nba_time_machine.ranking.materialize import RankingMaterializationService
+from nba_time_machine.ranking.repository import SqlAlchemyRankingStore
 from nba_time_machine.ranking.scoring import (
     FeatureObservation, PostgameSignal, PregameSignal, ScoreKind,
     score_postgame, score_pregame,
@@ -108,6 +109,17 @@ async def test_invalid_input_is_rejected_before_reading_evidence(game_id, kind, 
     lambda score: replace(score, game_id=uuid4()),
     lambda score: replace(score, kind=ScoreKind.PREGAME),
     lambda score: replace(score, model_version="unreviewed"),
+    lambda score: replace(score, value=9.0),
+    lambda score: replace(score, components=(
+        replace(score.components[0], weight=999),
+    )),
+    lambda score: replace(score, components=(
+        replace(score.components[0], normalized_value=0.5),
+    )),
+    lambda score: replace(score, components=(
+        replace(score.components[0], source_ref="  "),
+    )),
+    lambda score: replace(score, components=score.components * 2),
     lambda score: replace(score, as_of=AFTER + timedelta(seconds=1)),
     lambda score: replace(
         score, components=(
@@ -122,6 +134,29 @@ async def test_unexpected_postgame_reader_output_fails_closed(wrong):
             GAME, kind=ScoreKind.POSTGAME, as_of=AFTER,
         )
     assert archive.scores == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("corrupt", [
+    lambda score: replace(score, value=9.0),
+    lambda score: replace(score, components=(
+        replace(score.components[0], weighted_contribution=0.0),
+    )),
+    lambda score: replace(score, components=(
+        replace(score.components[0], source_ref=""),
+    )),
+    lambda score: replace(score, components=(
+        replace(score.components[0], available_at=AFTER + timedelta(seconds=1)),
+    )),
+    lambda score: replace(score, components=score.components * 2),
+])
+async def test_direct_archive_rejects_bad_evidence_without_database_io(corrupt):
+    class NoDatabaseIO:
+        async def scalar(self, *_args, **_kwargs):
+            raise AssertionError("invalid score must be rejected before database lookup")
+
+    with pytest.raises(ValueError, match="inconsistent ranking evidence"):
+        await SqlAlchemyRankingStore(NoDatabaseIO()).archive(corrupt(postgame()))
 
 
 @pytest.mark.asyncio
