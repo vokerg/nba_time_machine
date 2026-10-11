@@ -57,3 +57,60 @@ This is a bounded initial slice of #10. Remaining: connect trusted as-of structu
 provide an explicitly gated recommendation application/API service; use
 historical games to tune normalization, thresholds and weights. This
 implementation does not claim real-life ranking quality or frontend wiring.
+
+
+## Explicit, cursor-scoped recommendation endpoint (PR #33)
+
+`POST /profiles/{profile_id}/recommendations/watchability` is the
+**only** HTTP entry point for postgame score-based ordering. A request must
+include `candidate_game_ids` (1–32 distinct canonical game UUIDs) and
+`consent_to_outcome_ranking: true`. Missing/false consent returns HTTP
+403 **before** accessing the profile timeline or score archive. GET is not
+supported. The consent is specific to this request, not an implicit setting,
+and does not acknowledge a game or move the media cursor.
+
+Example request (the UUIDs are illustrative, not actual scheduled games):
+
+```json
+{
+  "candidate_game_ids": [
+    "11111111-1111-4111-8111-111111111111",
+    "22222222-2222-4222-8222-222222222222"
+  ],
+  "consent_to_outcome_ranking": true,
+  "budget_minutes": 120,
+  "planned_minutes_per_game": 60
+}
+```
+
+The response contains **only** `game_ids`, never score values, components,
+models, reasons, source metadata, scores, standings, or a surprise indicator.
+A ranked game's presence and position can itself reveal outcome-dependent
+information; the endpoint is explicitly opt-in and must not power an
+unconsented dashboard sort or a general-media surface.
+
+Only archived `postgame-v1` scores with `as_of <= persisted time_cursor`
+are eligible. Querying picks the latest such snapshot per requested game and
+rejects malformed, temporally inconsistent components instead of falling
+back to older evidence. The service independently checks score family, model
+version, trusted component observation timestamps and membership in the
+requested UUID set. No current-world/default-now substitution is permitted.
+Games with no eligible archived postgame score are omitted; **absence is not
+evidence of poor watchability**. The client should build its candidate set from
+the separate safe historical game list; this route does not independently
+prove that each submitted UUID belonged to that list.
+
+A time budget uses a **uniform user-planned allocation** per game rather than
+the actual game or highlight duration (which could leak outcomes). Both
+optimization and unbudgeted ordering operate on internal scores; the response
+still contains UUIDs only. Favorite teams are not accepted as ranking input.
+
+This is a bounded application-boundary slice; it is not a live recommendation
+quality claim. The first structured sports provider does not yet expose the
+trusted feature history required to populate meaningful production scoring,
+so an empty response is normal on unscored data. Real provider normalization,
+historical calibration, verdict integration into the game-disclosure service,
+frontend consent UX and authenticated profile ownership remain future work.
+Profile UUIDs are presently **opaque state keys, not authenticated accounts**;
+the caller must not mistake this endpoint's consent check for user login or
+authorization.
