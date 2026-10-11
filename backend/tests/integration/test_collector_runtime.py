@@ -158,3 +158,98 @@ async def test_isolated_collection_retention_revisions_and_cadence() -> None:
             ).isoformat()
     finally:
         await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"enabled": False},
+        {"verification_status": "unverified"},
+        {"requires_auth": True},
+        {"locator": "https://example.com/different-feed"},
+        {"adapter": "web"},
+        {"retention_policy": "full"},
+        {"adapter_settings": {"changed": True}},
+    ],
+    ids=[
+        "disabled", "unverified", "auth-required", "new-url",
+        "new-adapter", "broader-retention", "new-settings",
+    ],
+)
+async def test_inflight_source_policy_changes_discard_captures(
+    changes: dict[str, object],
+) -> None:
+    """Only the source policy currently locked in Postgres can authorize writes."""
+    engine = create_database_engine(_settings())
+    factory = create_session_factory(engine)
+    source_id = f"ingest-policy-race-{uuid4()}"
+    requests_seen = 0
+
+    try:
+        async with factory() as session:
+            session.add(SourceRecord(
+                id=source_id,
+                name=source_id,
+                kind="media",
+                adapter="rss",
+                locator="https://example.com/feed.xml",
+                enabled=True,
+                verification_status="verified",
+                cadence_minutes=60,
+                requires_auth=False,
+                retention_policy="metadata_only",
+                adapter_settings={},
+            ))
+            await session.commit()
+
+        async def change_policy_during_fetch(request: httpx.Request) -> httpx.Response:
+            nonlocal requests_seen
+            requests_seen += 1
+            assert str(request.url) == "https://example.com/feed.xml"
+            async with factory() as session:
+                record = await session.get(SourceRecord, source_id)
+                assert record is not None
+                for key, value in changes.items():
+                    setattr(record, key, value)
+                await session.commit()
+            return httpx.Response(
+                200,
+                text="<rss><channel><item><guid>must-not-persist</guid>"
+                     "<title>Not approved</title></item></channel></rss>",
+                headers={"content-type": "application/rss+xml"},
+            )
+
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(change_policy_during_fetch)
+        ) as client:
+            result = await collect_once(
+                factory, source_ids=(source_id,), force=True, now=NOW, client=client,
+            )
+
+        assert requests_seen == 1
+        assert len(result.outcomes) == 1
+        assert result.outcomes[0].status == "skipped_config"
+        assert result.outcomes[0].error_code == "source_policy_changed"
+        assert result.outcomes[0].items_seen == 0
+        assert result.outcomes[0].captures_written == 0
+
+        async with factory() as session:
+            assert await session.scalar(
+                select(func.count()).select_from(RawCaptureRecord)
+                .where(RawCaptureRecord.source_id == source_id)
+            ) == 0
+            assert await session.scalar(
+                select(func.count()).select_from(SourceItemRecord)
+                .where(SourceItemRecord.source_id == source_id)
+            ) == 0
+            assert await session.scalar(
+                select(func.count()).select_from(SourceOutcomeRecord)
+                .where(SourceOutcomeRecord.source_id == source_id)
+            ) == 1
+            record = await session.get(SourceRecord, source_id)
+            assert record is not None
+            assert record.runtime_cursor is None
+    finally:
+        await engine.dispose()

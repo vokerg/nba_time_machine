@@ -190,6 +190,25 @@ async def _save_outcome(
         }
 
 
+_FETCH_POLICY_FIELDS = (
+    "locator", "adapter", "adapter_settings", "retention_policy",
+    "requires_auth",
+)
+
+
+def _policy_still_approved(snapshot: SourceRecord, current: SourceRecord) -> bool:
+    """Check the locked DB policy before retaining an in-flight fetch."""
+    return (
+        current.enabled
+        and current.verification_status == "verified"
+        and not current.requires_auth
+        and all(
+            getattr(snapshot, field) == getattr(current, field)
+            for field in _FETCH_POLICY_FIELDS
+        )
+    )
+
+
 async def _persist(
     factory: async_sessionmaker[AsyncSession],
     row: SourceRecord,
@@ -208,6 +227,15 @@ async def _persist(
             )
             if locked is None:
                 raise RuntimeError("source disappeared during collection")
+            # A registry sync or operator may disable a source or change its
+            # access/retention policy while HTTP is in flight. The row lock
+            # serializes this check with subsequent policy writes; stale
+            # captures must not be retained under a different policy.
+            if status != "skipped_config" and not _policy_still_approved(row, locked):
+                captures = ()
+                status = "skipped_config"
+                error_code = "source_policy_changed"
+                update_cursor = False
             written = 0
             seen: set[str] = set()
             for capture in captures:

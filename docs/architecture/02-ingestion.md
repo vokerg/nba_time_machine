@@ -158,6 +158,17 @@ enforced **both** by the collection orchestrator and by the lower-level
 `collect_source` adapter, so direct/manual adapter calls cannot bypass
 `enabled=true` and `verification_status=verified`.
 
+The runtime also **rechecks the source's current authorization and capture
+policy under a PostgreSQL row lock immediately before storing a fetch result**.
+If a source was disabled/unverified, started requiring authentication, or its
+locator, adapter, adapter settings or retention policy changed while the
+request was in flight, the fetched captures are discarded. A
+`skipped_config / source_policy_changed` outcome is persisted without
+advancing the source's attempt cursor. This prevents a stale response from
+being retained after an operator changes source access or retention rules.
+It does not cancel a request already underway, detect a policy changed and
+restored between checks, or substitute for network egress restrictions.
+
 The URL guard also rejects trailing-dot localhost/internal hostnames and
 numeric loopback aliases (including one-integer, octal, and hexadecimal
 IPv4 spellings) that operating-system resolvers can interpret as private
