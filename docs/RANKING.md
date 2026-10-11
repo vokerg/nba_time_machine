@@ -53,10 +53,11 @@ archived score with the same (game, kind, version, as-of) is rejected. The
 this contract. These DB rows are internal and must never be serialized directly
 into a spoiler-safe response.
 
-This is the foundational scoring slice of #10. Remaining: connect trusted as-of structured fact extraction;
-provide an explicitly gated recommendation application/API service; use
-historical games to tune normalization, thresholds and weights. This
-implementation does not claim real-life ranking quality or frontend wiring.
+The foundational scoring slice of #10 created the models and archive; the
+second slice below adds an internal temporal-fact reader. A production feature
+normalizer, explicit opt-in recommendation application/API service and tuning
+against historical games are still needed. Neither slice claims live ranking
+quality or frontend wiring.
 
 
 ## Trusted temporal-fact evidence reader (second #10 slice)
