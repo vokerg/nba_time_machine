@@ -137,6 +137,27 @@ async def test_historical_postgame_reader_uses_latest_cursor_safe_version() -> N
             assert at_cursor[0].components[0].source_ref == "official:final"
             at_future = await query.postgame_scores_as_of((game_id,), as_of=future)
             assert len(at_future) == 1 and at_future[0].value == later.value
+            # Even a cursor-available row must be rejected when its stored
+            # value no longer equals the weighted source features.
+            row = await session.scalar(select(RecommendationScoreRecord).where(
+                RecommendationScoreRecord.game_id == game_id,
+                RecommendationScoreRecord.score_kind == "postgame",
+                RecommendationScoreRecord.as_of == future,
+            ))
+            assert row is not None
+            row.score_value = 10
+            await session.flush()
+            assert await query.postgame_scores_as_of((game_id,), as_of=future) == ()
+            row.score_value = later.value
+            row.components = [{**row.components[0], "weight": 99}]
+            await session.flush()
+            assert await query.postgame_scores_as_of((game_id,), as_of=future) == ()
+            row.components = [{
+                **row.components[0], "weight": later.components[0].weight,
+            }]
+            await session.flush()
+            assert (await query.postgame_scores_as_of((game_id,), as_of=future))[0].value == later.value
+
             # Corrupted latest evidence is withheld, not replaced by an older
             # score that could conceal a broken historical archive.
             row = await session.scalar(select(RecommendationScoreRecord).where(
