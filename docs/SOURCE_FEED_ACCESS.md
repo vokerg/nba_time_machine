@@ -67,3 +67,42 @@ discovered/available/captured times remain separate.
 and `pytest tests/test_source_registry.py` should confirm the candidate's
 registry identity, low-retention status and disabled/unverified gating.
 These offline checks cannot prove external feed or rights compliance.
+
+
+## Read-only parser-level diagnostic command (Issue #9 follow-up)
+
+An operator can now compare a **locally acquired XML fixture** with the
+repository's production RSS/Atom parser, without changing source status or
+writing article text to the source registry, database or terminal:
+
+```bash
+cd backend
+python scripts/probe_feed.py --source-id nba-communications-feed --file /path/to/reviewed-feed.xml
+```
+
+For a **single live check only after independently reviewing the publisher's
+access terms, robots policy, permitted request rate and metadata handling**:
+
+```bash
+cd backend
+python scripts/probe_feed.py --source-id nba-communications-feed --live --access-reviewed
+```
+
+The operator's `--access-reviewed` flag is an explicit prerequisite, **not**
+automated rights/robots compliance checking or a grant of permission. Live
+mode performs at most one bounded HTTPS GET: no redirect following, 10-second
+timeout, 512 KB response limit, no retries, and no source activation. It is a
+manual research probe, not a scheduled collector or a collection-run record.
+In both modes the output contains only aggregate structural fields: declared
+MIME (live only), RSS/Atom kind, total/examined/accepted item counts, explicit
+GUID/ID count, canonical URL count, parsed publication-time count and whether
+the first 50-item window was truncated. No URLs, article titles, GUIDs,
+text, bodies, authentication values or feed payloads are printed. A successful
+parse **does not verify access rights, identifier stability across fetches,
+publish-time trust or team collection coverage**.
+
+The live probe has not been executed against `pr.nba.com` in this slice;
+the XML body remains unverified. Source `nba-communications-feed` stays
+disabled/unverified. Only an approved, documented end-to-end source smoke
+(including temporal availability, deduplication and retention checks) can
+support later verification. Keep parent #9 open.
