@@ -111,9 +111,30 @@ def test_html_is_single_page_and_strips_active_elements() -> None:
     "http://localhost/admin", "http://127.0.0.1/", "http://10.0.0.2/",
     "file:///etc/passwd", "https://user:secret@example.com/page", "https://a.local/",
     "https://admin.localhost/", "https://instance.internal/",
+    "https://localhost./", "https://stats.local./",
+    "https://instance.internal./", "http://2130706433/",
+    "http://0177.0.0.1/", "http://0x7f000001/", "http://127.1/",
 ])
 def test_refuses_nonpublic_urls(url: str) -> None:
     assert canonical_url(url) is None
+
+
+@pytest.mark.asyncio
+async def test_adapter_never_contacts_disabled_or_unverified_sources() -> None:
+    def no_network(request: httpx.Request) -> httpx.Response:
+        pytest.fail(f"unreviewed source attempted a network call: {request.url}")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(no_network)) as client:
+        for unreviewed in (
+            source(enabled=False),
+            source(verification_status="unverified"),
+            source(verification_status="blocked"),
+            source(enabled=False, verification_status="verified"),
+        ):
+            with pytest.raises(CollectionFailure) as failure:
+                await collect_source(unreviewed, client, NOW)
+            assert failure.value.status == "skipped_config"
+            assert failure.value.code == "not_verified_or_enabled"
 
 
 @pytest.mark.asyncio
