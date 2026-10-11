@@ -47,7 +47,7 @@ def canonical_url(value: str | None) -> str | None:
     try:
         parts = urlsplit(value.strip())
         host = (parts.hostname or "").lower().rstrip(".")
-        if parts.scheme not in {"https", "http"} or not host or parts.username:
+        if parts.scheme not in {"https", "http"} or not host or parts.username is not None or parts.password is not None:
             return None
         if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
             return None
