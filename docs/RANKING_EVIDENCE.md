@@ -30,7 +30,12 @@ That number represents a **normalized feature**, never a game score.
 Historical reads require both observation and availability no later than
 the requested as-of time and fact validity covering that moment.
 The newest knowable revision per signal wins; a malformed revision masks
-older values instead of resurrecting stale evidence. Missing or invalid
+older values instead of resurrecting stale evidence. Competing observations
+with identical latest observed/available timestamps fail closed, rather than
+choosing a tip or final state by a random UUID. Likewise, tied revisions of
+a ranking signal are omitted; independent untied signals may still be scored.
+When observed timestamps match but availability differs, the later-available
+observation takes precedence only once it is knowable. Missing or invalid
 features are omitted; no current records, other leagues, title text, winner,
 margin or final score are silently converted to interest/entertainment.
 Each score component refers back to its persisted source and fact UUID.
@@ -46,7 +51,9 @@ disclosure. No favorite-team weighting or media-cursor changes occur.
 PostgreSQL integration tests:
 `cd backend && pytest -q tests/integration/test_ranking_evidence.py`.
 They cover delayed/backfilled signals, tip boundaries, correction of
-scheduled status, malformed revisions, finalization trust, pre-final and
-future postgame facts, and non-NBA identities. The prior pending
-recommendation application/UI API, richer feature producers, calibration
-and live Neon validation remain part of parent #10 or follow-up work.
+scheduled status, malformed and tied revisions, conflicting game statuses,
+availability tie-breaking, finalization trust, pre-final and future postgame
+facts, and non-NBA identities. The consent-gated recommendation endpoint
+is documented in RANKING.md and was implemented separately in PR #33;
+trusted feature producers, calibration, front-end disclosure and live Neon
+validation remain separate follow-up work.
