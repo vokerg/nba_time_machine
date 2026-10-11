@@ -107,6 +107,30 @@ async def test_rank_only_whitelisted_trusted_and_cursor_available_scores() -> No
 
 
 @pytest.mark.asyncio
+async def test_recommendations_fail_closed_on_corrupt_archived_score_values() -> None:
+    # Even a buggy alternate score repository must not promote a game based on
+    # a tampered score or inconsistent feature evidence.
+    valid_a, valid_b = post(A, .4), post(B, .8)
+    original = post(C, .1)
+    inconsistent_value = replace(original, value=10.0)
+    inconsistent_signal = replace(
+        original,
+        components=(replace(original.components[0], signal="team_strength"),),
+    )
+    inconsistent_weight = replace(
+        original,
+        components=(replace(original.components[0], weight=999),),
+    )
+    service, _, _ = setup((
+        valid_a, inconsistent_value, valid_b,
+        inconsistent_signal, inconsistent_weight,
+    ))
+    assert await service.recommend(
+        PROFILE, (A, B, C), consent_to_outcome_ranking=True,
+    ) == (B, A)
+
+
+@pytest.mark.asyncio
 async def test_budget_uses_user_planned_allocation_not_game_runtime() -> None:
     service, _, _ = setup((post(A, .9), post(B, .8), post(C, .7)))
     ids = (C, A, B)

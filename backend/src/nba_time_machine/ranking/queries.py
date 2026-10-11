@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from nba_time_machine.db.ranking_models import RecommendationScoreRecord
 from nba_time_machine.ranking.scoring import (
     POSTGAME_VERSION, ScoreComponent, ScoreKind, VersionedScore,
+    score_evidence_is_consistent,
 )
 
 
@@ -40,7 +41,7 @@ def _score_from_row(row: RecommendationScoreRecord) -> VersionedScore | None:
             for p in parts
         ):
             return None
-        return VersionedScore(
+        score = VersionedScore(
             game_id=row.game_id,
             kind=ScoreKind(row.score_kind),
             model_version=row.model_version,
@@ -48,6 +49,7 @@ def _score_from_row(row: RecommendationScoreRecord) -> VersionedScore | None:
             value=float(row.score_value),
             components=parts,
         )
+        return score if score_evidence_is_consistent(score) else None
     except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
         return None
 

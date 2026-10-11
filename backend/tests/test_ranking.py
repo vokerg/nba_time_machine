@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal
+from types import SimpleNamespace
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -174,3 +176,42 @@ def test_canonical_order_has_no_favorites_argument_or_weight() -> None:
         rank_postgame((first, pgame(GAME_C, .9)))
     with pytest.raises(ValueError, match="one score per game"):
         rank_pregame((pgame(GAME_A, .9), pgame(GAME_A, .2)))
+
+
+def test_archive_integrity_rejects_score_component_mismatches() -> None:
+    from nba_time_machine.ranking.scoring import score_evidence_is_consistent
+
+    good = fgame(GAME_A, .6)
+    assert score_evidence_is_consistent(good)
+    part = good.components[0]
+    corrupt = (
+        replace(good, value=9.9),
+        replace(good, model_version="postgame-v999"),
+        replace(good, components=(replace(part, signal="expected_closeness"),)),
+        replace(good, components=(replace(part, normalized_value=.9),)),
+        replace(good, components=(replace(part, weight=99),)),
+        replace(good, components=(replace(part, weighted_contribution=2.0),)),
+        replace(good, components=(replace(part, source_ref=" "),)),
+        replace(good, components=(replace(part, observed_at=AFTER + timedelta(seconds=1)),)),
+        replace(good, components=(part, part)),
+        replace(good, components=(replace(part, normalized_value=float("nan")),)),
+    )
+    assert all(not score_evidence_is_consistent(score) for score in corrupt)
+
+
+def test_postgame_archive_reader_filters_corrupt_score_without_older_fallback() -> None:
+    from nba_time_machine.ranking.queries import _score_from_row
+    from nba_time_machine.ranking.repository import _components
+
+    good = fgame(GAME_B, .7)
+    row = SimpleNamespace(
+        game_id=good.game_id, score_kind=good.kind.value,
+        model_version=good.model_version, as_of=good.as_of,
+        score_value=Decimal(str(good.value)), components=_components(good),
+    )
+    assert _score_from_row(row) == good
+    row.score_value = Decimal("9.0")
+    assert _score_from_row(row) is None
+    row.score_value = Decimal(str(good.value))
+    row.components = [{**row.components[0], "weight": 90}]
+    assert _score_from_row(row) is None
