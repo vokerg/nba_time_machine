@@ -122,3 +122,16 @@ The system must expose configured/attempted/succeeded/failed/skipped counts sepa
 ## Initial source seed
 
 The seed file in this PR is a **research backlog**, not a claim that every listed source has a stable legal/technical collector. Entries begin disabled/unverified until an issue verifies access, identifiers, retention and smoke behavior.
+
+## Desired-state sync (Issue #3)
+
+`backend/scripts/sync_sources.py` validates `config/sources.seed.json` and
+upserts seed-owned fields into PostgreSQL. See
+[`docs/SOURCE_REGISTRY.md`](../SOURCE_REGISTRY.md) for its offline validation
+command, sync semantics, and source-health query surface.
+
+Runtime collection cursors and historical outcomes are not seeded. Missing
+source IDs are retained, not implicitly deleted; disabling requires an
+explicit `enabled: false` desired-state change. Verified and enabled are
+separate flags. Source health is derived from actual collection outcomes, not
+from desired-state flags.
