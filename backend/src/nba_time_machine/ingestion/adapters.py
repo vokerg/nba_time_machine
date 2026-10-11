@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import html
 import ipaddress
 import re
 from dataclasses import dataclass
@@ -50,7 +49,7 @@ def canonical_url(value: str | None) -> str | None:
         host = (parts.hostname or "").lower()
         if parts.scheme not in {"https", "http"} or not host or parts.username:
             return None
-        if host == "localhost" or host.endswith(".local"):
+        if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
             return None
         try:
             address = ipaddress.ip_address(host)
