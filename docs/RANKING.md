@@ -131,3 +131,22 @@ frontend consent UX and authenticated profile ownership remain future work.
 Profile UUIDs are presently **opaque state keys, not authenticated accounts**;
 the caller must not mistake this endpoint's consent check for user login or
 authorization.
+
+## Frontend consent boundary (partial #10)
+
+`frontend/src/watchability.ts` provides a deliberately unmounted request
+helper for a future authenticated/profile-connected interface. It accepts a
+server-projected PREGAME slate, validates 1–32 unique canonical game UUIDs and
+requires per-action `consentToOutcomeRanking: true` before any HTTP call. It
+sends only IDs, consent and uniform planned duration/budget. On return, its
+strict response boundary accepts only `game_ids`, rejects extraneous
+postgame fields, unknown and duplicate IDs, and maps selected UUIDs back to
+allowlisted pregame card fields. HTTP error bodies are not surfaced.
+
+This is **not** an active dashboard feature; no fixtures, passive rendering,
+browser favorite teams, untrusted raw sports data or automatic pregame lists
+may silently enter postgame ordering. It awaits backend-connected safe game
+lists, profile authentication/authorization, a deliberate opt-in UI and
+trusted real score evidence. Returning no scored games is normal until those
+producer gaps close. Neither numeric score visibility nor result
+acknowledgement is introduced by this client.
