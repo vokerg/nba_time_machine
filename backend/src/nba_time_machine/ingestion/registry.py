@@ -111,9 +111,11 @@ async def sync_source_seed(session: AsyncSession, seed: SourceSeed) -> SyncResul
         index_elements=[SourceRecord.id],
         set_=updates,
         where=differing,
-    )
+    ).returning(SourceRecord.id)
+    # Psycopg may report rowcount=-1 for multi-row INSERT .. ON CONFLICT;
+    # RETURNING counts only inserted or actually changed records.
     result = await session.execute(statement)
-    return SyncResult(configured=len(seed.sources), changed=result.rowcount)
+    return SyncResult(configured=len(seed.sources), changed=len(result.scalars().all()))
 
 
 async def list_source_health(session: AsyncSession) -> list[SourceHealth]:
