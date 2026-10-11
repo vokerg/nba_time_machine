@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
 
-from nba_time_machine.api import game_disclosure_router, game_list_router, timeline_router
+from nba_time_machine.api import (\n    game_disclosure_router, game_list_router, recommendation_router, timeline_router,\n)
 from nba_time_machine.db import (
     DatabaseSettings,
     create_database_engine,
@@ -35,7 +35,7 @@ app = FastAPI(
 )
 app.include_router(timeline_router)
 app.include_router(game_disclosure_router)
-app.include_router(game_list_router)
+app.include_router(game_list_router)\napp.include_router(recommendation_router)
 
 
 @app.get("/health")
