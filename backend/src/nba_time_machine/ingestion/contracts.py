@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 
 
 class SourceKind(StrEnum):
@@ -25,18 +25,29 @@ class RetentionPolicy(StrEnum):
     METADATA_ONLY = "metadata_only"
 
 
+class VerificationStatus(StrEnum):
+    DISCOVERY_REQUIRED = "discovery_required"
+    UNVERIFIED = "unverified"
+    VERIFIED = "verified"
+    BLOCKED = "blocked"
+    UNAVAILABLE = "unavailable"
+
+
 class SourceDefinition(BaseModel):
-    id: str
-    name: str
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, max_length=160, pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+    name: str = Field(min_length=1)
     kind: SourceKind
-    adapter: str
+    adapter: str = Field(min_length=1, max_length=96)
     category: list[str] = Field(default_factory=list)
-    locator: str
-    enabled: bool = False
-    verification_status: str
+    locator: str = Field(min_length=1)
+    enabled: StrictBool = False
+    verification_status: VerificationStatus
     cadence_minutes: int = Field(gt=0)
-    requires_auth: bool = False
+    requires_auth: StrictBool = False
     retention_policy: RetentionPolicy
+    adapter_settings: dict[str, Any] = Field(default_factory=dict)
 
 
 class RawCapture(BaseModel):
