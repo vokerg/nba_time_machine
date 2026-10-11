@@ -68,7 +68,6 @@ def test_atom_and_truncation() -> None:
     assert info["accepted_with_canonical_url"] == 0
     assert info["accepted_with_published_at"] == 1
 
-    long_feed = "<rss><channel>" + "<item><guid>%s</guid></item>" * 0
     long_feed = "<rss><channel>" + "".join(
         f"<item><guid>{i}</guid></item>" for i in range(54)
     ) + "</channel></rss>"
