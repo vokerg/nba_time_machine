@@ -64,7 +64,8 @@ def test_pregame_rejects_future_backfill_and_tip_boundary() -> None:
         score_pregame(GAME_A, {
             PregameSignal.RIVALRY: pre(.5, at=TIP - timedelta(minutes=20))
         }, tip_at=TIP, as_of=BEFORE)
-    with pytest.raises(ValueError, match="predate tipoff"):
+    # At the tip itself, evidence is also necessarily later than a pre-tip as_of.
+    with pytest.raises(ValueError, match="newer than as_of"):
         score_pregame(GAME_A, {
             PregameSignal.RIVALRY: pre(.5, at=TIP)
         }, tip_at=TIP, as_of=TIP - timedelta(seconds=1))
