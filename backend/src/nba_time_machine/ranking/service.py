@@ -14,6 +14,7 @@ from nba_time_machine.ranking.recommendations import (
 )
 from nba_time_machine.ranking.scoring import (
     POSTGAME_VERSION, ScoreKind, VersionedScore,
+    score_evidence_is_consistent,
 )
 from nba_time_machine.temporal.timeline import TimelineService
 
@@ -79,16 +80,7 @@ class WatchabilityRecommendationService:
                     or score.model_version != POSTGAME_VERSION
                     or score.as_of.tzinfo is None or score.as_of.utcoffset() is None
                     or score.as_of > cursor
-                    or not all(
-                        component.available_at.tzinfo is not None
-                        and component.available_at.utcoffset() is not None
-                        and component.observed_at.tzinfo is not None
-                        and component.observed_at.utcoffset() is not None
-                        and component.available_at <= score.as_of
-                        and component.observed_at <= score.as_of
-                        and component.source_ref.strip()
-                        for component in score.components
-                    )):
+                    or not score_evidence_is_consistent(score)):
                 continue  # Fail closed on unexpected or future archive evidence.
             seen.add(score.game_id)
             selected.append(score)
