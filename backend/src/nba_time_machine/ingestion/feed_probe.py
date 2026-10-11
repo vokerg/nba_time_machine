@@ -5,8 +5,8 @@ robots and rights have already been reviewed. It must not be run automatically.
 """
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
+from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import httpx
@@ -99,12 +99,8 @@ async def probe_live(
     return {**result, "transport": "http_200_no_redirect"}
 
 
-def inspect_file(source: SourceDefinition, path: "Path") -> dict[str, str | int | bool | None]:
+def inspect_file(source: SourceDefinition, path: Path) -> dict[str, str | int | bool | None]:
     """Analyze a local XML fixture without emitting or retaining the payload."""
-    from pathlib import Path
-
-    if not isinstance(path, Path):
-        raise TypeError("path must be Path")
     with path.open("rb") as handle:
         payload = handle.read(MAX_BYTES + 1)
     if len(payload) > MAX_BYTES:
