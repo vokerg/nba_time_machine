@@ -186,6 +186,7 @@ def test_youtube_channel_discovery_is_not_collector_approval() -> None:
     assert "official" in sources["youtube-nba"].category
     assert "analysis" in sources["youtube-thinking-basketball"].category
 
+
 def test_subscription_source_locator_discovery_preserves_access_gates() -> None:
     payload = json.loads(SEED.read_text(encoding="utf-8"))
     sources = {
