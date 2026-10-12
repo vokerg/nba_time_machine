@@ -132,6 +132,17 @@ For every fetch:
 - schedule/status/score fields are normalized into a new observation;
 - a later final observation coexists with the earlier scheduled observation.
 
+When the same provider event is submitted again with exactly the same
+`source_id` and `observed_at`, the repository treats it as an idempotent
+retry **only if** the normalized status, tip, scores, retained provider
+metadata and persisted temporal boundaries all match. A conflicting retry
+raises `SportsProviderResponseError` rather than returning a previously
+stored observation while silently discarding a new status or score.
+Corrections from a later capture must use their **own later observation
+timestamp** and append a new row; identical timestamps cannot establish an
+ordering between contradictory states. This is collision integrity, not proof
+of source authenticity, permission to capture or a trusted final timestamp.
+
 This is storage history only. Outcome-bearing fields still require spoiler-safe projection before user or AI output.
 
 ## Coverage gaps
