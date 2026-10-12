@@ -209,3 +209,43 @@ retention, replay, source isolation, cadence, and revision history. The command
 is a bounded live smoke entry point but a live source/Neon smoke **has not been
 performed**. Work outside this issue (authenticated social/podcasts/video,
 production scheduling, and timeline-aware media API projection) remains separate.
+
+## Podcast RSS episode metadata (Issue #11 — first adapter slice)
+
+The reviewed RSS/Atom collector now accepts `adapter="podcast_rss"` **only**
+with `kind="podcast"`. It fetches one explicitly configured HTTP(S) feed URL
+through the existing bounded transport (10-second request timeout, at most
+512 KB per response, no redirect following, limited retry behavior and 50
+parsed entries). Unverified or disabled podcast definitions, and sources
+requiring unavailable authentication, fail closed **before** any request.
+The collector does not discover podcast feeds from webpages.
+
+Episode metadata uses the same deterministic extraction and temporal contract
+as other RSS items: stable feed GUID (or a public canonical episode permalink
+when the GUID is missing), title, author, feed description and any parseable
+`pubDate` / Atom publication timestamp. Duplicate GUIDs within a batch are
+ignored. The publisher timestamp is not trusted as the item's first-known
+time: new source items and raw revisions remain available no earlier than
+their actual collection/discovery time. Empty or invalid feed payloads do
+not silently become HTML page captures.
+
+**No media fetch:** RSS `enclosure` links, podcast transcript/caption
+locators and linked episode pages are never followed. This first slice does
+not download audio/video, retrieve transcripts, store binaries, discover
+episode redirects, validate rights, or extract transcript text. Feed XML
+may contain media and transcript **URLs**, so retention policy is still
+enforced at PostgreSQL persistence. Use `metadata_only` unless a separate
+source-specific legal/access review explicitly approves further retention.
+No collector output is automatically safe for spoiler-free display.
+
+The existing `pod-no-dunks` and other podcast seed entries remain disabled
+and unverified, with unresolved feed addresses where documented. A real feed
+must be identity/access/terms-reviewed and pass a bounded operator smoke
+before any source is enabled; this change makes no live-feed, subscription,
+transcript-rights, production ingestion or Neon claim. Authenticated podcast
+feeds, permitted transcript discovery/capture, X and video adapters remain
+open under #11.
+
+Regression checks:
+`cd backend && pytest -q tests/test_podcast_rss_adapter.py`.
+They use a mocked HTTP transport, not the actual podcast publisher.
