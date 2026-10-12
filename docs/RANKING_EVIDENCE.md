@@ -77,6 +77,61 @@ is documented in RANKING.md and was implemented separately in PR #33;
 trusted feature producers, calibration, front-end disclosure and live Neon
 validation remain separate follow-up work.
 
+## TheSportsDB overtime signal candidate (Issue #10)
+
+`ranking/feature_candidates.py` now contains the **pure, read-only**
+`thesportsdb_overtime_candidate` function. It consumes the existing
+`normalize_thesportsdb_event` result, which accepts only league ID 4387 (NBA)
+and retains the provider's original `strStatus` in
+`metadata["provider_status"]`. It yields an immutable, provider-scoped
+`OvertimeCandidate` **only** for a finished `AOT` event with both scores.
+TheSportsDB's [basketball event-status guide](https://api.thesportsdb.com/docs_api_data)
+defines `AOT` as finished after overtime, `OT` as overtime **in progress**,
+and `FT` as finished. The independent [March 25, 2026 Pistons/Hawks
+event](https://www.thesportsdb.com/event/2358414-detroit-pistons-vs-atlanta-hawks)
+shows `AOT` and an overtime-period score. This is documentation and public
+event-page corroboration, **not** a live authenticated API-payload test.
+
+- **Derivation:** normalized `status="final"`, preserved raw code `AOT`,
+  two nonnegative integer scores => `overtime_occurred=True`, a *binary
+  event indicator*, not a calibrated quality/watchability value. `FT`,
+  generic `FINAL`, `OT`, unsupported/changed codes, missing scores or
+  inconsistent statuses yield **no candidate**; they are not treated as a
+  proven zero-overtime event. An unknown value is never guessed from game
+  length, points, result margin, period count or highlights.
+- **Identity/provenance:** the candidate has `provider="thesportsdb"` and
+  the provider's event ID only. A future producer must resolve that ID to a
+  canonical NBA `game_id`, choose the latest knowable version and ensure
+  current/source-at-capture approval. This pure function does not perform
+  those trust checks. A source's verification flag does not validate the
+  individual basketball claim or prove rights in a particular payload.
+- **Time:** raw `strTimestamp` denotes *scheduled tip*, **not** actual game
+  end or first knowledge of overtime. TheSportsDB's event status has no
+  authenticated event-final timestamp here. A future fact must use the
+  recorded capture/observation and defensible availability time, preserve
+  subsequent status corrections, and must not predate first reliable
+  observation. `final_at` still needs independent evidence before any
+  postgame scorer accepts it.
+- **Rights:** [TheSportsDB's terms updated September 17, 2026](https://api.thesportsdb.com/docs_terms_of_use.php)
+  allow use/copy/modification of content from official API endpoints subject
+  to third-party rights, require a paid subscription for app-store release,
+  and impose source attribution for paid API services. The terms prohibit
+  website scraping and do not clear third-party artwork. This code makes
+  **no network request** and stores no third-party payload; production
+  capture/retention/distribution and license needs must still be approved
+  for the intended deployment.
+- **Activation gate:** the result is deliberately **not**
+  `FeatureObservation`, a `TemporalFactRecord` or a `VersionedScore`.
+  Neither the archive script nor any API uses it. Before producing
+  `ranking.postgame.overtime` facts, independently validate real API
+  status coverage/corrections, historical time semantics, source approval
+  and binary-feature calibration (including missing and non-overtime cases).
+  Do not expose postgame ordering or score to a sealed-game user.
+
+Offline tests: `cd backend && pytest -q tests/test_ranking_feature_candidates.py`.
+No live source request, Neon connection, production model calibration or
+user-facing watchability claim is implied by those tests.
+
 ## Explicit score materialization (PR #37)
 
 The internal `RankingMaterializationService` in
