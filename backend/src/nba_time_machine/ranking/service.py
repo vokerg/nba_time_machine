@@ -5,7 +5,7 @@ spoiler. No caller may activate it by default or by merely reading a GET.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -16,11 +16,26 @@ from nba_time_machine.ranking.scoring import (
     POSTGAME_VERSION, ScoreKind, VersionedScore,
     score_evidence_is_consistent,
 )
+from nba_time_machine.spoilers.game_list import SafeGameList
+from nba_time_machine.spoilers.policy import DisclosureLayer, GameProjection
+from nba_time_machine.spoilers.service import DisclosedGame
 from nba_time_machine.temporal.timeline import TimelineService
 
 
 class OutcomeRankingConsentRequired(PermissionError):
     """Explicit, per-request postgame-ranking opt-in was not supplied."""
+
+
+class RecommendationSlateUnavailable(PermissionError):
+    """The requested candidates are not all in the profile's safe dated slate."""
+
+
+class RecommendationTimelineChanged(RuntimeError):
+    """The safe slate was assembled for a different profile cursor."""
+
+
+class SafeSlateReader(Protocol):
+    async def list_games(self, profile_id: UUID, *, slate_date: date) -> SafeGameList: ...
 
 
 class PostgameScoreRepository(Protocol):
@@ -32,15 +47,18 @@ class PostgameScoreRepository(Protocol):
 class WatchabilityRecommendationService:
     def __init__(
         self, timeline: TimelineService, scores: PostgameScoreRepository,
+        safe_slates: SafeSlateReader,
     ) -> None:
         self._timeline = timeline
         self._scores = scores
+        self._safe_slates = safe_slates
 
     async def recommend(
         self,
         profile_id: UUID,
         candidate_game_ids: tuple[UUID, ...],
         *,
+        slate_date: date,
         consent_to_outcome_ranking: bool = False,
         budget_minutes: int | None = None,
         planned_minutes_per_game: int = 120,
@@ -54,6 +72,8 @@ class WatchabilityRecommendationService:
         """
         if consent_to_outcome_ranking is not True:
             raise OutcomeRankingConsentRequired("postgame ranking requires explicit consent")
+        if type(slate_date) is not date:
+            raise ValueError("a dated NBA/Eastern slate is required")
         if (not 1 <= len(candidate_game_ids) <= 32
                 or any(type(game_id) is not UUID for game_id in candidate_game_ids)
                 or len(set(candidate_game_ids)) != len(candidate_game_ids)):
@@ -67,6 +87,26 @@ class WatchabilityRecommendationService:
 
         # Consent is checked BEFORE consulting the profile state or any scores.
         cursor = (await self._timeline.resume(profile_id)).time_cursor
+        slate = await self._safe_slates.list_games(profile_id, slate_date=slate_date)
+        if (type(slate) is not SafeGameList
+                or slate.time_cursor != cursor):
+            # In particular, reject a cursor advanced between the two reads.
+            # Never mix a later safe slate with an older score snapshot.
+            raise RecommendationTimelineChanged("profile timeline changed; refresh the slate")
+        if any(
+            type(game) is not DisclosedGame
+            or type(game.projection) is not GameProjection
+            or game.projection.disclosure is not DisclosureLayer.PREGAME
+            or type(game.projection.game_id) is not UUID
+            for game in slate.games
+        ):
+            raise RecommendationSlateUnavailable("invalid safe slate")
+        safe_ids = [game.projection.game_id for game in slate.games]
+        if (len(set(safe_ids)) != len(safe_ids)
+                or not set(candidate_game_ids).issubset(safe_ids)):
+            # A client-provided UUID is never proof of historical visibility.
+            # Refuse the entire request before reading outcome-derived scores.
+            raise RecommendationSlateUnavailable("candidates must belong to the safe dated slate")
         archived = await self._scores.postgame_scores_as_of(
             candidate_game_ids, as_of=cursor,
         )
