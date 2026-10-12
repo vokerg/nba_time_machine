@@ -86,6 +86,22 @@ class StructuredSportsStore:
             )
         )
         if existing is not None:
+            # The timestamp identifies a single historical capture, not an
+            # overwrite slot. Exact retries are safe; contradictory payloads
+            # at the same source/time must not silently retain stale facts.
+            if (
+                existing.status != normalized.status
+                or existing.scheduled_tip_at != normalized.scheduled_tip_at
+                or existing.home_score != normalized.home_score
+                or existing.away_score != normalized.away_score
+                or existing.observation_metadata != normalized.metadata
+                or existing.available_at != observed_at
+                or existing.actual_tip_at is not None
+                or existing.final_at is not None
+            ):
+                raise SportsProviderResponseError(
+                    "Conflicting TheSportsDB observation at the same source and observation time"
+                )
             return existing
 
         observation = GameObservationRecord(
