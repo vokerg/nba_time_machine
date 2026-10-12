@@ -7,10 +7,11 @@ callers must explicitly authorize any outcome-dependent recommendation surface.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite
 from uuid import UUID
 
-from nba_time_machine.ranking.scoring import ScoreKind, VersionedScore
+from nba_time_machine.ranking.scoring import (
+    ScoreKind, VersionedScore, score_evidence_is_consistent,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +21,9 @@ class ViewingCandidate:
 
     def __post_init__(self) -> None:
         if type(self.score) is not VersionedScore or self.score.kind is not ScoreKind.POSTGAME:
-            raise ValueError("time-budget selection requires trusted postgame scores")
+            raise ValueError("time-budget selection requires postgame scores")
+        if not score_evidence_is_consistent(self.score):
+            raise ValueError("time-budget selection requires consistent postgame evidence")
         if type(self.duration_minutes) is not int or not 0 < self.duration_minutes <= 720:
             raise ValueError("duration must be an integer from 1 to 720 minutes")
 
@@ -38,6 +41,8 @@ def _order(scores: tuple[VersionedScore, ...], kind: ScoreKind) -> tuple[UUID, .
         raise ValueError("cannot mix pregame and postgame ranking evidence")
     if len({score.game_id for score in scores}) != len(scores):
         raise ValueError("one score per game is required")
+    if any(not score_evidence_is_consistent(score) for score in scores):
+        raise ValueError("cannot rank inconsistent evidence")
     return tuple(score.game_id for score in sorted(scores, key=lambda row: (-row.value, str(row.game_id))))
 
 
@@ -57,6 +62,10 @@ def recommend_for_budget(
         raise TypeError("all candidates must be ViewingCandidate")
     if len({candidate.score.game_id for candidate in candidates}) != len(candidates):
         raise ValueError("duplicate game IDs in recommendation slate")
+    # Check again at consumption: even a candidate mutated after construction
+    # must not influence the hidden-score optimizer.
+    if any(not score_evidence_is_consistent(candidate.score) for candidate in candidates):
+        raise ValueError("cannot optimize inconsistent postgame evidence")
     if budget_minutes == 0:
         return ()
 
