@@ -152,7 +152,12 @@ client's claim to have previously fetched the list is not sufficient.
 Off-slate candidates fail the entire request with HTTP 403 rather than
 revealing a partial ranking. If the persisted cursor changes between the
 timeline read and safe-list reconstruction, the request fails closed with
-HTTP 409; the client must refresh the safe slate. An absent or malformed
+HTTP 409; the client must refresh the safe slate. The service also rereads
+the persisted cursor **after** the score archive query and returns HTTP 409
+when an in-flight timeline advance is detected; the timeline repository
+refreshes a previously cached ORM row on repeated reads. This is a
+defensive recheck under PostgreSQL READ COMMITTED, **not** an atomic lock
+against an advance after the final read. An absent or malformed
 `slate_date` is rejected with HTTP 422. Missing/false consent still returns
 403 **before either the safe game list or the score archive is consulted**.
 This ties ordering to a date and to historically visible games, but is not
