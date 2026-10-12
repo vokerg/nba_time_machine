@@ -12,7 +12,8 @@
     "CBS Sports, NBC Sports, Bleacher Report and The Ringer NBA public section URLs were inspected on 2026-10-12. Identity/page discovery only: no approved collector, item identity/timestamp smoke, RSS proof or rights approval. All remain disabled/unverified; see docs/SOURCE_NATIONAL_MEDIA_ACCESS.md.",
     "Yahoo Sports NBA news and SB Nation NBA section URLs located on 2026-10-12. Publisher pages/search-rendered links only; no collector feed, per-item provenance, rights approval, or ingestion smoke. Both remain disabled/unverified with metadata-only retention; see docs/SOURCE_ADDITIONAL_MEDIA_ACCESS.md.",
     "No Dunks, Dunc'd On and Thinking Basketball podcast RSS URLs located on 2026-10-12. Feed MIME reached by a web reader but XML not parsed by the project; item identities, timelines, rights and collector smoke unverified. All three remain disabled/unverified and metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY.md.",
-    "Locked On NBA, Brian Windhorst & The Hoop Collective, and The Bill Simmons Podcast direct RSS candidates were located on 2026-10-12. A web reader observed XML MIME but could not inspect items; rights, parser/timestamp and adapter+PostgreSQL smoke remain open. Disabled/unverified, metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY_FOLLOWUP.md."
+    "Locked On NBA, Brian Windhorst & The Hoop Collective, and The Bill Simmons Podcast direct RSS candidates were located on 2026-10-12. A web reader observed XML MIME but could not inspect items; rights, parser/timestamp and adapter+PostgreSQL smoke remain open. Disabled/unverified, metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY_FOLLOWUP.md.",
+    "The Athletic NBA and Cleaning the Glass official section/site URLs were located on 2026-10-12. Both are subscription/auth-gated discovery identities, not confirmed data access or authorized collectors. They remain disabled/unverified/metadata-only; see docs/SOURCE_SUBSCRIPTION_ACCESS.md."
   ],
   "sources": [
     {
@@ -155,12 +156,12 @@
         "media",
         "analysis"
       ],
-      "locator": "The Athletic NBA",
+      "locator": "https://www.nytimes.com/athletic/nba/",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 15,
       "requires_auth": true,
-      "retention_policy": "metadata_excerpt"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "yahoo-sports-nba",
@@ -429,9 +430,9 @@
         "stats",
         "analysis"
       ],
-      "locator": "Cleaning the Glass",
+      "locator": "https://cleaningtheglass.com/",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 60,
       "requires_auth": true,
       "retention_policy": "metadata_only"
