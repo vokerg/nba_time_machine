@@ -113,3 +113,27 @@ def test_podcast_rss_locators_remain_discovery_only() -> None:
         assert source.verification_status == "unverified"
         assert source.retention_policy == "metadata_only"
         assert source.requires_auth is False
+
+
+def test_second_podcast_rss_discovery_is_not_live_verification() -> None:
+    payload = json.loads(SEED.read_text(encoding="utf-8"))
+    sources = {
+        row["id"]: SourceDefinition.model_validate(row)
+        for row in payload["sources"]
+    }
+    expected = {
+        "pod-locked-on-nba": "https://feeds.simplecast.com/XThpxTzR",
+        "pod-hoop-collective": "https://feeds.megaphone.fm/ESP4033296397",
+        "pod-bill-simmons": "https://feeds.megaphone.fm/the-bill-simmons-podcast",
+    }
+
+    assert len(set(expected.values())) == len(expected)
+    for source_id, rss_url in expected.items():
+        source = sources[source_id]
+        assert source.locator == rss_url
+        assert source.kind == "podcast"
+        assert source.adapter == "podcast_rss"
+        assert source.enabled is False
+        assert source.verification_status == "unverified"
+        assert source.retention_policy == "metadata_only"
+        assert source.requires_auth is False

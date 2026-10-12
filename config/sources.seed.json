@@ -10,7 +10,8 @@
     "The NBA Communications RSS candidate has only MIME-level research evidence; parser smoke, item identity/timestamps, rights and approval are outstanding. Disabled/unverified; see docs/SOURCE_FEED_ACCESS.md.",
     "CBS Sports, NBC Sports, Bleacher Report and The Ringer NBA public section URLs were inspected on 2026-10-12. Identity/page discovery only: no approved collector, item identity/timestamp smoke, RSS proof or rights approval. All remain disabled/unverified; see docs/SOURCE_NATIONAL_MEDIA_ACCESS.md.",
     "Yahoo Sports NBA news and SB Nation NBA section URLs located on 2026-10-12. Publisher pages/search-rendered links only; no collector feed, per-item provenance, rights approval, or ingestion smoke. Both remain disabled/unverified with metadata-only retention; see docs/SOURCE_ADDITIONAL_MEDIA_ACCESS.md.",
-    "No Dunks, Dunc'd On and Thinking Basketball podcast RSS URLs located on 2026-10-12. Feed MIME reached by a web reader but XML not parsed by the project; item identities, timelines, rights and collector smoke unverified. All three remain disabled/unverified and metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY.md."
+    "No Dunks, Dunc'd On and Thinking Basketball podcast RSS URLs located on 2026-10-12. Feed MIME reached by a web reader but XML not parsed by the project; item identities, timelines, rights and collector smoke unverified. All three remain disabled/unverified and metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY.md.",
+    "Locked On NBA, Brian Windhorst & The Hoop Collective, and The Bill Simmons Podcast direct RSS candidates were located on 2026-10-12. A web reader observed XML MIME but could not inspect items; rights, parser/timestamp and adapter+PostgreSQL smoke remain open. Disabled/unverified, metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY_FOLLOWUP.md."
   ],
   "sources": [
     {
@@ -491,12 +492,12 @@
         "podcast",
         "daily_buzz"
       ],
-      "locator": "Locked On NBA podcast feed",
+      "locator": "https://feeds.simplecast.com/XThpxTzR",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 60,
       "requires_auth": false,
-      "retention_policy": "normalized_full"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "pod-hoop-collective",
@@ -507,12 +508,12 @@
         "podcast",
         "league_news"
       ],
-      "locator": "The Hoop Collective podcast feed",
+      "locator": "https://feeds.megaphone.fm/ESP4033296397",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 120,
       "requires_auth": false,
-      "retention_policy": "normalized_full"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "pod-bill-simmons",
@@ -524,12 +525,12 @@
         "analysis",
         "buzz"
       ],
-      "locator": "The Bill Simmons Podcast feed",
+      "locator": "https://feeds.megaphone.fm/the-bill-simmons-podcast",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 120,
       "requires_auth": false,
-      "retention_policy": "normalized_full"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "pod-the-mismatch",
