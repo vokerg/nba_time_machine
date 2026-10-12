@@ -27,8 +27,15 @@ endpoint. No provider feature extraction or production calibration is claimed.
 UUIDs only. `recommend_for_budget` solves a bounded 0/1 viewing-time knapsack,
 comparing rich hidden postgame scores but returning only selected game IDs.
 Neither ranking nor budget selection accepts favorite-team inputs; favorites
-belong on a separate UI surface. Showing a postgame-ranked list can itself be
-a spoiler and requires explicit user consent in the eventual API.
+belong on a separate UI surface. Direct sorting helpers now reject inconsistent
+versioned scores (including component arithmetic and timestamp mismatches)
+instead of using their claimed values. Viewing-time candidates are validated
+on construction and again at optimization, including zero-minute requests,
+so a bypass of the archive/HTTP reader or later mutation cannot silently rank
+corrupt evidence. These internal checks **do not** establish real-world source
+trust, game finality, or permission to disclose outcome-dependent ordering.
+Showing a postgame-ranked list can itself be a spoiler and still requires
+explicit user consent at the API boundary.
 
 `ranking_fields` turns a pregame score into `PREGAME_INTEREST`, or an internal
 postgame score into a coarse `WATCHABILITY_VERDICT` and optional
