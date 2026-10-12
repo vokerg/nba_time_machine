@@ -1,5 +1,6 @@
 """Database configuration, models, and session boundaries."""
 
+from .ai_models import AIResultMetadataRecord
 from .acknowledgement_models import GameAcknowledgementRecord
 from .config import DatabaseNotConfiguredError, DatabaseSettings
 from .models import (
@@ -22,6 +23,7 @@ from .session import create_database_engine, create_session_factory
 from .timeline_models import TimelineStateRecord
 
 __all__ = [
+    "AIResultMetadataRecord",
     "Base",
     "CollectionRunRecord",
     "DatabaseNotConfiguredError",
