@@ -264,3 +264,59 @@ async def test_equal_time_conflicts_fail_closed_without_uuid_tiebreakers():
             ) is None
     finally:
         await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_unverified_source_revisions_mask_older_verified_ranking_evidence():
+    """Current source review is required for game state and every score signal."""
+    engine = create_database_engine(_settings_or_skip())
+    factory = create_session_factory(engine)
+    unverified_id = f"ranking-evidence-unverified-{uuid4()}"
+    try:
+        async with factory.begin() as session:
+            await _source(session)
+            await _source(session, unverified_id)
+            # This fixture source was initially registered but failed review.
+            # Its newer revisions must not resurrect stale verified facts.
+            (await session.get(SourceRecord, unverified_id)).verification_status = "unverified"
+            partial_game = await _game(session)
+            status_game = await _game(session)
+            final_game = await _game(session)
+            session.add_all([
+                _observation(partial_game, at=EARLY - timedelta(minutes=20)),
+                _fact(partial_game, "pregame", "rivalry",
+                      {"normalized_value": 0.9},
+                      at=EARLY - timedelta(minutes=15)),
+                _fact(partial_game, "pregame", "rivalry",
+                      {"normalized_value": 0.1},
+                      at=EARLY - timedelta(minutes=5),
+                      source_id=unverified_id),
+                _fact(partial_game, "pregame", "expected_closeness",
+                      {"normalized_value": 0.4}, at=EARLY),
+                _observation(status_game, at=EARLY - timedelta(minutes=15)),
+                _observation(status_game, at=EARLY,
+                             status="postponed", source_id=unverified_id),
+                _fact(status_game, "pregame", "rivalry",
+                      {"normalized_value": 0.8}, at=EARLY),
+                _observation(final_game, at=FINAL + timedelta(minutes=10),
+                             status="final", final_at=FINAL,
+                             source_id=unverified_id),
+                _fact(final_game, "postgame", "clutch",
+                      {"normalized_value": 0.9},
+                      at=FINAL + timedelta(minutes=20)),
+            ])
+
+        async with factory() as session:
+            repo = SqlAlchemyRankingEvidenceRepository(session)
+            partial = await repo.pregame(partial_game, as_of=EARLY)
+            assert partial is not None and partial.value == 4.0
+            assert [part.signal for part in partial.components] == ["expected_closeness"]
+            # The unreviewed latest status masks the old scheduled state.
+            assert await repo.pregame(status_game, as_of=EARLY) is None
+            # A verified feature does not cure an unreviewed final source.
+            assert await repo.postgame(
+                final_game, as_of=FINAL + timedelta(minutes=30)
+            ) is None
+    finally:
+        await engine.dispose()
