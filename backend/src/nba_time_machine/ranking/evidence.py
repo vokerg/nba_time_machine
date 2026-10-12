@@ -145,7 +145,16 @@ class SqlAlchemyRankingEvidenceRepository:
         if cursor is None:
             raise ValueError("as_of must be timezone-aware")
         observation = await self._game_observation(game_id, cursor)
-        if observation is None or observation.status != "scheduled":
+        if (
+            observation is None
+            or observation.status != "scheduled"
+            or observation.home_score is not None
+            or observation.away_score is not None
+            or observation.actual_tip_at is not None
+            or observation.final_at is not None
+        ):
+            # A scheduled row carrying a score, actual start or final marker
+            # is not a trustworthy pre-tip state, even from a reviewed source.
             return None
         tip = _utc(observation.scheduled_tip_at)
         if (tip is None or cursor >= tip
@@ -171,9 +180,14 @@ class SqlAlchemyRankingEvidenceRepository:
         final = _utc(observation.final_at)
         observed = _utc(observation.observed_at)
         available = _utc(observation.available_at)
+        scheduled_tip = _utc(observation.scheduled_tip_at)
+        actual_tip = _utc(observation.actual_tip_at)
         if (final is None or final > cursor or observed is None
-                or observed < final or available is None or available < final):
-            # A final status alone does not prove when the game ended.
+                or observed < final or available is None or available < final
+                or (scheduled_tip is not None and final <= scheduled_tip)
+                or (actual_tip is not None and final <= actual_tip)):
+            # A final marker must follow every known tip boundary. Otherwise
+            # even source-reviewed data cannot establish a real postgame window.
             return None
         features = await self._features(game_id, cursor, "postgame")
         # Drop facts with pre-final evidence without silently losing valid ones.
