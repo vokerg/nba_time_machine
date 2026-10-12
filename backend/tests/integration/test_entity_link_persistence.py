@@ -99,6 +99,8 @@ async def test_entity_links_are_independently_versioned_and_can_be_retracted() -
         invalid = [
             dict(entity_type="game", game_id=game_id, link_state="present",
                  derivation_method="rule"),
+            dict(entity_type="game", link_state="present",
+                 derivation_method="rule"),
             dict(entity_type="game", team_id=home_id, link_state="present",
                  derivation_method="rule"),
             dict(entity_type="game", game_id=game_id, team_id=home_id,
@@ -110,11 +112,17 @@ async def test_entity_links_are_independently_versioned_and_can_be_retracted() -
             dict(entity_type="player", player_id=uuid4(), link_state="present",
                  derivation_method="model"),
         ]
-        for values in invalid:
+        for index, values in enumerate(invalid):
+            # Only the first case deliberately collides with an existing
+            # observation. Fresh clocks ensure later failures test their
+            # intended check/FK, not the uniqueness index.
+            timestamp = observed_at if index == 0 else (
+                observed_at + timedelta(minutes=10 + index)
+            )
             async with factory() as session:
                 session.add(SourceItemEntityLinkRecord(
                     source_item_id=item_id,
-                    observed_at=observed_at, available_at=observed_at,
+                    observed_at=timestamp, available_at=timestamp,
                     **values,
                 ))
                 with pytest.raises(IntegrityError):
