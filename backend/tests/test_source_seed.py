@@ -88,3 +88,28 @@ def test_yahoo_sbnation_discovery_does_not_activate_collectors() -> None:
         assert source.verification_status == "unverified"
         assert source.retention_policy == "metadata_only"
         assert source.requires_auth is False
+
+
+def test_podcast_rss_locators_remain_discovery_only() -> None:
+    payload = json.loads(SEED.read_text(encoding="utf-8"))
+    sources = {
+        row["id"]: SourceDefinition.model_validate(row)
+        for row in payload["sources"]
+    }
+    expected = {
+        "pod-no-dunks":
+            "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/170a762b-6e4b-4cb5-a181-b36a00f64617/64cb7714-6ad9-4029-887f-b36a00f64628/podcast.rss",
+        "pod-duncd-on": "https://feeds.simplecast.com/JGGpY1xu",
+        "pod-thinking-basketball": "https://anchor.fm/s/86b2b318/podcast/rss",
+    }
+
+    assert len(set(expected.values())) == len(expected)
+    for source_id, feed_url in expected.items():
+        source = sources[source_id]
+        assert source.locator == feed_url
+        assert source.kind == "podcast"
+        assert source.adapter == "podcast_rss"
+        assert source.enabled is False
+        assert source.verification_status == "unverified"
+        assert source.retention_policy == "metadata_only"
+        assert source.requires_auth is False

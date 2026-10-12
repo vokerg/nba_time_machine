@@ -9,7 +9,8 @@
     "Official NBA transactions and 2025-26 season injury-report publication pages were inspected on 2026-10-12; these remain disabled/unverified, without validated item-level extraction or current-season injury-report coverage. See docs/SOURCE_OFFICIAL_DATA_ACCESS.md.",
     "The NBA Communications RSS candidate has only MIME-level research evidence; parser smoke, item identity/timestamps, rights and approval are outstanding. Disabled/unverified; see docs/SOURCE_FEED_ACCESS.md.",
     "CBS Sports, NBC Sports, Bleacher Report and The Ringer NBA public section URLs were inspected on 2026-10-12. Identity/page discovery only: no approved collector, item identity/timestamp smoke, RSS proof or rights approval. All remain disabled/unverified; see docs/SOURCE_NATIONAL_MEDIA_ACCESS.md.",
-    "Yahoo Sports NBA news and SB Nation NBA section URLs located on 2026-10-12. Publisher pages/search-rendered links only; no collector feed, per-item provenance, rights approval, or ingestion smoke. Both remain disabled/unverified with metadata-only retention; see docs/SOURCE_ADDITIONAL_MEDIA_ACCESS.md."
+    "Yahoo Sports NBA news and SB Nation NBA section URLs located on 2026-10-12. Publisher pages/search-rendered links only; no collector feed, per-item provenance, rights approval, or ingestion smoke. Both remain disabled/unverified with metadata-only retention; see docs/SOURCE_ADDITIONAL_MEDIA_ACCESS.md.",
+    "No Dunks, Dunc'd On and Thinking Basketball podcast RSS URLs located on 2026-10-12. Feed MIME reached by a web reader but XML not parsed by the project; item identities, timelines, rights and collector smoke unverified. All three remain disabled/unverified and metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY.md."
   ],
   "sources": [
     {
@@ -442,12 +443,12 @@
         "podcast",
         "daily_buzz"
       ],
-      "locator": "No Dunks podcast feed",
+      "locator": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/170a762b-6e4b-4cb5-a181-b36a00f64617/64cb7714-6ad9-4029-887f-b36a00f64628/podcast.rss",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 60,
       "requires_auth": false,
-      "retention_policy": "normalized_full"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "pod-duncd-on",
@@ -458,12 +459,12 @@
         "podcast",
         "analysis"
       ],
-      "locator": "Dunc'd On podcast feed",
+      "locator": "https://feeds.simplecast.com/JGGpY1xu",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 120,
       "requires_auth": false,
-      "retention_policy": "normalized_full"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "pod-thinking-basketball",
@@ -474,12 +475,12 @@
         "podcast",
         "analysis"
       ],
-      "locator": "Thinking Basketball podcast feed",
+      "locator": "https://anchor.fm/s/86b2b318/podcast/rss",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 120,
       "requires_auth": false,
-      "retention_policy": "normalized_full"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "pod-locked-on-nba",
