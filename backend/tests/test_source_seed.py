@@ -185,3 +185,32 @@ def test_youtube_channel_discovery_is_not_collector_approval() -> None:
 
     assert "official" in sources["youtube-nba"].category
     assert "analysis" in sources["youtube-thinking-basketball"].category
+
+
+def test_subscription_source_locator_discovery_preserves_access_gates() -> None:
+    payload = json.loads(SEED.read_text(encoding="utf-8"))
+    sources = {
+        row["id"]: SourceDefinition.model_validate(row)
+        for row in payload["sources"]
+    }
+    expected = {
+        "the-athletic-nba": (
+            "https://www.nytimes.com/athletic/nba/", "media", "rss_or_web", 15
+        ),
+        "cleaning-the-glass": (
+            "https://cleaningtheglass.com/", "stats_site", "provider_specific", 60
+        ),
+    }
+
+    assert len(set(item[0] for item in expected.values())) == len(expected)
+    for source_id, (section_url, kind, adapter, cadence) in expected.items():
+        source = sources[source_id]
+        assert source.locator == section_url
+        assert source.kind == kind
+        assert source.adapter == adapter
+        assert source.cadence_minutes == cadence
+        assert source.enabled is False
+        assert source.verification_status == "unverified"
+        assert source.requires_auth is True
+        assert source.retention_policy == "metadata_only"
+        assert "analysis" in source.category
