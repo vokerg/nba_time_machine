@@ -64,3 +64,27 @@ def test_national_media_page_discovery_is_not_collector_approval() -> None:
         assert source.verification_status == "unverified"
         assert source.retention_policy == "metadata_only"
         assert "media" in source.category
+
+
+def test_yahoo_sbnation_discovery_does_not_activate_collectors() -> None:
+    payload = json.loads(SEED.read_text(encoding="utf-8"))
+    sources = {
+        row["id"]: SourceDefinition.model_validate(row)
+        for row in payload["sources"]
+    }
+    expected = {
+        "yahoo-sports-nba": "https://sports.yahoo.com/nba/news/",
+        "sb-nation-nba": "https://www.sbnation.com/nba",
+    }
+
+    assert len(set(expected.values())) == len(expected)
+    for source_id, section_url in expected.items():
+        source = sources[source_id]
+        assert source.locator == section_url
+        assert source.kind == "media"
+        # rss_or_web still denotes a planned choice, not a working parser.
+        assert source.adapter == "rss_or_web"
+        assert source.enabled is False
+        assert source.verification_status == "unverified"
+        assert source.retention_policy == "metadata_only"
+        assert source.requires_auth is False

@@ -8,7 +8,8 @@
     "Official team sites are identity-confirmed against NBA.com/teams on 2026-10-11, but remain unverified and disabled for collection; browser links do not establish extractable news, rights, or successful smoke tests. See docs/SOURCE_TEAM_COVERAGE.md.",
     "Official NBA transactions and 2025-26 season injury-report publication pages were inspected on 2026-10-12; these remain disabled/unverified, without validated item-level extraction or current-season injury-report coverage. See docs/SOURCE_OFFICIAL_DATA_ACCESS.md.",
     "The NBA Communications RSS candidate has only MIME-level research evidence; parser smoke, item identity/timestamps, rights and approval are outstanding. Disabled/unverified; see docs/SOURCE_FEED_ACCESS.md.",
-    "CBS Sports, NBC Sports, Bleacher Report and The Ringer NBA public section URLs were inspected on 2026-10-12. Identity/page discovery only: no approved collector, item identity/timestamp smoke, RSS proof or rights approval. All remain disabled/unverified; see docs/SOURCE_NATIONAL_MEDIA_ACCESS.md."
+    "CBS Sports, NBC Sports, Bleacher Report and The Ringer NBA public section URLs were inspected on 2026-10-12. Identity/page discovery only: no approved collector, item identity/timestamp smoke, RSS proof or rights approval. All remain disabled/unverified; see docs/SOURCE_NATIONAL_MEDIA_ACCESS.md.",
+    "Yahoo Sports NBA news and SB Nation NBA section URLs located on 2026-10-12. Publisher pages/search-rendered links only; no collector feed, per-item provenance, rights approval, or ingestion smoke. Both remain disabled/unverified with metadata-only retention; see docs/SOURCE_ADDITIONAL_MEDIA_ACCESS.md."
   ],
   "sources": [
     {
@@ -167,12 +168,12 @@
         "media",
         "league_news"
       ],
-      "locator": "Yahoo Sports NBA",
+      "locator": "https://sports.yahoo.com/nba/news/",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 15,
       "requires_auth": false,
-      "retention_policy": "metadata_excerpt"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "cbs-sports-nba",
@@ -247,12 +248,12 @@
         "media",
         "analysis"
       ],
-      "locator": "SB Nation NBA",
+      "locator": "https://www.sbnation.com/nba",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 30,
       "requires_auth": false,
-      "retention_policy": "metadata_excerpt"
+      "retention_policy": "metadata_only"
     },
     {
       "id": "nba-x",
