@@ -8,7 +8,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from nba_time_machine.ranking.scoring import ScoreKind, VersionedScore
+from nba_time_machine.ranking.scoring import (
+    ScoreKind, VersionedScore, score_evidence_is_consistent,
+)
 from nba_time_machine.spoilers.policy import GameField, GameFieldName
 
 
@@ -44,6 +46,11 @@ def ranking_fields(
     """
     if type(score) is not VersionedScore:
         raise TypeError("score must be a VersionedScore")
+    if not score_evidence_is_consistent(score):
+        # The disclosure bridge is also a score consumer: a tampered value,
+        # component or version must not influence pregame interest or a
+        # spoiler-bearing watchability hint even if other readers were skipped.
+        raise ValueError("cannot disclose inconsistent ranking evidence")
     available = max(part.available_at for part in score.components)
     observed = max(part.observed_at for part in score.components)
     if score.kind is ScoreKind.PREGAME:

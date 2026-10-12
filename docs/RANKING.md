@@ -44,6 +44,15 @@ The existing deterministic `project_game` is still required with the
 requested disclosure layer. An internal numeric postgame quality score is
 never a `GameField`.
 
+The disclosure bridge also rejects inconsistent or tampered `VersionedScore`
+evidence before projecting any field. It reuses the shared archive/ranker
+integrity check for model version, component arithmetic, allowed signals,
+provenance and timestamps, so direct callers cannot bypass those checks to
+alter pregame interest or a spoiler-bearing coarse verdict/reason. This checks
+internal consistency only: it does **not** establish real-world provider trust
+or grant permission to disclose postgame information; `project_game` remains
+the deterministic spoiler-policy gate.
+
 ## Archived score integrity (Issue #10 follow-up)
 
 At the archive read and consent-gated selection boundaries, a versioned score
