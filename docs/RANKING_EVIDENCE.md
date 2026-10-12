@@ -15,8 +15,12 @@ postgame disclosure preference. The repository first finds the latest
 historically knowable NBA game observation, then validates its status.
 A pregame score requires a scheduled observation known strictly before
 the trusted scheduled tip and an as-of cursor earlier than that tip.
-Postgame requires a latest `final` observation with an explicit,
-trustworthy `final_at` no later than the observed/available timestamps.
+A scheduled row carrying a result score, actual tip or final timestamp is
+inconsistent and cannot support pregame ranking. Postgame requires a latest
+`final` observation with an explicit, trustworthy `final_at` no later
+than the observed/available timestamps **and strictly after every known
+scheduled/actual tip**. Missing final-clock provenance is not inferred
+from a provider status or scheduled duration.
 TheSportsDB's current final observations have no `final_at`; these
 correctly yield no postgame score until evidence quality improves.
 
@@ -71,8 +75,9 @@ PostgreSQL integration tests:
 `cd backend && pytest -q tests/integration/test_ranking_evidence.py`.
 They cover delayed/backfilled signals, tip boundaries, correction of
 scheduled status, malformed and tied revisions, conflicting game statuses,
-availability tie-breaking, finalization trust, pre-final and future postgame
-facts, unreviewed latest game/feature sources, and non-NBA identities. The consent-gated recommendation endpoint
+availability tie-breaking, finalization trust, contradictory scheduled-game
+fields and impossible final/tip ordering, pre-final and future postgame facts,
+unreviewed latest game/feature sources, and non-NBA identities. The consent-gated recommendation endpoint
 is documented in RANKING.md and was implemented separately in PR #33;
 trusted feature producers, calibration, front-end disclosure and live Neon
 validation remain separate follow-up work.
