@@ -70,3 +70,15 @@ No existing sources were auto-enabled by this expansion.
 Communications RSS candidate and a now-redirecting Celtics legacy RSS URL.
 The candidate remains disabled and unverified pending bounded feed parsing,
 terms/retention review and an operator-approved live collector smoke.
+
+## Official injury and transaction publication surfaces (Issue #9)
+
+[Official league data-access research](SOURCE_OFFICIAL_DATA_ACCESS.md) records
+2026-10-12 source-page inspection for NBA player transactions and the
+**2025-26** official injury-report season page. The discovered URLs replace
+non-addressable seed placeholders; both records remain `enabled=false`,
+`verification_status=unverified`, and `retention_policy=metadata_only`.
+They are **not** validated structured NBA feeds. There is no verified 2026-27
+injury-report URL, item-level extraction, archival history, publisher rights
+clearance or live adapter smoke from this research. Do not enable them through
+seed sync on the strength of a browser-readable page.
