@@ -14,6 +14,7 @@ from nba_time_machine.db import (
     create_database_engine,
     create_session_factory,
 )
+from nba_time_machine.sports.errors import SportsProviderResponseError
 from nba_time_machine.sports.repository import StructuredSportsStore
 
 
@@ -178,5 +179,66 @@ async def test_same_observation_timestamp_is_idempotent() -> None:
                 .where(GameObservationRecord.id == first.id)
             )
             assert count == 1
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "changed_fields",
+    [
+        {"strStatus": "FT", "intHomeScore": "111", "intAwayScore": "108"},
+        {"strTimestamp": "2026-10-08T23:00:00"},
+        {"strEvent": "Corrected provider event display name"},
+        {"strPostponed": "yes"},
+    ],
+)
+async def test_same_timestamp_conflicting_capture_fails_closed(
+    changed_fields: dict[str, object],
+) -> None:
+    engine = create_database_engine(_settings_or_skip())
+    session_factory = create_session_factory(engine)
+    store = StructuredSportsStore()
+    observed_at = datetime.now(timezone.utc)
+    event_id = str(uuid4())
+
+    try:
+        async with session_factory() as session:
+            await _ensure_provider_source(session)
+
+        async with session_factory() as session:
+            first = await store.store_thesportsdb_event(
+                session,
+                _event(idEvent=event_id),
+                observed_at=observed_at,
+            )
+            first_id, game_id = first.id, first.game_id
+            await session.commit()
+
+        async with session_factory() as session:
+            with pytest.raises(SportsProviderResponseError, match="Conflicting"):
+                await store.store_thesportsdb_event(
+                    session,
+                    _event(idEvent=event_id, **changed_fields),
+                    observed_at=observed_at,
+                )
+            await session.rollback()
+
+        async with session_factory() as session:
+            observations = (
+                await session.scalars(
+                    select(GameObservationRecord)
+                    .where(GameObservationRecord.game_id == game_id)
+                )
+            ).all()
+            assert len(observations) == 1
+            assert observations[0].id == first_id
+            assert observations[0].status == "scheduled"
+            assert observations[0].home_score is None
+            assert observations[0].away_score is None
+            assert (
+                observations[0].observation_metadata["provider_status"] == "NS"
+            )
     finally:
         await engine.dispose()
