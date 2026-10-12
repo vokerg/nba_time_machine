@@ -26,7 +26,7 @@ async def test_entity_links_are_independently_versioned_and_can_be_retracted() -
     engine = create_database_engine(_settings_or_skip())
     factory = create_session_factory(engine)
     source_id = f"entity-link-{uuid4()}"
-    item_id, game_id, player_id, home_id, away_id = (uuid4() for _ in range(5))
+    item_id, game_id, player_id, home_id, away_id, season_id = (uuid4() for _ in range(6))
     observed_at = datetime(2026, 10, 12, 12, tzinfo=timezone.utc)
     try:
         async with factory() as session:
@@ -37,19 +37,14 @@ async def test_entity_links_are_independently_versioned_and_can_be_retracted() -
                     enabled=False, verification_status="unverified",
                     cadence_minutes=60, requires_auth=False, retention_policy="metadata_only",
                 ),
-                SeasonRecord(league="NBA", label=f"link-test-{uuid4()}"),
+                SeasonRecord(id=season_id, league="NBA", label=f"link-test-{uuid4()}"),
                 TeamRecord(id=home_id, league="NBA", name="Home"),
                 TeamRecord(id=away_id, league="NBA", name="Away"),
                 PlayerRecord(id=player_id, full_name="Fixture Player"),
             ])
             await session.flush()
-            season = (await session.scalars(
-                select(SeasonRecord).where(SeasonRecord.label.like("link-test-%"))
-                .order_by(SeasonRecord.created_at.desc()).limit(1)
-            )).first()
-            assert season is not None
             session.add(GameRecord(
-                id=game_id, season_id=season.id,
+                id=game_id, season_id=season_id,
                 home_team_id=home_id, away_team_id=away_id,
             ))
             session.add(SourceItemRecord(
