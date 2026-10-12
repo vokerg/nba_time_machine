@@ -7,6 +7,7 @@
 import type { GameCard, GameList } from "./dashboard";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NBA_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const CARD_KEYS = new Set([
   "game_id", "disclosure", "state", "home_team", "away_team",
   "scheduled_tip", "pregame_interest",
@@ -15,11 +16,19 @@ const CARD_KEYS = new Set([
 export type WatchabilityRequest = {
   profileId: string;
   gameList: GameList;
+  /** NBA/Eastern calendar date passed to the safe game-list request. */
+  slateDate: string;
   consentToOutcomeRanking: true;
   budgetMinutes?: number;
   plannedMinutesPerGame?: number;
   fetcher?: typeof fetch;
 };
+
+function validSlateDate(value: string): boolean {
+  if (typeof value !== "string" || !NBA_DATE.test(value)) return false;
+  const parsed = new Date(value + "T00:00:00Z");
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
 
 function validOptionalMinutes(value: number | undefined, min: number, max: number): boolean {
   return value === undefined || (Number.isInteger(value) && value >= min && value <= max);
@@ -27,14 +36,14 @@ function validOptionalMinutes(value: number | undefined, min: number, max: numbe
 
 /** Returns only existing PREGAME cards in outcome-ranked order, never scores. */
 export async function requestWatchabilityRecommendations({
-  profileId, gameList, consentToOutcomeRanking,
+  profileId, gameList, slateDate, consentToOutcomeRanking,
   budgetMinutes, plannedMinutesPerGame = 120, fetcher = fetch,
 }: WatchabilityRequest): Promise<GameCard[]> {
   // Verify everything before issuing any request; absence of consent is final.
   if (consentToOutcomeRanking !== true) {
     throw new Error("Explicit outcome-ranking consent required");
   }
-  if (!UUID.test(profileId) || !gameList ||
+  if (!UUID.test(profileId) || !validSlateDate(slateDate) || !gameList ||
       !Number.isFinite(Date.parse(gameList.time_cursor)) ||
       !Array.isArray(gameList.games) ||
       gameList.games.length < 1 || gameList.games.length > 32) {
@@ -72,6 +81,7 @@ export async function requestWatchabilityRecommendations({
       cache: "no-store",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
+        slate_date: slateDate,
         candidate_game_ids: [...cards.values()].map((card) => card.game_id),
         consent_to_outcome_ranking: true,
         ...(budgetMinutes !== undefined ? { budget_minutes: budgetMinutes } : {}),
