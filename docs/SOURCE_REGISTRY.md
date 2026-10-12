@@ -82,3 +82,15 @@ They are **not** validated structured NBA feeds. There is no verified 2026-27
 injury-report URL, item-level extraction, archival history, publisher rights
 clearance or live adapter smoke from this research. Do not enable them through
 seed sync on the strength of a browser-readable page.
+
+
+## National-media NBA landing pages (Issue #9)
+
+Four national publisher NBA section URLs have been inspected and substituted
+for seed placeholders: CBS Sports, NBC Sports, Bleacher Report and The Ringer.
+See [SOURCE_NATIONAL_MEDIA_ACCESS.md](SOURCE_NATIONAL_MEDIA_ACCESS.md)
+for dated observations, item-level and rights gaps, and cross-platform
+identity caveats. The four sources remain disabled/unverified with
+`metadata_only` retention; `rss_or_web` remains an access-method
+placeholder, **not** a validated collector. No RSS discovery, item parser,
+historical replay or production source-health claim is made.
