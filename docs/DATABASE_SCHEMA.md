@@ -166,3 +166,28 @@ For structured sports data:
 - mutable standings/stats/availability facts keep validity history;
 - source provenance and public-availability time remain explicit;
 - deleting a referenced sports entity is restricted while identity mappings, observations, or facts still depend on it.
+
+
+## AI result audit metadata (Issue #2 — schema-only slice)
+
+`ai_result_metadata` records the use case, configured model identifier,
+required prompt/schema versions, optional source-item **or** game association,
+optional explicit input `as_of` cursor, nonnegative token usage, and database
+creation time for a **validated** AI completion. Multiple historical results
+are allowed; this is not a latest-value overwrite table. Both association
+columns are nullable, but may not be populated simultaneously. Referential
+integrity is enforced against `source_items` and `games` when linked.
+
+This deliberately **does not store prompts, raw model responses, generated
+text, API secrets or source content**. Nor does the existence of a metadata
+row assert that input was cleared for the cursor, that the model output is
+safe to show, or that a source's retention policy permits storing derived
+content. The future AI use-case service must construct input exclusively
+from spoiler-approved projections and validate output before writing metadata.
+There is no AI job queue, content-result persistence, endpoint or automatic
+client-to-database write path in this slice. `input_as_of` must be explicitly
+supplied when applicable; a nullable value is not silently interpreted as now.
+
+Alembic `0007_ai_result_metadata` adds the table and supports downgrade.
+Unit schema checks and PostgreSQL migration/integrity tests validate the
+metadata-only boundary. Real Neon validation still needs owner credentials.
