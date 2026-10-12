@@ -139,6 +139,26 @@ def test_second_podcast_rss_discovery_is_not_live_verification() -> None:
         assert source.requires_auth is False
 
 
+def test_mismatch_candidate_rss_is_not_verified_or_enabled() -> None:
+    payload = json.loads(SEED.read_text(encoding="utf-8"))
+    sources = {
+        row["id"]: SourceDefinition.model_validate(row)
+        for row in payload["sources"]
+    }
+    source = sources["pod-the-mismatch"]
+
+    # The historical Megaphone feed slug names a different show. Publisher
+    # identity, feed channel title and episode GUID stability still need smoke.
+    assert source.locator == "https://feeds.megaphone.fm/the-jj-redick-podcast"
+    assert source.kind == "podcast"
+    assert source.adapter == "podcast_rss"
+    assert source.cadence_minutes == 120
+    assert source.enabled is False
+    assert source.verification_status == "unverified"
+    assert source.retention_policy == "metadata_only"
+    assert source.requires_auth is False
+
+
 def test_youtube_channel_discovery_is_not_collector_approval() -> None:
     payload = json.loads(SEED.read_text(encoding="utf-8"))
     sources = {
