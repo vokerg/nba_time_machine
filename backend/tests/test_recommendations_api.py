@@ -57,12 +57,13 @@ def pre(game_id: UUID, value: float):
 class Clock:
     def __init__(self):
         self.calls = []
+        self.cursor = CURSOR
 
     async def resume(self, profile_id: UUID):
         self.calls.append(profile_id)
         if profile_id != PROFILE:
             raise TimelineNotInitializedError("timeline is not initialized")
-        return TimelineState(profile_id, CURSOR, CURSOR, CURSOR)
+        return TimelineState(profile_id, self.cursor, CURSOR, CURSOR)
 
 
 class Scores:
@@ -73,6 +74,19 @@ class Scores:
     async def postgame_scores_as_of(self, game_ids, *, as_of):
         self.calls.append((game_ids, as_of))
         return self.rows
+
+
+class AdvancingScores(Scores):
+    """Simulate a concurrent timeline advance after the score query."""
+
+    def __init__(self, rows, clock: Clock):
+        super().__init__(rows)
+        self.clock = clock
+
+    async def postgame_scores_as_of(self, game_ids, *, as_of):
+        rows = await super().postgame_scores_as_of(game_ids, as_of=as_of)
+        self.clock.cursor = FUTURE
+        return rows
 
 
 class Slates:
@@ -128,7 +142,7 @@ async def test_rank_only_whitelisted_trusted_and_cursor_available_scores() -> No
     result = await service.recommend(PROFILE, (A, B, C), slate_date=SLATE_DATE, consent_to_outcome_ranking=True)
     assert result == (B, A)
     assert scores.calls == [((A, B, C), CURSOR)]
-    assert clock.calls == [PROFILE]
+    assert clock.calls == [PROFILE, PROFILE]
     assert all(isinstance(game_id, UUID) for game_id in result)
 
 
@@ -175,7 +189,7 @@ async def test_duplicate_archive_rows_fail_closed_without_first_row_bias() -> No
             PROFILE, (A, B), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
             budget_minutes=120, planned_minutes_per_game=120,
         ) == (B,)
-        assert clock.calls == [PROFILE, PROFILE]
+        assert clock.calls == [PROFILE, PROFILE, PROFILE, PROFILE]
         assert scores.calls == [((A, B), CURSOR), ((A, B), CURSOR)]
 
 
@@ -216,6 +230,41 @@ async def test_cursor_mismatch_fails_closed_before_reading_outcomes() -> None:
             PROFILE, (A,), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
         )
     assert scores.calls == []
+
+
+@pytest.mark.asyncio
+async def test_cursor_advances_after_score_read_reject_outcome_ordering() -> None:
+    clock = Clock()
+    scores = AdvancingScores((post(A, .9),), clock)
+    service = WatchabilityRecommendationService(clock, scores, Slates(eligible=(A,)))
+    with pytest.raises(RecommendationTimelineChanged, match="refresh"):
+        await service.recommend(
+            PROFILE, (A,), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
+        )
+    assert clock.calls == [PROFILE, PROFILE]
+    assert scores.calls == [((A,), CURSOR)]
+
+
+def test_http_cursor_advance_during_score_lookup_returns_409() -> None:
+    clock = Clock()
+    scores = AdvancingScores((post(A, .9),), clock)
+    service = WatchabilityRecommendationService(clock, scores, Slates(eligible=(A,)))
+    app.dependency_overrides[get_watchability_recommendation_service] = lambda: service
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                f"/profiles/{PROFILE}/recommendations/watchability",
+                json={
+                    "slate_date": SLATE_DATE.isoformat(),
+                    "candidate_game_ids": [str(A)],
+                    "consent_to_outcome_ranking": True,
+                },
+            )
+            assert response.status_code == 409
+            assert "game_ids" not in response.json()
+            assert scores.calls == [((A,), CURSOR)]
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_http_explicit_post_only_and_no_raw_postgame_fields() -> None:
