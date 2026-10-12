@@ -215,3 +215,28 @@ def test_postgame_archive_reader_filters_corrupt_score_without_older_fallback() 
     row.score_value = Decimal(str(good.value))
     row.components = [{**row.components[0], "weight": 90}]
     assert _score_from_row(row) is None
+
+
+@pytest.mark.parametrize("kind", ["pregame", "postgame"])
+def test_disclosure_bridge_rejects_inconsistent_versioned_evidence(kind: str) -> None:
+    # Rendering a score is a distinct consumer boundary: callers may hand it
+    # malformed in-memory evidence without going through archive/ranking checks.
+    score = pgame(GAME_A, .6) if kind == "pregame" else fgame(GAME_A, .6)
+    part = score.components[0]
+    kwargs = {} if kind == "pregame" else {
+        "bands": BANDS, "reason": "An outstanding finish",
+    }
+    assert ranking_fields(score, **kwargs)
+
+    corrupt = (
+        replace(score, value=9.9),
+        replace(score, model_version="forged-v1"),
+        replace(score, components=(replace(part, normalized_value=.99),)),
+        replace(score, components=(replace(part, weighted_contribution=0),)),
+        replace(score, components=(replace(part, source_ref=" "),)),
+        replace(score, components=(replace(part, observed_at=score.as_of + timedelta(seconds=1)),)),
+        replace(score, components=(part, part)),
+    )
+    for bad in corrupt:
+        with pytest.raises(ValueError, match="inconsistent ranking evidence"):
+            ranking_fields(bad, **kwargs)
