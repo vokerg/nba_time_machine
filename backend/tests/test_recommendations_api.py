@@ -249,6 +249,33 @@ def test_http_explicit_post_only_and_no_raw_postgame_fields() -> None:
         app.dependency_overrides.clear()
 
 
+def test_http_off_slate_ids_and_cursor_races_never_read_hidden_scores() -> None:
+    for eligible, slate_cursor, expected in (
+        ((A,), CURSOR, 403),
+        ((A, B), CURSOR + timedelta(minutes=1), 409),
+    ):
+        service, _, scores = setup(
+            (post(A, .5), post(B, .9)),
+            eligible=eligible,
+            slate_cursor=slate_cursor,
+        )
+        app.dependency_overrides[get_watchability_recommendation_service] = lambda: service
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    f"/profiles/{PROFILE}/recommendations/watchability",
+                    json={
+                        "slate_date": SLATE_DATE.isoformat(),
+                        "candidate_game_ids": [str(A), str(B)],
+                        "consent_to_outcome_ranking": True,
+                    },
+                )
+                assert response.status_code == expected
+                assert scores.calls == []
+        finally:
+            app.dependency_overrides.clear()
+
+
 def test_http_rejects_untrusted_payload_fields_duplicates_and_invalid_budget() -> None:
     service, _, scores = setup((post(A, .9),))
     app.dependency_overrides[get_watchability_recommendation_service] = lambda: service
@@ -271,6 +298,7 @@ def test_http_rejects_untrusted_payload_fields_duplicates_and_invalid_budget() -
                 {**base, "planned_minutes_per_game": 0},
                 {**base, "consent_to_outcome_ranking": "true"},
                 {**base, "slate_date": "not-a-date"},
+                {"candidate_game_ids": [str(A)], "consent_to_outcome_ranking": True},
             ):
                 assert client.post(uri, json=bad).status_code == 422
             assert scores.calls == []
