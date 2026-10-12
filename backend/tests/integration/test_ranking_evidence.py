@@ -320,3 +320,68 @@ async def test_unverified_source_revisions_mask_older_verified_ranking_evidence(
             ) is None
     finally:
         await engine.dispose()
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_inconsistent_game_clock_state_cannot_produce_ranking():
+    """Reviewed observations still need a coherent status and game clock."""
+    engine = create_database_engine(_settings_or_skip())
+    factory = create_session_factory(engine)
+    try:
+        async with factory.begin() as session:
+            await _source(session)
+            safe_pregame = await _game(session)
+            scored_scheduled = await _game(session)
+            finished_scheduled = await _game(session)
+            safe_postgame = await _game(session)
+            final_at_tip = await _game(session)
+            final_before_actual_tip = await _game(session)
+
+            scheduled_with_score = _observation(scored_scheduled, at=EARLY)
+            scheduled_with_score.home_score = 92
+            scheduled_with_final = _observation(finished_scheduled, at=EARLY)
+            scheduled_with_final.final_at = EARLY - timedelta(minutes=10)
+            final_at_scheduled_tip = _observation(
+                final_at_tip, at=FINAL + timedelta(minutes=10),
+                status="final", final_at=TIP,
+            )
+            final_before_start = _observation(
+                final_before_actual_tip, at=FINAL + timedelta(minutes=10),
+                status="final", final_at=FINAL,
+            )
+            final_before_start.actual_tip_at = FINAL + timedelta(minutes=5)
+
+            session.add_all([
+                _observation(safe_pregame, at=EARLY),
+                scheduled_with_score,
+                scheduled_with_final,
+                _observation(safe_postgame, at=FINAL + timedelta(minutes=10),
+                             status="final", final_at=FINAL),
+                final_at_scheduled_tip,
+                final_before_start,
+            ])
+            for game_id in (safe_pregame, scored_scheduled, finished_scheduled):
+                session.add(_fact(
+                    game_id, "pregame", "rivalry",
+                    {"normalized_value": 0.7}, at=EARLY,
+                ))
+            for game_id in (safe_postgame, final_at_tip, final_before_actual_tip):
+                session.add(_fact(
+                    game_id, "postgame", "clutch",
+                    {"normalized_value": 0.7}, at=FINAL + timedelta(minutes=20),
+                ))
+
+        async with factory() as session:
+            repository = SqlAlchemyRankingEvidenceRepository(session)
+            assert await repository.pregame(safe_pregame, as_of=EARLY) is not None
+            assert await repository.pregame(scored_scheduled, as_of=EARLY) is None
+            assert await repository.pregame(finished_scheduled, as_of=EARLY) is None
+
+            as_of = FINAL + timedelta(minutes=30)
+            assert await repository.postgame(safe_postgame, as_of=as_of) is not None
+            assert await repository.postgame(final_at_tip, as_of=as_of) is None
+            assert await repository.postgame(
+                final_before_actual_tip, as_of=as_of,
+            ) is None
+    finally:
+        await engine.dispose()
