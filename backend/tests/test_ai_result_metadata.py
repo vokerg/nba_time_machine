@@ -11,7 +11,7 @@ def test_ai_result_metadata_schema_excludes_prompt_and_generated_text() -> None:
         "id", "use_case", "model_name", "prompt_version", "schema_version",
         "source_item_id", "game_id", "input_as_of", "prompt_tokens",
         "completion_tokens", "total_tokens", "created_at",
-    } == set(table.columns)
+    } == set(table.columns.keys())
     assert all(word not in table.columns for word in (
         "prompt", "system_prompt", "response", "raw_output",
         "output", "content", "api_key",
