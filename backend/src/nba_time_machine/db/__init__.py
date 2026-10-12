@@ -3,6 +3,7 @@
 from .ai_models import AIResultMetadataRecord
 from .acknowledgement_models import GameAcknowledgementRecord
 from .config import DatabaseNotConfiguredError, DatabaseSettings
+from .entity_link_models import SourceItemEntityLinkRecord
 from .models import (
     Base,
     CollectionRunRecord,
@@ -35,6 +36,7 @@ __all__ = [
     "RawCaptureRecord",
     "RecommendationScoreRecord",
     "SeasonRecord",
+    "SourceItemEntityLinkRecord",
     "SourceItemRecord",
     "SourceOutcomeRecord",
     "SourceRecord",
