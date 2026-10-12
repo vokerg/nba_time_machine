@@ -50,7 +50,7 @@ A date displayed on a landing page is a **publisher claim**, not evidence
 that a mutable headline, ranking, image or article was available at an earlier
 timeline cursor. Once collection is approved, preserve independently
 recorded first observation and defensible `available_at` and retain edits
-as revisions. Precursor and postgame facts must still be filtered by the
+as revisions. Pregame and postgame facts must still be filtered by the
 spoiler-policy layer before any UI, ranking or AI use.
 
 ## Before any record can be marked verified or enabled
