@@ -15,14 +15,14 @@ from xml.etree import ElementTree as ET
 
 import httpx
 
-from nba_time_machine.ingestion.contracts import RawCapture, SourceDefinition, VerificationStatus
+from nba_time_machine.ingestion.contracts import RawCapture, SourceDefinition, SourceKind, VerificationStatus
 
 MAX_BYTES = 512_000
 MAX_ITEMS = 50
 MAX_TEXT = 20_000
 EXCERPT = 280
 USER_AGENT = "NBA-Time-Machine/0.1 (+source-policy-aware research collector)"
-SUPPORTED_ADAPTERS = frozenset({"rss", "atom", "rss_or_web", "web"})
+SUPPORTED_ADAPTERS = frozenset({"rss", "atom", "rss_or_web", "podcast_rss", "web"})
 
 
 class CollectionFailure(Exception):
@@ -295,20 +295,22 @@ async def _request(
 async def collect_source(
     source: SourceDefinition, client: httpx.AsyncClient, now: datetime
 ) -> AdapterResult:
-    """Fetch exactly one configured URL; only reviewed sources are eligible."""
+    """Fetch one approved feed/page; never follow podcast audio/transcript links."""
     # Keep the network gate at the adapter boundary as well as the scheduler:
     # direct/manual callers must never bypass source review or disablement.
     if not source.enabled or source.verification_status != VerificationStatus.VERIFIED:
         raise CollectionFailure("skipped_config", "not_verified_or_enabled")
     if source.adapter not in SUPPORTED_ADAPTERS:
         raise CollectionFailure("skipped_config", "unsupported_adapter")
+    if source.adapter == "podcast_rss" and source.kind != SourceKind.PODCAST:
+        raise CollectionFailure("skipped_config", "invalid_source_kind")
     if source.requires_auth:
         raise CollectionFailure("skipped_config", "auth_not_configured")
     url = canonical_url(source.locator)
     if url is None:
         raise CollectionFailure("skipped_config", "invalid_url")
     body, mime = await _request(client, url)
-    if source.adapter in {"rss", "atom"} or (
+    if source.adapter in {"rss", "atom", "podcast_rss"} or (
         source.adapter == "rss_or_web"
         and (mime in {"application/rss+xml", "application/atom+xml", "application/xml", "text/xml"}
              or body.lstrip().startswith(("<?xml", "<rss", "<feed")))
