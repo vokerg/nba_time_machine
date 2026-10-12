@@ -13,7 +13,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nba_time_machine.db import (
-    GameObservationRecord, GameRecord, SeasonRecord, TemporalFactRecord,
+    GameObservationRecord, GameRecord, SeasonRecord, SourceRecord, TemporalFactRecord,
 )
 from nba_time_machine.ranking.scoring import (
     FeatureObservation, PostgameSignal, PregameSignal, VersionedScore,
@@ -67,6 +67,11 @@ class SqlAlchemyRankingEvidenceRepository:
             # Competing latest observations have no defensible winner; never
             # infer a trusted scheduled tip or final state from UUID ordering.
             return None
+        # Check provenance AFTER choosing the latest observation: a newer
+        # unverified revision must mask older data, not resurrect it.
+        source = await self._session.get(SourceRecord, observations[0].source_id)
+        if source is None or source.verification_status != "verified":
+            return None
         return observations[0]
 
     async def _features(
@@ -101,10 +106,22 @@ class SqlAlchemyRankingEvidenceRepository:
                 # A same-time competing revision must not be chosen by UUID.
                 ambiguous.add(fact.fact_type)
 
+        # Verify the original registry identity, not a claim in the JSON
+        # feature value. A revoked/unreviewed latest fact masks earlier facts.
+        source_ids = {fact.source_id for fact in latest.values()}
+        verified_sources = set()
+        if source_ids:
+            source_rows = (await self._session.execute(
+                select(SourceRecord.id)
+                .where(SourceRecord.id.in_(source_ids),
+                       SourceRecord.verification_status == "verified")
+            )).scalars().all()
+            verified_sources = set(source_rows)
+
         signals = {}
         for fact_type, fact in latest.items():
-            # Both tied and malformed latest revisions mask older values.
-            if fact_type in ambiguous:
+            # Tied, unverified and malformed latest revisions mask older values.
+            if fact_type in ambiguous or fact.source_id not in verified_sources:
                 continue
             if (type(fact.value) is not dict
                     or set(fact.value) != {"normalized_value"}):
