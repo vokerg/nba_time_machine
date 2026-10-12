@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 import pytest
@@ -17,8 +17,12 @@ from nba_time_machine.ranking import (
     score_postgame, score_pregame,
 )
 from nba_time_machine.ranking.service import (
-    OutcomeRankingConsentRequired, WatchabilityRecommendationService,
+    OutcomeRankingConsentRequired, RecommendationSlateUnavailable,
+    RecommendationTimelineChanged, WatchabilityRecommendationService,
 )
+from nba_time_machine.spoilers.game_list import SafeGameList
+from nba_time_machine.spoilers.policy import DisclosureLayer, GameProjection
+from nba_time_machine.spoilers.service import DisclosedGame
 from nba_time_machine.temporal.timeline import TimelineNotInitializedError, TimelineState
 
 PROFILE = UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
@@ -30,6 +34,7 @@ TIP = datetime(2026, 5, 4, 23, tzinfo=timezone.utc)
 FINAL = TIP + timedelta(hours=3)
 CURSOR = FINAL + timedelta(minutes=20)
 FUTURE = CURSOR + timedelta(hours=1)
+SLATE_DATE = date(2026, 5, 4)
 
 
 def post(game_id: UUID, value: float, *, at: datetime = CURSOR):
@@ -70,18 +75,39 @@ class Scores:
         return self.rows
 
 
-def setup(rows):
+class Slates:
+    def __init__(self, eligible=(A, B, C), *, cursor=CURSOR):
+        self.eligible = eligible
+        self.cursor = cursor
+        self.calls = []
+
+    async def list_games(self, profile_id: UUID, *, slate_date: date):
+        self.calls.append((profile_id, slate_date))
+        return SafeGameList(
+            time_cursor=self.cursor,
+            games=tuple(
+                DisclosedGame(
+                    state="sealed",
+                    projection=GameProjection(game_id, DisclosureLayer.PREGAME, {}),
+                )
+                for game_id in self.eligible
+            ),
+        )
+
+
+def setup(rows, *, eligible=(A, B, C), slate_cursor=CURSOR):
     clock, scores = Clock(), Scores(rows)
-    return WatchabilityRecommendationService(clock, scores), clock, scores
+    slates = Slates(eligible, cursor=slate_cursor)
+    return WatchabilityRecommendationService(clock, scores, slates), clock, scores
 
 
 @pytest.mark.asyncio
 async def test_consent_checked_before_profile_or_scores() -> None:
     service, clock, scores = setup((post(A, .9),))
     with pytest.raises(OutcomeRankingConsentRequired):
-        await service.recommend(MISSING_PROFILE, (A,))
+        await service.recommend(MISSING_PROFILE, (A,), slate_date=SLATE_DATE)
     with pytest.raises(OutcomeRankingConsentRequired):
-        await service.recommend(PROFILE, (A,), consent_to_outcome_ranking=False)
+        await service.recommend(PROFILE, (A,), slate_date=SLATE_DATE, consent_to_outcome_ranking=False)
     assert clock.calls == [] and scores.calls == []
 
 
@@ -99,7 +125,7 @@ async def test_rank_only_whitelisted_trusted_and_cursor_available_scores() -> No
     service, clock, scores = setup((
         stale, late, newer, wrong_kind, wrong_version, future_component, post(UUID(int=99), 1.0),
     ))
-    result = await service.recommend(PROFILE, (A, B, C), consent_to_outcome_ranking=True)
+    result = await service.recommend(PROFILE, (A, B, C), slate_date=SLATE_DATE, consent_to_outcome_ranking=True)
     assert result == (B, A)
     assert scores.calls == [((A, B, C), CURSOR)]
     assert clock.calls == [PROFILE]
@@ -126,7 +152,7 @@ async def test_recommendations_fail_closed_on_corrupt_archived_score_values() ->
         inconsistent_signal, inconsistent_weight,
     ))
     assert await service.recommend(
-        PROFILE, (A, B, C), consent_to_outcome_ranking=True,
+        PROFILE, (A, B, C), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
     ) == (B, A)
 
 
@@ -143,10 +169,10 @@ async def test_duplicate_archive_rows_fail_closed_without_first_row_bias() -> No
     ):
         service, clock, scores = setup(rows)
         assert await service.recommend(
-            PROFILE, (A, B), consent_to_outcome_ranking=True,
+            PROFILE, (A, B), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
         ) == (B,)
         assert await service.recommend(
-            PROFILE, (A, B), consent_to_outcome_ranking=True,
+            PROFILE, (A, B), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
             budget_minutes=120, planned_minutes_per_game=120,
         ) == (B,)
         assert clock.calls == [PROFILE, PROFILE]
@@ -158,14 +184,38 @@ async def test_budget_uses_user_planned_allocation_not_game_runtime() -> None:
     service, _, _ = setup((post(A, .9), post(B, .8), post(C, .7)))
     ids = (C, A, B)
     assert await service.recommend(
-        PROFILE, ids, consent_to_outcome_ranking=True,
+        PROFILE, ids, slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
         budget_minutes=120, planned_minutes_per_game=60,
     ) == (A, B)
     assert await service.recommend(
-        PROFILE, ids, consent_to_outcome_ranking=True, budget_minutes=0,
+        PROFILE, ids, slate_date=SLATE_DATE, consent_to_outcome_ranking=True, budget_minutes=0,
     ) == ()
     with pytest.raises(ValueError, match="distinct"):
-        await service.recommend(PROFILE, (A, A), consent_to_outcome_ranking=True)
+        await service.recommend(PROFILE, (A, A), slate_date=SLATE_DATE, consent_to_outcome_ranking=True)
+
+
+@pytest.mark.asyncio
+async def test_candidates_must_belong_to_server_projected_slate_before_scores() -> None:
+    service, clock, scores = setup((post(A, .9), post(B, .8)), eligible=(A,))
+    with pytest.raises(RecommendationSlateUnavailable, match="safe dated slate"):
+        await service.recommend(
+            PROFILE, (A, B), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
+        )
+    assert clock.calls == [PROFILE]
+    assert scores.calls == []
+    assert service._safe_slates.calls == [(PROFILE, SLATE_DATE)]
+
+
+@pytest.mark.asyncio
+async def test_cursor_mismatch_fails_closed_before_reading_outcomes() -> None:
+    service, _, scores = setup(
+        (post(A, .9),), slate_cursor=CURSOR + timedelta(minutes=1),
+    )
+    with pytest.raises(RecommendationTimelineChanged, match="refresh"):
+        await service.recommend(
+            PROFILE, (A,), slate_date=SLATE_DATE, consent_to_outcome_ranking=True,
+        )
+    assert scores.calls == []
 
 
 def test_http_explicit_post_only_and_no_raw_postgame_fields() -> None:
@@ -175,7 +225,7 @@ def test_http_explicit_post_only_and_no_raw_postgame_fields() -> None:
         with TestClient(app) as client:
             uri = f"/profiles/{PROFILE}/recommendations/watchability"
             candidate_ids = [str(A), str(B)]
-            body = {"candidate_game_ids": candidate_ids}
+            body = {"candidate_game_ids": candidate_ids, "slate_date": SLATE_DATE.isoformat()}
             assert client.get(uri).status_code == 405
             refusal = client.post(uri, json=body)
             assert refusal.status_code == 403
@@ -207,6 +257,7 @@ def test_http_rejects_untrusted_payload_fields_duplicates_and_invalid_budget() -
             uri = f"/profiles/{PROFILE}/recommendations/watchability"
             base = {
                 "candidate_game_ids": [str(A)],
+                "slate_date": SLATE_DATE.isoformat(),
                 "consent_to_outcome_ranking": True,
             }
             for bad in (
@@ -219,6 +270,7 @@ def test_http_rejects_untrusted_payload_fields_duplicates_and_invalid_budget() -
                 {**base, "budget_minutes": 2000},
                 {**base, "planned_minutes_per_game": 0},
                 {**base, "consent_to_outcome_ranking": "true"},
+                {**base, "slate_date": "not-a-date"},
             ):
                 assert client.post(uri, json=bad).status_code == 422
             assert scores.calls == []
