@@ -7,6 +7,7 @@ const fixture = JSON.parse(readFileSync(
   new URL("../src/fixtures/read-models.json", import.meta.url), "utf8",
 ));
 const profileId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const slateDate = "2026-05-04";
 const firstId = fixture.games.games[0].game_id;
 const secondId = "22222222-2222-4222-8222-222222222222";
 const gameList = {
@@ -30,7 +31,7 @@ test("requires per-action consent before any network activity", async () => {
   const calls = [];
   const fetcher = fakeFetch({ game_ids: [firstId] }, calls);
   await assert.rejects(requestWatchabilityRecommendations({
-    profileId, gameList, consentToOutcomeRanking: false, fetcher,
+    profileId, gameList, slateDate, consentToOutcomeRanking: false, fetcher,
   }), /consent/i);
   assert.equal(calls.length, 0);
 });
@@ -38,7 +39,7 @@ test("requires per-action consent before any network activity", async () => {
 test("POSTs only UUID candidates, consent and uniform budget, returning safe cards", async () => {
   const calls = [];
   const ranked = await requestWatchabilityRecommendations({
-    profileId, gameList, consentToOutcomeRanking: true,
+    profileId, gameList, slateDate, consentToOutcomeRanking: true,
     budgetMinutes: 180, plannedMinutesPerGame: 90,
     fetcher: fakeFetch({ game_ids: [secondId, firstId] }, calls),
   });
@@ -56,6 +57,7 @@ test("POSTs only UUID candidates, consent and uniform budget, returning safe car
   assert.equal(init.redirect, "error");
   assert.equal(init.credentials, "same-origin");
   assert.deepEqual(JSON.parse(init.body), {
+    slate_date: slateDate,
     candidate_game_ids: [firstId, secondId],
     consent_to_outcome_ranking: true,
     budget_minutes: 180,
@@ -68,7 +70,7 @@ test("POSTs only UUID candidates, consent and uniform budget, returning safe car
 test("empty scored result is not replaced with guessed recommendations", async () => {
   const calls = [];
   const result = await requestWatchabilityRecommendations({
-    profileId, gameList, consentToOutcomeRanking: true,
+    profileId, gameList, slateDate, consentToOutcomeRanking: true,
     fetcher: fakeFetch({ game_ids: [] }, calls),
   });
   assert.deepEqual(result, []);
@@ -78,12 +80,14 @@ test("empty scored result is not replaced with guessed recommendations", async (
 test("invalid profile, candidates and viewing-time options fail before HTTP", async () => {
   const calls = [];
   const fetcher = fakeFetch({ game_ids: [] }, calls);
-  const base = { profileId, gameList, consentToOutcomeRanking: true, fetcher };
+  const base = { profileId, gameList, slateDate, consentToOutcomeRanking: true, fetcher };
   const dirtyScore = {
     ...gameList, games: [{ ...gameList.games[0], home_score: 120 }],
   };
   const invalid = [
     { profileId: "../someone" },
+    { slateDate: "not-a-date" },
+    { slateDate: "2026-02-30" },
     { gameList: { ...gameList, games: [] } },
     { gameList: { ...gameList, games: Array(33).fill(gameList.games[0]) } },
     { gameList: { ...gameList, games: [gameList.games[0], gameList.games[0]] } },
@@ -116,7 +120,7 @@ test("rejects unknown, duplicated and spoiler-bearing ranking responses", async 
   for (const payload of badResponses) {
     const calls = [];
     await assert.rejects(requestWatchabilityRecommendations({
-      profileId, gameList, consentToOutcomeRanking: true,
+      profileId, gameList, slateDate, consentToOutcomeRanking: true,
       fetcher: fakeFetch(payload, calls),
     }), /Invalid watchability ranking response/);
     assert.equal(calls.length, 1);
@@ -126,7 +130,7 @@ test("rejects unknown, duplicated and spoiler-bearing ranking responses", async 
 test("HTTP error details are not rendered as a hidden score or leaked response", async () => {
   const calls = [];
   await assert.rejects(requestWatchabilityRecommendations({
-    profileId, gameList, consentToOutcomeRanking: true,
+    profileId, gameList, slateDate, consentToOutcomeRanking: true,
     fetcher: fakeFetch({ detail: "postgame score 9.9" }, calls, 503),
   }), (err) => err.message === "Watchability ranking unavailable");
   assert.equal(calls.length, 1);
