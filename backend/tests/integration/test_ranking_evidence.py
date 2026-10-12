@@ -333,6 +333,7 @@ async def test_inconsistent_game_clock_state_cannot_produce_ranking():
             safe_pregame = await _game(session)
             scored_scheduled = await _game(session)
             finished_scheduled = await _game(session)
+            started_scheduled = await _game(session)
             safe_postgame = await _game(session)
             final_at_tip = await _game(session)
             final_before_actual_tip = await _game(session)
@@ -341,6 +342,8 @@ async def test_inconsistent_game_clock_state_cannot_produce_ranking():
             scheduled_with_score.home_score = 92
             scheduled_with_final = _observation(finished_scheduled, at=EARLY)
             scheduled_with_final.final_at = EARLY - timedelta(minutes=10)
+            scheduled_with_actual_tip = _observation(started_scheduled, at=EARLY)
+            scheduled_with_actual_tip.actual_tip_at = EARLY - timedelta(minutes=5)
             final_at_scheduled_tip = _observation(
                 final_at_tip, at=FINAL + timedelta(minutes=10),
                 status="final", final_at=TIP,
@@ -355,12 +358,15 @@ async def test_inconsistent_game_clock_state_cannot_produce_ranking():
                 _observation(safe_pregame, at=EARLY),
                 scheduled_with_score,
                 scheduled_with_final,
+                scheduled_with_actual_tip,
                 _observation(safe_postgame, at=FINAL + timedelta(minutes=10),
                              status="final", final_at=FINAL),
                 final_at_scheduled_tip,
                 final_before_start,
             ])
-            for game_id in (safe_pregame, scored_scheduled, finished_scheduled):
+            for game_id in (
+                safe_pregame, scored_scheduled, finished_scheduled, started_scheduled,
+            ):
                 session.add(_fact(
                     game_id, "pregame", "rivalry",
                     {"normalized_value": 0.7}, at=EARLY,
@@ -376,6 +382,7 @@ async def test_inconsistent_game_clock_state_cannot_produce_ranking():
             assert await repository.pregame(safe_pregame, as_of=EARLY) is not None
             assert await repository.pregame(scored_scheduled, as_of=EARLY) is None
             assert await repository.pregame(finished_scheduled, as_of=EARLY) is None
+            assert await repository.pregame(started_scheduled, as_of=EARLY) is None
 
             as_of = FINAL + timedelta(minutes=30)
             assert await repository.postgame(safe_postgame, as_of=as_of) is not None
