@@ -137,3 +137,31 @@ def test_second_podcast_rss_discovery_is_not_live_verification() -> None:
         assert source.verification_status == "unverified"
         assert source.retention_policy == "metadata_only"
         assert source.requires_auth is False
+
+
+def test_youtube_channel_discovery_is_not_collector_approval() -> None:
+    payload = json.loads(SEED.read_text(encoding="utf-8"))
+    sources = {
+        row["id"]: SourceDefinition.model_validate(row)
+        for row in payload["sources"]
+    }
+    expected = {
+        "youtube-nba":
+            "https://www.youtube.com/channel/UCWJ2lWNubArHWmf3FIHbfcQ",
+        "youtube-thinking-basketball":
+            "https://www.youtube.com/channel/UC3HPbvB6f58X_7SMIp6OPYw",
+    }
+
+    assert len(set(expected.values())) == len(expected)
+    for source_id, channel_url in expected.items():
+        source = sources[source_id]
+        assert source.locator == channel_url
+        assert source.kind == "youtube"
+        assert source.adapter == "youtube"  # Not an implemented video collector.
+        assert source.enabled is False
+        assert source.verification_status == "unverified"
+        assert source.requires_auth is True  # API credential/access review outstanding.
+        assert source.retention_policy == "metadata_only"
+
+    assert "official" in sources["youtube-nba"].category
+    assert "analysis" in sources["youtube-thinking-basketball"].category
