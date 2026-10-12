@@ -191,3 +191,35 @@ supplied when applicable; a nullable value is not silently interpreted as now.
 Alembic `0007_ai_result_metadata` adds the table and supports downgrade.
 Unit schema checks and PostgreSQL migration/integrity tests validate the
 metadata-only boundary. Real Neon validation still needs owner credentials.
+
+## Source-item-to-entity link observations (Issue #2 — schema-only slice)
+
+`source_item_entity_links` records **candidate**, append-only associations
+between one normalized `source_item` and exactly one canonical game, team or
+player UUID. A row stores `link_state` (`present` or `retracted`) so later
+corrections do not destroy what an earlier run asserted. The method
+(`manual`, `rule`, or `model`) is audit provenance, not a trust grade.
+An observation is uniquely identified by its source item, typed target and
+`observed_at`; the three PostgreSQL partial unique indexes enforce this
+even though the other two target columns are null.
+
+Both `observed_at` and conservative `available_at` are required, with
+`available_at >= observed_at` to reject retrospective backdating of new
+associations. The foreign keys restrict deleting referenced normalized items
+or sports entities. These link observations do **not** retain source body,
+model output, textual evidence, scores or spoiler classifications. The
+source item's own capture/history remains the upstream origin; exact
+capture-revision attribution is **not** implemented in this schema slice.
+
+**Disclosure boundary:** A link, especially a model-derived or retrospective
+game association, can itself reveal a result. No link is authorized for
+timeline reads, AI prompts, recommendation scoring or public API projection
+by mere presence in this table. A future trusted normalization/classification
+service must reconcile the as-of observation and classify item sensitivity,
+including multi-game articles, before the deterministic spoiler policy
+can project content. There are no reader/writer services, collectors, model
+calls or HTTP endpoints in this slice.
+
+Alembic `0008_source_item_entity_links` has a reversible migration, unit
+metadata checks and PostgreSQL foreign-key, uniqueness, timeline and
+correction regressions. Production/Neon validation still requires the owner.
