@@ -2,6 +2,7 @@
   "schema_version": 1,
   "status": "seed_research_backlog",
   "notes": [
+    "The official NBA and Thinking Basketball YouTube channel IDs were located on 2026-10-12. Browser-readable channel identity and corroborating publisher/video references are not an API or collector smoke, rights clearance, or item-level timestamp verification. Both remain disabled/unverified, auth-gated, metadata-only; see docs/SOURCE_YOUTUBE_CHANNEL_DISCOVERY.md.",
     "These entries define the desired source universe, not verified working collectors.",
     "All entries remain disabled until an issue verifies identity, access method, cadence, retention policy, and a bounded smoke result.",
     "Runtime registry and health will move to PostgreSQL/Neon; this file remains the reviewable desired-state seed.",
@@ -557,9 +558,9 @@
         "official",
         "video"
       ],
-      "locator": "NBA YouTube channel",
+      "locator": "https://www.youtube.com/channel/UCWJ2lWNubArHWmf3FIHbfcQ",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 15,
       "requires_auth": true,
       "retention_policy": "metadata_only"
@@ -573,9 +574,9 @@
         "analysis",
         "video"
       ],
-      "locator": "Thinking Basketball YouTube channel",
+      "locator": "https://www.youtube.com/channel/UC3HPbvB6f58X_7SMIp6OPYw",
       "enabled": false,
-      "verification_status": "discovery_required",
+      "verification_status": "unverified",
       "cadence_minutes": 60,
       "requires_auth": true,
       "retention_policy": "metadata_only"
