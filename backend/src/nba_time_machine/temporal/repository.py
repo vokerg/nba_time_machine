@@ -19,10 +19,12 @@ class SqlAlchemyTimelineRepository:
         self._session = session
 
     async def get(self, profile_id: UUID) -> TimelineState | None:
+        # An earlier read in this session must not mask an independently
+        # committed forward-only advance in the SQLAlchemy identity map.
         record = await self._session.scalar(
             select(TimelineStateRecord).where(
                 TimelineStateRecord.profile_id == profile_id
-            )
+            ).execution_options(populate_existing=True)
         )
         return _to_domain(record) if record is not None else None
 

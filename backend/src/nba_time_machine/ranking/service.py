@@ -110,6 +110,11 @@ class WatchabilityRecommendationService:
         archived = await self._scores.postgame_scores_as_of(
             candidate_game_ids, as_of=cursor,
         )
+        # The cursor can advance during the multi-query slate/score read.
+        # Recheck before returning outcome-dependent ordering, instead of
+        # presenting a selection from a superseded profile timeline.
+        if (await self._timeline.resume(profile_id)).time_cursor != cursor:
+            raise RecommendationTimelineChanged("profile timeline changed; refresh the slate")
         selected: list[VersionedScore] = []
         allowed = set(candidate_game_ids)
         # Alternate repositories may return duplicate snapshots for a game.
