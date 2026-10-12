@@ -109,8 +109,9 @@ implementation does not claim real-life ranking quality or frontend wiring.
 
 `POST /profiles/{profile_id}/recommendations/watchability` is the
 **only** HTTP entry point for postgame score-based ordering. A request must
-include `candidate_game_ids` (1–32 distinct canonical game UUIDs) and
-`consent_to_outcome_ranking: true`. Missing/false consent returns HTTP
+include `slate_date` (the NBA/Eastern YYYY-MM-DD date used for the safe
+historical game-list query), `candidate_game_ids` (1–32 distinct canonical
+game UUIDs), and `consent_to_outcome_ranking: true`. Missing/false consent returns HTTP
 403 **before** accessing the profile timeline or score archive. GET is not
 supported. The consent is specific to this request, not an implicit setting,
 and does not acknowledge a game or move the media cursor.
@@ -119,6 +120,7 @@ Example request (the UUIDs are illustrative, not actual scheduled games):
 
 ```json
 {
+  "slate_date": "2026-05-04",
   "candidate_game_ids": [
     "11111111-1111-4111-8111-111111111111",
     "22222222-2222-4222-8222-222222222222"
@@ -142,9 +144,19 @@ back to older evidence. The service independently checks score family, model
 version, trusted component observation timestamps and membership in the
 requested UUID set. No current-world/default-now substitution is permitted.
 Games with no eligible archived postgame score are omitted; **absence is not
-evidence of poor watchability**. The client should build its candidate set from
-the separate safe historical game list; this route does not independently
-prove that each submitted UUID belonged to that list.
+evidence of poor watchability**. Before querying any postgame score, the
+server reconstructs the requested NBA/Eastern `slate_date` through the
+**trusted, profile-scoped PREGAME game-list service**. Every submitted UUID
+must belong to that server-projected list; a client-supplied UUID or a
+client's claim to have previously fetched the list is not sufficient.
+Off-slate candidates fail the entire request with HTTP 403 rather than
+revealing a partial ranking. If the persisted cursor changes between the
+timeline read and safe-list reconstruction, the request fails closed with
+HTTP 409; the client must refresh the safe slate. An absent or malformed
+`slate_date` is rejected with HTTP 422. Missing/false consent still returns
+403 **before either the safe game list or the score archive is consulted**.
+This ties ordering to a date and to historically visible games, but is not
+user authentication; profile ownership remains a separate prerequisite.
 
 A time budget uses a **uniform user-planned allocation** per game rather than
 the actual game or highlight duration (which could leak outcomes). Both
@@ -166,8 +178,8 @@ authorization.
 `frontend/src/watchability.ts` provides a deliberately unmounted request
 helper for a future authenticated/profile-connected interface. It accepts a
 server-projected PREGAME slate, validates 1–32 unique canonical game UUIDs and
-requires per-action `consentToOutcomeRanking: true` before any HTTP call. It
-sends only IDs, consent and uniform planned duration/budget. On return, its
+requires per-action `consentToOutcomeRanking: true` before any HTTP call. It sends the validated NBA/Eastern slate date, IDs, consent and
+uniform planned duration/budget. On return, its
 strict response boundary accepts only `game_ids`, rejects extraneous
 postgame fields, unknown and duplicate IDs, and maps selected UUIDs back to
 allowlisted pregame card fields. HTTP error bodies are not surfaced.
