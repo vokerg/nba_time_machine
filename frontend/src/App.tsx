@@ -40,6 +40,7 @@ export function App() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(null); setSlate(null); setTimeline(null); setNewProfile(false);
+    setWatchPicks(null); setRankingConsent(false);
     setDisclosures({}); setConfirming(null); generation.current += 1;
     let alive = true;
     async function resume() {
@@ -62,6 +63,7 @@ export function App() {
     const controller = new AbortController();
     const ticket = ++generation.current;
     setLoading(true); setError(null); setSlate(null); setDisclosures({}); setConfirming(null);
+    setWatchPicks(null); setRankingConsent(false);
     client.games(day, view, timeline.time_cursor, controller.signal).then((data) => {
       if (ticket === generation.current) setSlate(data);
     }).catch((cause: unknown) => {
@@ -82,6 +84,7 @@ export function App() {
   async function advance(hours: number) {
     if (!client || !timeline) return;
     setBusy(true); setError(null); setSlate(null); setDisclosures({}); setConfirming(null); generation.current += 1;
+    setWatchPicks(null); setRankingConsent(false);
     try {
       const saved = await client.advance(timeline.time_cursor, hours);
       setTimeline(saved); setDay(nbaDate(saved.time_cursor));
@@ -89,9 +92,11 @@ export function App() {
     finally { setBusy(false); }
   }
   function selectDate(value: string) {
+    setWatchPicks(null); setRankingConsent(false);
     generation.current += 1; setSlate(null); setDisclosures({}); setConfirming(null); setDay(value);
   }
   function selectView(value: ScheduleView) {
+    setWatchPicks(null); setRankingConsent(false);
     generation.current += 1; setSlate(null); setDisclosures({}); setConfirming(null); setView(value);
   }
   async function disclose(game: GameCard, layer: "watchability" | "why" | "full") {
@@ -163,10 +168,10 @@ export function App() {
         <aside className="side-column"><section className="side-panel watch-panel"><p className="eyebrow">The viewing guide</p><h2>What should I watch?</h2><p>Pregame interest alone determines these suggestions.</p>{recommended[0] ? <strong>{matchup(recommended[0])}</strong> : <p>No pregame recommendation available.</p>}
           <h3>Postgame viewing guide</h3><p>Selection and order use completed-game quality and can hint at surprises. Numeric quality scores stay hidden.</p>
           {view !== "pregame" ? <p>Use Historically observed pregame to request watchability picks from a historically observed slate.</p> : <>
-            <label>Time budget (minutes)<input type="number" min="0" max="1440" step="1" value={budget} disabled={busy} onChange={(e) => setBudget(Number(e.target.value))} /></label>
-            <label>Planned minutes per game<input type="number" min="1" max="720" step="1" value={plannedMinutes} disabled={busy} onChange={(e) => setPlannedMinutes(Number(e.target.value))} /></label>
+            <div className="viewing-allocations"><label>Time budget (minutes)<input type="number" min="0" max="1440" step="1" value={budget} disabled={busy} onChange={(e) => setBudget(Number(e.target.value))} /></label>
+            <label>Planned minutes per game<input type="number" min="1" max="720" step="1" value={plannedMinutes} disabled={busy} onChange={(e) => setPlannedMinutes(Number(e.target.value))} /></label></div>
             <p>These are your viewing allocations, not actual game runtimes.</p>
-            <label><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} />I accept outcome-based hints for this request.</label>
+            <label className="ranking-consent"><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} />I accept outcome-based hints for this request.</label>
             <div className="game-actions"><button disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend(false)}>Rank by watchability</button><button disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend(true)}>Choose within budget</button></div>
           </>}
           {watchPicks !== null && <div aria-live="polite">{watchPicks.length ? <ol>{watchPicks.map((game) => <li key={game.game_id}>{matchup(game)}</li>)}</ol> : <p>No eligible picks for this request. Scores may be unavailable or the budget may be too small; this is not a poor-quality verdict.</p>}</div>}
