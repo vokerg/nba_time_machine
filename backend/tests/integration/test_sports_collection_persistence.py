@@ -70,7 +70,11 @@ async def test_collection_replay_changes_partial_stats_and_historical_availabili
             assert len(captures) == 3
             assert all(c.raw_payload is None for c in captures)
             fact = await session.scalar(select(TemporalFactRecord).where(TemporalFactRecord.game_id == game_id))
-            assert 'secret' not in str(fact.value) and '999' not in str(fact.value)
+            # Check the retained fields directly: a randomly generated event
+            # UUID may legitimately contain the substring "999".
+            assert fact.value == {'statistics': [
+                {'idEvent': event_id, 'strStat': 'Points', 'intHome': '100', 'intAway': '90'},
+            ]}
             outcome = await session.scalar(select(SourceOutcomeRecord).where(
                 SourceOutcomeRecord.collection_run_id == first.run_id))
             assert outcome.status == 'partial'
