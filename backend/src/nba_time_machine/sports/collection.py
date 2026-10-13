@@ -159,10 +159,11 @@ class SportsCollector:
                                              content_type="application/json", text=body,
                                              raw_payload=json.dumps(event, sort_keys=True) if source.retention_policy == "full" else None,
                                              content_hash=hashlib.sha256(body.encode()).hexdigest())
-                        changed = await _save_capture(session, source, run_id, capture)
+                        capture_written = await _save_capture(session, source, run_id, capture)
+                        observation_written = capture_written
                         # Repeated identical captures don't append observations or
                         # move first availability. Changed states append revisions.
-                        if changed:
+                        if capture_written:
                             observation = await self.store.store_game_observation(session, normalized, observed_at=observed)
                             game_id = observation.game_id
                         else:
@@ -174,10 +175,10 @@ class SportsCollector:
                             if game_id is None:
                                 observation = await self.store.store_game_observation(session, normalized, observed_at=observed)
                                 game_id = observation.game_id
-                                changed = True
+                                observation_written = True
                     report.games_stored += 1
-                    report.observations_written += int(changed)
-                    report.captures_written += int(changed)
+                    report.observations_written += int(observation_written)
+                    report.captures_written += int(capture_written)
                     if statistics:
                         rows = await request(self.client.event_stats, (normalized.external_event_id,),
                                              "event_stats:" + normalized.external_event_id, 5)
@@ -205,6 +206,8 @@ class SportsCollector:
                     report.last_completed_date = day.isoformat()
                 await self._checkpoint(report)
                 day += timedelta(days=1)
+            if day <= end and "Request budget exhausted; rerun remaining window." not in report.gaps:
+                report.gaps.append("Request budget exhausted; rerun remaining window.")
         if report.limit_hits:
             report.gaps.append("Response limits reached; premium/second provider and reconciliation required.")
         if report.stats_empty:

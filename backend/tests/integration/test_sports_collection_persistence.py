@@ -100,3 +100,33 @@ async def test_overlapping_jobs_fail_before_provider_requests():
                 await session.execute(text('SELECT pg_advisory_unlock(734387)'))
     finally:
         await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_budget_exhaustion_is_durable_and_lock_is_released():
+    settings = DatabaseSettings(_env_file=None)
+    if not settings.is_configured:
+        pytest.skip('disposable DATABASE_URL not configured')
+    engine = create_database_engine(settings)
+    factory = create_session_factory(engine)
+    class BudgetClient:
+        async def season_events(self, season):
+            return []
+        async def events_on_date(self, day):
+            pytest.fail('budget exhausted before daily request')
+    try:
+        first = await SportsCollector(factory, BudgetClient(), manual=True, max_requests=1).collect(
+            '2025-2026', start=date(2025, 10, 1), end=date(2025, 10, 2))
+        assert first.requests == 1 and first.last_completed_date is None
+        assert any('budget exhausted' in gap for gap in first.gaps)
+        async with factory() as session:
+            outcome = await session.scalar(select(SourceOutcomeRecord).where(
+                SourceOutcomeRecord.collection_run_id == first.run_id))
+            assert outcome.finished_at is not None
+            assert outcome.outcome_metadata['gaps'] == first.gaps
+        # A second invocation in the same process obtains the lock again.
+        second = await SportsCollector(factory, BudgetClient(), manual=True, max_requests=1).collect('2026-2027')
+        assert second.requests == 1
+    finally:
+        await engine.dispose()

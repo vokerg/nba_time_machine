@@ -97,3 +97,13 @@ report had already committed. The collector now uses a transaction advisory lock
 with connection keepalive before requests and automatic release on session close;
 repeat/recovery writes are still idempotent. Check persisted run/outcome state
 before restarting after an interruption.
+
+The 2026/27 season plus 2026-10-13–2026-10-27 incremental smoke stored 53 games
+and observations in 69 requests with zero rejected events or fetch failures. All
+53 event-stat responses were empty. Repeating the same window used 16 requests
+and wrote **zero** observations or captures; source reports remain partial because
+13 response limits were reached. Sanitized [incremental](evidence/nba-2026-27-incremental.json)
+and [replay](evidence/nba-2026-27-replay.json) reports are retained for review.
+This verifies repeat collection and persistence, not live scoring latency or full
+2026/27 schedule coverage. All database credentials were left unchanged; no
+production migrations, deletes or integration tests were performed.
