@@ -93,3 +93,11 @@ test('backend errors and invalid timeline projections do not fall back to fixtur
   await assert.rejects(client.resume(), /database unavailable/);
   await assert.rejects(client.resume(), /Invalid timeline/);
 });
+
+test('native fetch receives the browser/global binding rather than the client instance', async () => {
+  const client = new BackendClient(profile, function () {
+    assert.equal(this, globalThis);
+    return Promise.resolve(new Response(JSON.stringify(timeline)));
+  });
+  assert.deepEqual(await client.resume(), timeline);
+});

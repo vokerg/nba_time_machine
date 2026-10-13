@@ -6,7 +6,7 @@ same-origin routing. Provider/database credentials stay on the backend; no
 frontend secrets, direct provider calls or fixture fallback exist.
 
 The browser stores only an opaque profile UUID. This is a state key, not
- authentication. First use requests `GET /timeline/{profile_id}` and asks for an
+authentication. First use requests `GET /timeline/{profile_id}` and asks for an
 explicit starting cursor if absent. Initialization is a POST; reload resumes the
 backend cursor. Advancement is a PUT and backend-enforced forward only. Advancing
 to now asks for confirmation because it accepts the intervening NBA world.

@@ -1,7 +1,8 @@
 """Trusted historical NBA slate selection and safe profile-scoped list assembly.
 
-Membership is determined ONLY by pre-tip observations already known at the
-persisted time cursor. Current/final game rows are never used to select a slate.
+Default membership uses pre-tip observations known at the persisted cursor.
+The explicit observed view uses latest as-of schedule metadata without filtering
+by status or outcomes; it never reconstructs historical pregame availability.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ class SqlAlchemyGameSlateRepository:
     async def game_ids_on_date(
         self, *, slate_date: date, time_cursor: datetime,
     ) -> tuple[UUID, ...]:
-        """Pick each game's LAST historically knowable pre-tip observation.
+        """Pick each game's last knowable schedule observation for this view.
 
         Rank first, THEN filter by the observation's tip date and scheduled
         status. Otherwise a changed schedule could place one game on two dates,

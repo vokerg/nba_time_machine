@@ -47,7 +47,7 @@ export class BackendClient {
   fetcher: typeof fetch;
   constructor(profileId: string, fetcher: typeof fetch = fetch) {
     this.profileId = id(profileId);
-    this.fetcher = fetcher;
+    this.fetcher = fetcher.bind(globalThis);
   }
   async request(path: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<unknown> {
     const response = await this.fetcher("/api" + path, {

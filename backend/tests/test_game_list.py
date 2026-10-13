@@ -141,6 +141,8 @@ def test_http_surface_requires_date_and_known_initialized_profile():
             uri = f"/profiles/{PROFILE}/games"
             assert client.get(uri).status_code == 422
             assert client.get(uri + "?date=2026-13-01").status_code == 422
+            assert client.get(uri + "?date=2026-10-08&view=unsafe").status_code == 422
+            assert client.get(uri + "?date=2026-10-08&view=observed").status_code == 200
             response = client.get(uri + "?date=2026-10-08")
             assert response.status_code == 200
             data = response.json()
