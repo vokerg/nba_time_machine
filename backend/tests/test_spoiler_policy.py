@@ -266,3 +266,30 @@ def test_observed_schedule_allows_only_basic_identity_known_at_cursor():
     assert project_game(before, DisclosureLayer.PREGAME, fields).fields == {}
     strict = GameContext(game.game_id, observed, tip)
     assert project_game(strict, DisclosureLayer.PREGAME, fields).fields == {}
+
+
+def test_replay_exception_is_identity_only_and_requires_real_provenance():
+    from uuid import uuid4
+    from datetime import datetime, timezone
+    from nba_time_machine.spoilers.policy import GameContext, GameField, GameFieldName, DisclosureLayer, project_game
+    game = uuid4()
+    cursor = datetime(2025, 11, 3, 12, tzinfo=timezone.utc)
+    tip = datetime(2025, 11, 3, 23, tzinfo=timezone.utc)
+    collected = datetime(2026, 10, 13, tzinfo=timezone.utc)
+    fields = tuple(GameField(name, value, collected, collected) for name, value in (
+        (GameFieldName.HOME_TEAM, 'Home'), (GameFieldName.AWAY_TEAM, 'Away'),
+        (GameFieldName.SCHEDULED_TIP, tip.isoformat()), (GameFieldName.HOME_SCORE, 123),
+        (GameFieldName.PREGAME_INTEREST, 9.9), (GameFieldName.PREGAME_STANDINGS, 'Champions'),
+        (GameFieldName.WATCHABILITY_VERDICT, 'Classic'),
+    ))
+    strict = GameContext(game, cursor, tip)
+    replay = GameContext(game, cursor, tip, season_replay=True)
+    assert project_game(strict, DisclosureLayer.PREGAME, fields).fields == {}
+    assert project_game(replay, DisclosureLayer.PREGAME, fields).fields == {
+        'home_team': 'Home', 'away_team': 'Away', 'scheduled_tip': tip.isoformat(),
+    }
+    assert project_game(replay, DisclosureLayer.FULL, fields).disclosure == DisclosureLayer.PREGAME
+    assert project_game(replay, DisclosureLayer.PREGAME, (
+        GameField(GameFieldName.HOME_TEAM, 'Unknown', None, None),
+        GameField(GameFieldName.AWAY_TEAM, 'Other game', collected, collected, frozenset({uuid4()})),
+    )).fields == {}

@@ -338,3 +338,19 @@ inspection of backfilled schedules after their actual observation date.
 The connected UI resumes backend state and makes explicit per-game disclosure
 requests; it never silently requests outcomes for acknowledged games. See
 [Frontend integration](../FRONTEND_INTEGRATION.md) for routing and UI state contracts.
+
+## Retrospective season replay (#77)
+
+The explicit `view=replay` schedule allows imported game identity and scheduled
+tip on original Eastern game dates through the cursor's Eastern day, irrespective
+of collection date. It is a labeled retrospective testing surface, not a claim
+of verified pre-tip publication. Later corrections and postseason participants
+can be reflected. The trusted repository selects the latest timestamped observation
+before date filtering, without result/status-based membership or ordering.
+
+`GameContext.season_replay` permits only home/away identity and scheduled tip
+with actual provenance to bypass cursor/pre-tip gating. No stored timestamps
+change. Other pregame facts, full-result authorization, media and strict/observed
+views retain existing contracts. Results stay hidden on cards even after
+acknowledgement; explicit reveal persists only that game's acknowledgement.
+Historical final/protection times are not invented from game date or tipoff.

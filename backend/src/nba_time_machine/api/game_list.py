@@ -23,14 +23,15 @@ router = APIRouter(prefix="/profiles/{profile_id}/games", tags=["game-list"])
 
 async def get_game_list_service(request: Request) -> AsyncIterator[GameListService]:
     factory = _session_factory(request)
+    season_replay = request.query_params.get("view") == "replay"
     observed_schedule = request.query_params.get("view") == "observed"
     async with factory() as session:
         yield GameListService(
             TimelineService(SqlAlchemyTimelineRepository(session)),
-            SqlAlchemyGameSlateRepository(session, observed_schedule=observed_schedule),
-            SqlAlchemyGameSnapshotRepository(session, observed_schedule=observed_schedule),
+            SqlAlchemyGameSlateRepository(session, observed_schedule=observed_schedule, season_replay=season_replay),
+            SqlAlchemyGameSnapshotRepository(session, observed_schedule=observed_schedule, season_replay=season_replay),
             SqlAlchemyGameAcknowledgementRepository(session),
-            observed_schedule=observed_schedule,
+            observed_schedule=observed_schedule, season_replay=season_replay,
         )
 
 
@@ -49,7 +50,7 @@ def game_list_response(result: SafeGameList) -> GameListResponse:
 async def list_historical_games(
     profile_id: UUID,
     slate_date: date = Query(..., alias="date"),
-    view: Literal["pregame", "observed"] = Query("pregame"),
+    view: Literal["pregame", "observed", "replay"] = Query("pregame"),
     service: GameListService = Depends(get_game_list_service),
 ) -> GameListResponse:
     try:

@@ -91,6 +91,7 @@ class GameContext:
     acknowledged: bool = False
     explicit_full_reveal: bool = False
     observed_schedule: bool = False
+    season_replay: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,10 +202,15 @@ def project_game(game: GameContext, requested: DisclosureLayer, fields: tuple[Ga
             identity_field = part.name in (
                 GameFieldName.HOME_TEAM, GameFieldName.AWAY_TEAM, GameFieldName.SCHEDULED_TIP,
             )
-            if not (game.observed_schedule and identity_field):
+            if game.season_replay and identity_field:
+                # Retrospective identity only; preserve provenance, never pretend
+                # collection happened before the historical cursor.
+                if tip is None or not _timestamped(part.available_at, part.observed_at):
+                    continue
+            elif not (game.observed_schedule and identity_field):
                 if tip is None or available is None or available >= tip:
                     continue
-            if not _known_by(part.available_at, part.observed_at, cursor):
+            if not (game.season_replay and identity_field) and not _known_by(part.available_at, part.observed_at, cursor):
                 continue
         elif not _timestamped(part.available_at, part.observed_at):
             continue

@@ -90,7 +90,7 @@ test('changing schedule view rejects an old pending slate and shows explicit mis
   const root = await mount(async (url, options) => {
     calls.push({ url, options });
     if (url.includes('/timeline/')) return response(timeline);
-    if (url.includes('view=pregame')) return new Promise((resolve) => { old = resolve; });
+    if (url.includes('view=replay')) return new Promise((resolve) => { old = resolve; });
     return response({ time_cursor: cursor, games: [] });
   });
   try {
@@ -104,5 +104,30 @@ test('changing schedule view rejects an old pending slate and shows explicit mis
     assert.equal(document.querySelectorAll('.game-card').length, 0);
     assert.equal(calls[1].options.signal.aborted, true);
     assert.match(document.body.textContent, /missing provider coverage/);
+  } finally { await unmount(root); }
+});
+
+
+test('historical profile defaults to season replay and advancement follows the NBA date', async () => {
+  const calls = [];
+  let saved = { ...timeline, time_cursor: '2025-11-03T12:00:00Z' };
+  const root = await mount(async (url, options) => {
+    calls.push({ url, options });
+    if (url.includes('/timeline/')) {
+      if (options.method === 'PUT') saved = { ...saved, time_cursor: JSON.parse(options.body).time_cursor };
+      return response(saved);
+    }
+    return response({ time_cursor: saved.time_cursor, games: [{ ...card, scheduled_tip: '2025-11-03T23:00:00Z' }] });
+  });
+  try {
+    await until(() => document.querySelector('.game-card'));
+    assert.ok(calls[1].url.endsWith('date=2025-11-03&view=replay'));
+    assert.equal(document.querySelector('select').value, 'replay');
+    assert.match(document.body.textContent, /retrospective matchups/);
+    assert.equal(document.querySelector('.result-box'), null);
+    await click('Advance 1 day');
+    await until(() => calls.some((c) => c.url.endsWith('date=2025-11-04&view=replay')));
+    assert.equal(document.querySelector('input[type="date"]').value, '2025-11-04');
+    assert.equal(calls.filter((c) => c.url.includes('/reveal')).length, 0);
   } finally { await unmount(root); }
 });
