@@ -74,6 +74,14 @@ npm install
 npm run dev
 ```
 
+After installing both sets of dependencies above, start both servers from the repository root:
+
+```bash
+./dev.py
+```
+
+The launcher requires Python 3 and Node.js/npm on macOS or Linux. It automatically uses `backend/.venv/bin/python` when present, otherwise the Python running the launcher. Both servers' logs appear in the same terminal. Open the frontend URL printed by Vite (normally <http://localhost:5173>); the backend runs at <http://127.0.0.1:8000>. Press Ctrl+C to stop both servers. If either server exits, the launcher stops the other one and its child processes too.
+
 For database connection configuration, migrations and source-registry bootstrap, see [Development](docs/DEVELOPMENT.md#neon-setup). The frontend currently displays synthetic demonstration fixtures; connecting the backend to Neon does not yet connect the dashboard or populate historical NBA data.
 
 
