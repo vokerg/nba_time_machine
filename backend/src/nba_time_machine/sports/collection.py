@@ -12,7 +12,7 @@ from uuid import uuid4
 from sqlalchemy import select, text
 
 from nba_time_machine.db import (
-    CollectionRunRecord, GameObservationRecord, SourceOutcomeRecord, SourceRecord,
+    CollectionRunRecord, SourceOutcomeRecord, SourceRecord,
     TemporalFactRecord,
 )
 from nba_time_machine.ingestion.contracts import RawCapture
@@ -92,6 +92,11 @@ class SportsCollector:
                 raise ValueError("sports collection already running")
             try:
                 return await self._run(report, start, end, statistics)
+            except Exception:
+                if report.run_id:
+                    report.gaps.append("Run interrupted by configuration/persistence failure; replay requested window.")
+                    await self._checkpoint(report, finished=True)
+                raise
             finally:
                 await lock_session.execute(text("SELECT pg_advisory_unlock(734387)"))
 
@@ -103,6 +108,10 @@ class SportsCollector:
             policy = source_policy(source, self.manual)
             session.add(CollectionRunRecord(id=run_id, started_at=datetime.now(timezone.utc),
                                            collector_version="sports-v1", run_metadata={"season": report.season}))
+            await session.flush()
+            session.add(SourceOutcomeRecord(collection_run_id=run_id, source_id=SOURCE,
+                        status="partial", items_seen=0, captures_written=0,
+                        outcome_metadata={"state": "running", "season": report.season}))
         seen = set()
 
         async def request(method, args, label, limit):
@@ -182,6 +191,7 @@ class SportsCollector:
         rows = await request(self.client.season_events, (report.season,), "season", 15)
         if rows is not None:
             await consume(rows)
+        await self._checkpoint(report)
         if start is not None:
             day = start
             while day <= end and report.requests < self.max_requests:
@@ -189,19 +199,27 @@ class SportsCollector:
                 if rows is not None:
                     await consume(rows)
                     report.last_completed_date = day.isoformat()
+                await self._checkpoint(report)
                 day += timedelta(days=1)
         if report.limit_hits:
             report.gaps.append("Response limits reached; premium/second provider and reconciliation required.")
         if report.stats_empty:
             report.gaps.append("Event statistics absent for sampled/imported events; player game statistics require another provider.")
-        async with self.factory.begin() as session:
-            now = datetime.now(timezone.utc)
-            run = await session.get(CollectionRunRecord, run_id)
-            run.finished_at, run.run_metadata = now, asdict(report)
-            session.add(SourceOutcomeRecord(collection_run_id=run_id, source_id=SOURCE,
-                        status="partial", items_seen=report.events_seen, captures_written=report.captures_written,
-                        finished_at=now, outcome_metadata=asdict(report)))
+        await self._checkpoint(report, finished=True)
         return report
+
+    async def _checkpoint(self, report, *, finished=False):
+        async with self.factory.begin() as session:
+            now = datetime.now(timezone.utc) if finished else None
+            run = await session.get(CollectionRunRecord, report.run_id)
+            if run is None:
+                return
+            run.finished_at, run.run_metadata = now, asdict(report)
+            outcome = await session.scalar(select(SourceOutcomeRecord).where(
+                SourceOutcomeRecord.collection_run_id == report.run_id,
+                SourceOutcomeRecord.source_id == SOURCE))
+            outcome.items_seen, outcome.captures_written = report.events_seen, report.captures_written
+            outcome.finished_at, outcome.outcome_metadata = now, asdict(report)
 
     async def _stats(self, rows, game_id, external_id, run_id, policy, report):
         # Normalize only provider stat fields; never retain descriptions/artwork

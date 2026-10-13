@@ -76,3 +76,27 @@ async def test_collection_replay_changes_partial_stats_and_historical_availabili
             assert outcome.outcome_metadata['failed_requests'] == 1
     finally:
         await engine.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_overlapping_jobs_fail_before_provider_requests():
+    settings = DatabaseSettings(_env_file=None)
+    if not settings.is_configured:
+        pytest.skip('disposable DATABASE_URL not configured')
+    engine = create_database_engine(settings)
+    factory = create_session_factory(engine)
+    from sqlalchemy import text
+    class NoNetwork:
+        async def season_events(self, season):
+            pytest.fail('overlapping job requested provider data')
+    try:
+        async with factory() as session:
+            assert await session.scalar(text('SELECT pg_try_advisory_lock(734387)'))
+            try:
+                with pytest.raises(ValueError, match='already running'):
+                    await SportsCollector(factory, NoNetwork(), manual=True).collect('2026-2027')
+            finally:
+                await session.execute(text('SELECT pg_advisory_unlock(734387)'))
+    finally:
+        await engine.dispose()

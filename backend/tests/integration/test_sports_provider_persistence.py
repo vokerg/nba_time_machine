@@ -130,6 +130,7 @@ async def test_schedule_and_final_observations_preserve_same_stable_game() -> No
                 .where(
                     SportsExternalIdentityRecord.provider_key == "thesportsdb",
                     SportsExternalIdentityRecord.entity_type == "team",
+                    SportsExternalIdentityRecord.external_id.in_(["134873", "134886"]),
                 )
             )
 

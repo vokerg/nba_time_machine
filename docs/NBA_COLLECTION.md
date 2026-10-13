@@ -50,7 +50,7 @@ need retry). Repeating the entire window is safe. Normalized-full retention stor
 normalized JSON text, hashes and timestamps, no raw provider response or artwork.
 Full retention additionally allows raw JSON; third-party artwork is never fetched.
 Representative mocked event/stat fixtures live in
-`backend/tests/integration/test_sports_collection.py`.
+`backend/tests/integration/test_sports_collection_persistence.py`.
 
 ## Provider coverage and additional requirements
 
