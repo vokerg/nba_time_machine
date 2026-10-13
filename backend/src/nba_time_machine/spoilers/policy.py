@@ -90,6 +90,7 @@ class GameContext:
     protection_ends_at: datetime | None = None
     acknowledged: bool = False
     explicit_full_reveal: bool = False
+    observed_schedule: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,8 +198,12 @@ def project_game(game: GameContext, requested: DisclosureLayer, fields: tuple[Ga
         if minimum == DisclosureLayer.PREGAME:
             tip = _utc(game.tip_at)
             available = _utc(part.available_at)
-            if tip is None or available is None or available >= tip:
-                continue
+            identity_field = part.name in (
+                GameFieldName.HOME_TEAM, GameFieldName.AWAY_TEAM, GameFieldName.SCHEDULED_TIP,
+            )
+            if not (game.observed_schedule and identity_field):
+                if tip is None or available is None or available >= tip:
+                    continue
             if not _known_by(part.available_at, part.observed_at, cursor):
                 continue
         elif not _timestamped(part.available_at, part.observed_at):

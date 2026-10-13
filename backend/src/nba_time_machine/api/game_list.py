@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from datetime import date
 from uuid import UUID
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
@@ -22,12 +23,14 @@ router = APIRouter(prefix="/profiles/{profile_id}/games", tags=["game-list"])
 
 async def get_game_list_service(request: Request) -> AsyncIterator[GameListService]:
     factory = _session_factory(request)
+    observed_schedule = request.query_params.get("view") == "observed"
     async with factory() as session:
         yield GameListService(
             TimelineService(SqlAlchemyTimelineRepository(session)),
-            SqlAlchemyGameSlateRepository(session),
-            SqlAlchemyGameSnapshotRepository(session),
+            SqlAlchemyGameSlateRepository(session, observed_schedule=observed_schedule),
+            SqlAlchemyGameSnapshotRepository(session, observed_schedule=observed_schedule),
             SqlAlchemyGameAcknowledgementRepository(session),
+            observed_schedule=observed_schedule,
         )
 
 
@@ -46,6 +49,7 @@ def game_list_response(result: SafeGameList) -> GameListResponse:
 async def list_historical_games(
     profile_id: UUID,
     slate_date: date = Query(..., alias="date"),
+    view: Literal["pregame", "observed"] = Query("pregame"),
     service: GameListService = Depends(get_game_list_service),
 ) -> GameListResponse:
     try:

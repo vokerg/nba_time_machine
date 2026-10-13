@@ -90,7 +90,7 @@ Inspect the target before migrating an existing database. Source synchronization
 
 On October 13, 2026, issue #71 validated the owner's Neon database: the existing `0006_recommendation_scores` revision was upgraded to `0008_source_item_entity_links`, `alembic check` reported no differences, and 70 source definitions were synchronized (a second sync changed zero rows). The pooled application connection passed timeline initialize/read/advance/backward-rejection checks in a rolled-back transaction, and the backend's database-backed HTTP timeline lookup returned the expected response. Client TLS was active.
 
-The frontend still uses synthetic demonstration fixtures. Database setup does not connect those screens or ingest historical NBA data. Run destructive migration rollback checks and integration tests against a separate disposable PostgreSQL database, as in the local test workflow above, rather than the owner's Neon database.
+The frontend now requests backend timeline, game-list and disclosure data. See [Frontend integration](FRONTEND_INTEGRATION.md). Database setup alone does not ingest historical NBA data. Run destructive migration rollback checks and integration tests against a separate disposable PostgreSQL database, as in the local test workflow above, rather than the owner's Neon database.
 
 ## Frontend
 

@@ -247,3 +247,22 @@ def test_bad_related_game_timestamp_hides_media_without_crashing() -> None:
     preview = item("preview", MediaSensitivity.PREGAME, frozenset({a.game_id}), CURSOR, media_field(MediaFieldName.HEADLINE, "Safe preview"))
     inconsistent = replace(a, time_cursor=datetime(2026, 10, 8, 19))
     assert project_general_media((preview,), time_cursor=CURSOR, games={a.game_id: inconsistent}) == ()
+
+
+def test_observed_schedule_allows_only_basic_identity_known_at_cursor():
+    from uuid import uuid4
+    from datetime import datetime, timedelta, timezone
+    from nba_time_machine.spoilers.policy import GameContext, GameField, GameFieldName, DisclosureLayer, project_game
+    tip = datetime(2025, 10, 21, 23, tzinfo=timezone.utc)
+    observed = datetime(2026, 10, 13, 12, tzinfo=timezone.utc)
+    game = GameContext(uuid4(), observed, tip, observed_schedule=True)
+    fields = tuple(GameField(name, value, observed, observed) for name, value in (
+        (GameFieldName.HOME_TEAM, 'Home'), (GameFieldName.SCHEDULED_TIP, tip.isoformat()),
+        (GameFieldName.PREGAME_INTEREST, 9.9), (GameFieldName.HOME_SCORE, 100),
+        (GameFieldName.WATCHABILITY_VERDICT, 'Great'),
+    ))
+    assert project_game(game, DisclosureLayer.PREGAME, fields).fields == {'home_team': 'Home', 'scheduled_tip': tip.isoformat()}
+    before = GameContext(game.game_id, observed - timedelta(seconds=1), tip, observed_schedule=True)
+    assert project_game(before, DisclosureLayer.PREGAME, fields).fields == {}
+    strict = GameContext(game.game_id, observed, tip)
+    assert project_game(strict, DisclosureLayer.PREGAME, fields).fields == {}
