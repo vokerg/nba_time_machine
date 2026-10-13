@@ -4,7 +4,7 @@ import type { FullReveal, GameList, Reason, Verdict } from "./dashboard.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type Timeline = { profile_id: string; time_cursor: string; initialized_at: string; updated_at: string };
-export type ScheduleView = "pregame" | "observed";
+export type ScheduleView = "pregame" | "observed" | "replay";
 
 export class ApiError extends Error {
   status: number;
@@ -85,7 +85,7 @@ export class BackendClient {
     return state;
   }
   async games(day: string, view: ScheduleView, cursor: string, signal?: AbortSignal): Promise<GameList> {
-    if (!validDate(day) || !["pregame", "observed"].includes(view)) throw new Error("Invalid schedule selection.");
+    if (!validDate(day) || !["pregame", "observed", "replay"].includes(view)) throw new Error("Invalid schedule selection.");
     const result = parseGameList(await this.request(`/profiles/${this.profileId}/games?date=${day}&view=${view}`, "GET", undefined, signal));
     if (Date.parse(result.time_cursor) !== Date.parse(cursor)) throw new Error("Timeline changed in another tab. Reload to resume.");
     const seen = new Set<string>();

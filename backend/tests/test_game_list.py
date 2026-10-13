@@ -154,3 +154,23 @@ def test_http_surface_requires_date_and_known_initialized_profile():
             assert client.get(f"/profiles/{OTHER}/games?date=2026-10-08").status_code == 404
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_season_replay_shows_backfill_without_results_or_late_pregame_signals():
+    _, timeline, slates, acks = setup()
+    service = GameListService(timeline, slates, Games(), acks, season_replay=True)
+    before = game_list_response(await service.list_games(PROFILE, slate_date=DAY))
+    assert [card.game_id for card in before.games] == [FIRST, SECOND, HIDDEN]
+    assert before.games[-1].home_team == 'Backfilled'
+    for card in before.games:
+        assert set(card.model_dump(exclude_none=True)) == {
+            'game_id', 'state', 'disclosure', 'home_team', 'away_team', 'scheduled_tip',
+        }
+        assert card.state == 'sealed'
+    acks.acknowledged.add((PROFILE, HIDDEN))
+    after = game_list_response(await service.list_games(PROFILE, slate_date=DAY))
+    assert [card.game_id for card in after.games] == [FIRST, SECOND, HIDDEN]
+    assert after.games[-1].state == 'acknowledged'
+    assert timeline.cursor == CURSOR
+    assert (await service.list_games(PROFILE, slate_date=DAY + timedelta(days=1))).games == ()

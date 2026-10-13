@@ -18,7 +18,7 @@ export function App() {
   const [newProfile, setNewProfile] = useState(false);
   const [initialCursor, setInitialCursor] = useState("2025-10-01T00:00");
   const [day, setDay] = useState("2025-10-21");
-  const [view, setView] = useState<ScheduleView>("pregame");
+  const [view, setView] = useState<ScheduleView>("replay");
   const [slate, setSlate] = useState<GameList | null>(null);
   const [disclosures, setDisclosures] = useState<Record<string, Disclosure>>({});
   const [confirming, setConfirming] = useState<string | null>(null);
@@ -76,7 +76,7 @@ export function App() {
     setBusy(true); setError(null); setSlate(null); setDisclosures({}); setConfirming(null); generation.current += 1;
     try {
       const saved = await client.advance(timeline.time_cursor, hours);
-      setTimeline(saved);
+      setTimeline(saved); setDay(nbaDate(saved.time_cursor));
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Cannot advance timeline."); }
     finally { setBusy(false); }
   }
@@ -123,10 +123,10 @@ export function App() {
         <section className="games-section" aria-labelledby="games-heading">
           <div className="section-header"><div><p className="eyebrow">2025/26 · 2026/27</p><h2 id="games-heading">Games, on your terms.</h2></div></div>
           <div className="schedule-controls"><label>NBA date (Eastern)<input type="date" min="2025-07-01" max="2027-06-30" value={day} disabled={busy} onChange={(e) => selectDate(e.target.value)} /></label>
-            <label>Schedule view<select value={view} disabled={busy} onChange={(e) => selectView(e.target.value as ScheduleView)}><option value="pregame">Historically observed pregame</option><option value="observed">Observed schedule / backfill</option></select></label></div>
-          <p className="section-intro">{view === "pregame" ? "Only genuine pre-tip observations known at your cursor appear here." : "Matchups and tip times appear only after we observed them. Backfill does not reconstruct the historical pregame world."} Results remain behind explicit actions.</p>
+            <label>Schedule view<select value={view} disabled={busy} onChange={(e) => selectView(e.target.value as ScheduleView)}><option value="replay">Season replay</option><option value="pregame">Historically observed pregame</option><option value="observed">Observed schedule / backfill</option></select></label></div>
+          <p className="section-intro">{view === "replay" ? "Replay the imported season on its original game dates, through your current NBA day. These are retrospective matchups and tip times, not archived pregame context. Coverage is partial." : view === "pregame" ? "Only genuine pre-tip observations known at your cursor appear here." : "Matchups and tip times appear only after we observed them. Backfill does not reconstruct the historical pregame world."} Results remain behind explicit actions.</p>
           {loading && <div className="empty-state" role="status">Loading games…</div>}
-          {!loading && slate?.games.length === 0 && <div className="empty-state">No covered games available at this cursor and date. This may mean missing provider coverage or observations, rather than no NBA games.</div>}
+          {!loading && slate?.games.length === 0 && <div className="empty-state">No covered games available at this cursor and date. Season replay covers dates through your current NBA day. Empty dates may mean missing provider coverage or observations, rather than no NBA games.</div>}
           <div className="game-list">{slate?.games.map((game) => {
             const shown = disclosures[game.game_id] ?? {};
             return <article className="game-card" key={game.game_id}>
@@ -144,7 +144,7 @@ export function App() {
         <section className="media-section"><h2>News &amp; buzz</h2><p>A timeline-filtered media endpoint is not connected yet. Game reveals never unlock later general media.</p></section>
       </div>}
       {!timeline && loading && <p role="status">Connecting to backend…</p>}
-      <footer className="footer"><span>NBA TIME MACHINE</span><span>Observation-based coverage · forward-only cursor</span></footer>
+      <footer className="footer"><span>NBA TIME MACHINE</span><span>Partial season coverage · forward-only cursor</span></footer>
     </main>
   </div>;
 }

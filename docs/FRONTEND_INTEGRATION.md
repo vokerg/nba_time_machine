@@ -14,9 +14,10 @@ Switching a slate date does not move the cursor or make earlier knowledge exist.
 
 Game requests use `/profiles/{profile_id}/games?date=YYYY-MM-DD&view=...`.
 The selected date uses Eastern NBA calendar days; tip times display in Eastern.
-Date input supports the 2025/26 and 2026/27 seasons. Two explicit views exist:
+Date input supports the 2025/26 and 2026/27 seasons. Three explicit views exist (season replay is the UI default):
 
-- `pregame` (default): genuine pre-tip observations already known at the cursor.
+- `replay`: retrospective imported matchups on original game dates; see below.
+- `pregame` (strict API default): genuine pre-tip observations already known at the cursor.
 - `observed`: latest schedule observation already known at the cursor, including
   backfill. Basic matchup and scheduled-tip fields are timestamp-gated rather than
   required to precede tip. Pregame interest, standings and availability still need
@@ -45,3 +46,25 @@ headlines. Pregame recommendations appear only when an actual pregame score exis
 Verification: `cd frontend && npm test && npm run build`; backend policy/route
 and PostgreSQL integration tests cover observation-time membership and excluded
 result fields. Persistence tests run only against disposable local/CI PostgreSQL.
+
+## Season replay (#77)
+
+The UI now defaults to `view=replay`. Imported matchups and scheduled tip times
+appear on their original Eastern dates, through the cursor's Eastern calendar day,
+even when collected later. Advancing the cursor selects its new Eastern day.
+This is retrospective schedule browsing: it can reflect later schedule corrections
+and postseason participants, and does not claim archived pregame knowledge.
+
+The exception admits only home/away identity and scheduled tip, with valid stored
+provenance. Selection uses the latest timestamped observation, then filters its
+date; status, scores and result availability never control membership or order.
+Stored collection/availability timestamps are unchanged. All other pregame fields
+retain strict gating; general media gets no exception. Existing pregame and
+observed views remain available and unchanged. Results remain hidden on cards
+and are disclosed only through existing deliberate reveal actions. Replay does
+not infer a historical game-ending time or silently unseal games at tipoff.
+
+Current coverage is partial: 612 imported 2025/26 games and 53 2026/27 games.
+There are no ingested standings, injuries, player statistics, ranking scores or
+media feeds. Replay supports date browsing, cursor progression and individual
+result reveals; it does not make the full product or full-season coverage complete.

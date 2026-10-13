@@ -50,9 +50,10 @@ class GameSlateRepository(Protocol):
 
 
 class SqlAlchemyGameSlateRepository:
-    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False) -> None:
+    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False, season_replay: bool = False) -> None:
         self._session = session
         self.observed_schedule = observed_schedule
+        self.season_replay = season_replay
 
     async def game_ids_on_date(
         self, *, slate_date: date, time_cursor: datetime,
@@ -65,6 +66,8 @@ class SqlAlchemyGameSlateRepository:
         """
         if time_cursor.tzinfo is None or time_cursor.utcoffset() is None:
             raise ValueError("time_cursor must be timezone-aware")
+        if self.season_replay and slate_date > time_cursor.astimezone(_NBA_CLOCK).date():
+            return ()
         begin, end = nba_day_bounds(slate_date)
         o = GameObservationRecord
         ranked = (
@@ -81,9 +84,9 @@ class SqlAlchemyGameSlateRepository:
             .join(SeasonRecord, SeasonRecord.id == GameRecord.season_id)
             .where(
                 SeasonRecord.league == "NBA",
-                o.available_at <= time_cursor,
-                o.observed_at <= time_cursor,
-                *(() if self.observed_schedule else (
+                *( (o.available_at.is_not(None), o.observed_at.is_not(None))
+                   if self.season_replay else (o.available_at <= time_cursor, o.observed_at <= time_cursor)),
+                *(() if self.observed_schedule or self.season_replay else (
                     o.scheduled_tip_at.is_not(None),
                     o.available_at < o.scheduled_tip_at,
                     o.observed_at < o.scheduled_tip_at,
@@ -95,7 +98,7 @@ class SqlAlchemyGameSlateRepository:
             select(ranked.c.game_id)
             .where(
                 ranked.c.position == 1,
-                *(() if self.observed_schedule else (ranked.c.status == "scheduled",)),
+                *(() if self.observed_schedule or self.season_replay else (ranked.c.status == "scheduled",)),
                 ranked.c.scheduled_tip_at >= begin,
                 ranked.c.scheduled_tip_at < end,
             )
@@ -111,9 +114,10 @@ class GameListService:
         slates: GameSlateRepository,
         games: GameSnapshotRepository,
         acknowledgements: GameAcknowledgementRepository,
-        *, observed_schedule: bool = False,
+        *, observed_schedule: bool = False, season_replay: bool = False,
     ) -> None:
         self.observed_schedule = observed_schedule
+        self.season_replay = season_replay
         self._timeline = timeline
         self._slates = slates
         self._games = games
@@ -122,6 +126,8 @@ class GameListService:
     async def list_games(self, profile_id: UUID, *, slate_date: date) -> SafeGameList:
         timeline = await self._timeline.resume(profile_id)
         cursor = timeline.time_cursor
+        if self.season_replay and slate_date > cursor.astimezone(_NBA_CLOCK).date():
+            return SafeGameList(time_cursor=cursor, games=())
         candidates = await self._slates.game_ids_on_date(
             slate_date=slate_date, time_cursor=cursor,
         )
@@ -149,6 +155,7 @@ class GameListService:
                 protection_ends_at=snapshot.protection_ends_at,
                 acknowledged=acknowledged,
                 observed_schedule=self.observed_schedule,
+                season_replay=self.season_replay,
             )
             projection = project_game(context, DisclosureLayer.PREGAME, snapshot.fields)
             # Missing pre-tip identity or schedule: don't invent an apparent game.

@@ -20,9 +20,10 @@ def utc(value: datetime | None) -> datetime | None:
 
 
 class SqlAlchemyGameSnapshotRepository:
-    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False) -> None:
+    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False, season_replay: bool = False) -> None:
         self.session = session
         self.observed_schedule = observed_schedule
+        self.season_replay = season_replay
 
     async def get(self, game_id: UUID, *, time_cursor: datetime) -> TrustedGameSnapshot | None:
         game = await self.session.get(GameRecord, game_id)
@@ -53,6 +54,10 @@ class SqlAlchemyGameSnapshotRepository:
                      if utc(item.available_at) is not None and utc(item.observed_at) is not None
                      and utc(item.available_at) <= cursor and utc(item.observed_at) <= cursor]
             safe = known[-1] if known else None
+        if self.season_replay:
+            timestamped = [item for item in observations
+                           if utc(item.available_at) is not None and utc(item.observed_at) is not None]
+            safe = timestamped[-1] if timestamped else None
         tip = utc(safe.scheduled_tip_at) if safe is not None else next(
             (ts for item in observations
              if (ts := utc(item.actual_tip_at) or utc(item.scheduled_tip_at)) is not None),
