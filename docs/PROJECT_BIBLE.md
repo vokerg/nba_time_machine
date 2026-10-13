@@ -286,6 +286,15 @@ The first useful MVP should provide:
 
 Backward time travel/full historical replay is intentionally deferred beyond MVP.
 
+For testing the imported old season, the connected UI offers **Season replay**:
+retrospective matchups and scheduled tips appear on their original Eastern dates
+through the selected NBA day, even when collected later. This explicit schedule
+exception does not reconstruct verified pregame knowledge: later corrections and
+postseason participants can appear. Collection timestamps remain intact, results
+stay behind explicit disclosure, and standings, injuries, rankings and general
+media retain their own provenance requirements. Partial imports are labeled as
+partial; replay is a usable game-flow test, not complete historical world replay.
+
 Social breadth, advanced personalization, large-scale transcript processing and cross-sport support can come later.
 
 ## 15. Multi-sport direction

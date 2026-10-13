@@ -1,8 +1,9 @@
 """Trusted historical NBA slate selection and safe profile-scoped list assembly.
 
 Default membership uses pre-tip observations known at the persisted cursor.
-The explicit observed view uses latest as-of schedule metadata without filtering
-by status or outcomes; it never reconstructs historical pregame availability.
+The explicit observed view uses latest as-of schedule metadata. Season replay
+uses retrospective schedule identity on original dates through the cursor day.
+Neither filters by outcomes or reconstructs historical pregame availability.
 """
 
 from __future__ import annotations
@@ -84,7 +85,7 @@ class SqlAlchemyGameSlateRepository:
             .join(SeasonRecord, SeasonRecord.id == GameRecord.season_id)
             .where(
                 SeasonRecord.league == "NBA",
-                *( (o.available_at.is_not(None), o.observed_at.is_not(None))
+                *((o.available_at.is_not(None), o.observed_at.is_not(None))
                    if self.season_replay else (o.available_at <= time_cursor, o.observed_at <= time_cursor)),
                 *(() if self.observed_schedule or self.season_replay else (
                     o.scheduled_tip_at.is_not(None),
