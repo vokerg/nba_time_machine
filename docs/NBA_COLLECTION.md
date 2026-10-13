@@ -107,3 +107,9 @@ and [replay](evidence/nba-2026-27-replay.json) reports are retained for review.
 This verifies repeat collection and persistence, not live scoring latency or full
 2026/27 schedule coverage. All database credentials were left unchanged; no
 production migrations, deletes or integration tests were performed.
+
+A later 2025/26 season-only replay returned just 5 rows (despite the earlier
+15-row response), with zero new observations/captures. This reinforces that even
+short responses cannot establish completeness. The
+[season-only replay](evidence/nba-2025-26-season-replay.json) verifies only returned
+records; it is not a repeat of the entire 273-day pass.

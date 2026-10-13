@@ -233,7 +233,9 @@ class SportsCollector:
         # or pretend that generic player aggregates are game-specific box scores.
         keys = {"idEvent", "idPlayer", "idTeam", "strStat", "strStatName", "strStatType",
                 "intHome", "intAway", "intValue", "strValue", "strHome", "strAway", "intStat"}
-        values = [{k: v for k, v in row.items() if k in keys and isinstance(v, (str, int, float, type(None)))} for row in rows]
+        matched = [row for row in rows if row.get("idEvent") is None or str(row["idEvent"]) == external_id]
+        report.rejected += len(rows) - len(matched)
+        values = [{k: v for k, v in row.items() if k in keys and isinstance(v, (str, int, float, type(None)))} for row in matched]
         values = [v for v in values if any(k in v for k in ("strStat", "strStatName", "strStatType"))]
         if not values:
             report.rejected += 1

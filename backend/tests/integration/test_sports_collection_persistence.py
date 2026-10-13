@@ -31,7 +31,8 @@ async def test_collection_replay_changes_partial_stats_and_historical_availabili
         async def events_on_date(self, day):
             raise SportsProviderResponseError('unavailable')
         async def event_stats(self, external):
-            return [dict(idEvent=external, strStat='Points', intHome='100', intAway='90', secret='discard')]
+            return [dict(idEvent=external, strStat='Points', intHome='100', intAway='90', secret='discard'),
+                    dict(idEvent='wrong-game', strStat='Points', intHome='999', intAway='999')]
     async def no_sleep(_):
         pass
     monkeypatch.setattr('nba_time_machine.sports.collection.asyncio.sleep', no_sleep)
@@ -53,7 +54,7 @@ async def test_collection_replay_changes_partial_stats_and_historical_availabili
         assert first.observations_written == first.stats_written == 1
         assert replay.observations_written == replay.stats_written == 0
         assert correction.observations_written == 1
-        assert first.failed_requests == first.rejected == 1
+        assert first.failed_requests == 1 and first.rejected == 2
         assert not first.complete_season_verified
         async with factory() as session:
             from nba_time_machine.db import SportsExternalIdentityRecord
@@ -69,7 +70,7 @@ async def test_collection_replay_changes_partial_stats_and_historical_availabili
             assert len(captures) == 3
             assert all(c.raw_payload is None for c in captures)
             fact = await session.scalar(select(TemporalFactRecord).where(TemporalFactRecord.game_id == game_id))
-            assert 'secret' not in str(fact.value)
+            assert 'secret' not in str(fact.value) and '999' not in str(fact.value)
             outcome = await session.scalar(select(SourceOutcomeRecord).where(
                 SourceOutcomeRecord.collection_run_id == first.run_id))
             assert outcome.status == 'partial'
