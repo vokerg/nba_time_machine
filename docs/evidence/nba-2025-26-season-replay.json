@@ -1,0 +1,22 @@
+{
+  "season": "2025-2026",
+  "run_id": "26da9023-df2f-4cb4-bac2-7480da3e930a",
+  "requests": 1,
+  "events_seen": 5,
+  "games_stored": 5,
+  "observations_written": 0,
+  "captures_written": 0,
+  "stats_written": 0,
+  "stats_empty": 0,
+  "rejected": 0,
+  "failed_requests": 0,
+  "limit_hits": [],
+  "last_completed_date": null,
+  "complete_season_verified": false,
+  "gaps": [
+    "No independent authoritative season manifest; completeness is unverified.",
+    "No trustworthy historical publication, actual-tip or final timestamps.",
+    "NBA standings, historical rosters and player box-score coverage unverified.",
+    "V1 polling has no live-update SLA; premium v2 required for live scores."
+  ]
+}

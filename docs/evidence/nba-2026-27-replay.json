@@ -1,0 +1,37 @@
+{
+  "season": "2026-2027",
+  "run_id": "f83664b4-d896-4dde-b8f7-ced03f5d5236",
+  "requests": 16,
+  "events_seen": 53,
+  "games_stored": 53,
+  "observations_written": 0,
+  "captures_written": 0,
+  "stats_written": 0,
+  "stats_empty": 0,
+  "rejected": 0,
+  "failed_requests": 0,
+  "limit_hits": [
+    "season",
+    "2026-10-13",
+    "2026-10-14",
+    "2026-10-15",
+    "2026-10-16",
+    "2026-10-17",
+    "2026-10-21",
+    "2026-10-22",
+    "2026-10-23",
+    "2026-10-24",
+    "2026-10-25",
+    "2026-10-26",
+    "2026-10-27"
+  ],
+  "last_completed_date": "2026-10-27",
+  "complete_season_verified": false,
+  "gaps": [
+    "No independent authoritative season manifest; completeness is unverified.",
+    "No trustworthy historical publication, actual-tip or final timestamps.",
+    "NBA standings, historical rosters and player box-score coverage unverified.",
+    "V1 polling has no live-update SLA; premium v2 required for live scores.",
+    "Response limits reached; premium/second provider and reconciliation required."
+  ]
+}
