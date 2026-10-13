@@ -1,0 +1,2 @@
+# Keep the executable launcher's shebang valid with core.autocrlf enabled.
+/dev.py text eol=lf
