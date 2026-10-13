@@ -67,6 +67,12 @@ class TheSportsDBClient:
         )
         return self._list_field(payload, "events")
 
+    async def season_events(self, season: str) -> list[dict[str, Any]]:
+        payload = await self._get(
+            "eventsseason.php", {"id": self._settings.nba_league_id, "s": season},
+        )
+        return self._list_field(payload, "events")
+
     async def team(self, team_id: str) -> dict[str, Any]:
         payload = await self._get("lookupteam.php", {"id": team_id})
         teams = self._list_field(payload, "teams")

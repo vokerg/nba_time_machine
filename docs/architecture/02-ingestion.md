@@ -249,3 +249,10 @@ open under #11.
 Regression checks:
 `cd backend && pytest -q tests/test_podcast_rss_adapter.py`.
 They use a mocked HTTP transport, not the actual podcast publisher.
+
+## NBA season collection (#73)
+
+See [NBA collection](../NBA_COLLECTION.md) for the bounded TheSportsDB entry
+point, additive Neon writes, idempotent capture revisions and explicit coverage
+reports. Historical backfill availability is actual observation time; it never
+creates pre-tip knowledge. Full season/live/player-stat coverage is provider-gated.
