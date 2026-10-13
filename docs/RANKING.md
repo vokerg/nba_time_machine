@@ -201,3 +201,37 @@ lists, profile authentication/authorization, a deliberate opt-in UI and
 trusted real score evidence. Returning no scored games is normal until those
 producer gaps close. Neither numeric score visibility nor result
 acknowledgement is introduced by this client.
+
+## Connected viewing guide and archived verdicts (#10)
+
+The backend-connected UI now offers explicit postgame ordering and time-budget
+selection on **Historically observed pregame** slates only. It requires a fresh
+consent checkbox for each request and uses the strict client response boundary
+through the same-origin `/api` proxy. Replay and observed/backfill slates are not
+submitted to the historical recommendation API. The ordinary game list and
+pregame guide retain their existing order; favorite teams never enter requests.
+Picks are cleared when the cursor, date, schedule view or viewing allocations
+change, and stale in-flight responses are discarded. No eligible picks can mean
+missing score evidence or an insufficient budget, never a poor-quality verdict.
+
+Explicit watchability/why reads now consult the newest eligible archived
+`postgame-v1` score at the persisted cursor. Ordinary pregame/card reads and full
+reveals do not read the score archive. The service rejects duplicate, corrupt,
+wrong-family and future score evidence and projects only a coarse verdict through
+`project_game`. Missing evidence replaces any snapshot hint with no verdict.
+Reasons are not fabricated from components: WHY remains a separately requested
+layer but has no reason until a trusted explanation producer is implemented.
+Hints never acknowledge a game or advance the cursor.
+
+Coarse bands are tunable via `RANKING_VERDICT_MEDIUM_FROM` (default 4),
+`RANKING_VERDICT_HIGH_FROM` (7), `RANKING_VERDICT_LOW_LABEL` (Lower priority),
+`RANKING_VERDICT_MEDIUM_LABEL` (Worth considering), and
+`RANKING_VERDICT_HIGH_LABEL` (Worth watching). Defaults are provisional product
+configuration, not calibrated NBA predictions; invalid bands fail configuration.
+
+This supersedes the earlier unmounted-client/frontend-wiring limitations above.
+Issue #10 remains open: the current TheSportsDB importer does not produce vetted
+ranking features or trusted final timestamps, so imported games normally have
+no scores. Historical feature production, source approval history, calibration
+against actual games and trusted reason production remain outstanding. Profile
+UUIDs remain opaque state keys rather than authenticated user accounts.

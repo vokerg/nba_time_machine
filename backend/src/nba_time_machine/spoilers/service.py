@@ -12,10 +12,16 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from nba_time_machine.ranking.disclosure import VerdictBands, ranking_fields
+from nba_time_machine.ranking.scoring import (
+    POSTGAME_VERSION, ScoreKind, VersionedScore, score_evidence_is_consistent,
+)
+
 from nba_time_machine.spoilers.policy import (
     DisclosureLayer,
     GameContext,
     GameField,
+    GameFieldName,
     GameProjection,
     MediaItem,
     MediaProjection,
@@ -62,16 +68,29 @@ class GameAcknowledgementRepository(Protocol):
     async def acknowledge(self, profile_id: UUID, game_id: UUID) -> None: ...
 
 
+class DisclosureScoreRepository(Protocol):
+    async def postgame_scores_as_of(
+        self, game_ids: tuple[UUID, ...], *, as_of: datetime,
+    ) -> tuple[VersionedScore, ...]: ...
+
+
 class GameDisclosureService:
     def __init__(
         self,
         timeline: TimelineService,
         games: GameSnapshotRepository,
         acknowledgements: GameAcknowledgementRepository,
+        *,
+        scores: DisclosureScoreRepository | None = None,
+        verdict_bands: VerdictBands | None = None,
     ) -> None:
         self._timeline = timeline
         self._games = games
         self._acknowledgements = acknowledgements
+        if (scores is None) != (verdict_bands is None):
+            raise ValueError("score disclosure requires explicit verdict bands")
+        self._scores = scores
+        self._verdict_bands = verdict_bands
 
     async def _context(
         self, profile_id: UUID, game_id: UUID, timeline: TimelineState,
@@ -104,6 +123,28 @@ class GameDisclosureService:
         if layer is DisclosureLayer.FULL and not unsealed:
             raise SealedGameError("full result requires an explicit reveal")
         fields = snapshot.fields
+        if self._scores is not None and layer in (
+            DisclosureLayer.WATCHABILITY, DisclosureLayer.WHY,
+        ):
+            # Only an explicit hint request reads hidden scores. Ordinary cards,
+            # pregame reads and full reveals never consult the ranking archive.
+            archived = await self._scores.postgame_scores_as_of(
+                (game_id,), as_of=timeline.time_cursor,
+            )
+            matching = [score for score in archived
+                        if type(score) is VersionedScore and score.game_id == game_id]
+            # Replace any snapshot hint fields: missing/corrupt archived evidence
+            # must not fall back to an unrelated cached verdict or explanation.
+            fields = tuple(part for part in fields if part.name not in (
+                GameFieldName.WATCHABILITY_VERDICT, GameFieldName.WATCHABILITY_REASON,
+            ))
+            if len(matching) == 1:
+                score = matching[0]
+                if (score.kind is ScoreKind.POSTGAME
+                        and score.model_version == POSTGAME_VERSION
+                        and score_evidence_is_consistent(score)
+                        and score.as_of <= timeline.time_cursor):
+                    fields += ranking_fields(score, bands=self._verdict_bands)
         if layer is DisclosureLayer.FULL and not context.acknowledged:
             # Timeline-derived unsealing accepts only information available by
             # that cursor. Later score corrections need an explicit reveal.

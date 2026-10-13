@@ -28,6 +28,14 @@ export function App() {
   const [reload, setReload] = useState(0);
   const generation = useRef(0);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [watchPicks, setWatchPicks] = useState<GameCard[] | null>(null);
+  const [rankingConsent, setRankingConsent] = useState(false);
+  const [budget, setBudget] = useState(240);
+  const [plannedMinutes, setPlannedMinutes] = useState(120);
+
+  useEffect(() => {
+    setWatchPicks(null); setRankingConsent(false);
+  }, [timeline, day, view, reload, budget, plannedMinutes]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,6 +113,18 @@ export function App() {
     } finally { setBusy(false); }
   }
 
+  async function recommend(useBudget: boolean) {
+    if (!client || !slate || view !== "pregame" || !rankingConsent) return;
+    const ticket = generation.current;
+    setBusy(true); setError(null); setWatchPicks(null); setRankingConsent(false);
+    try {
+      const picks = await client.recommend(slate, day, true, useBudget ? budget : undefined, plannedMinutes);
+      if (ticket === generation.current) setWatchPicks(picks);
+    } catch (cause) {
+      if (ticket === generation.current) setError(cause instanceof Error ? cause.message : "Watchability ranking unavailable.");
+    } finally { setBusy(false); }
+  }
+
   const teams = [...new Set((slate?.games ?? []).flatMap((game) => [game.home_team, game.away_team].filter((name): name is string => !!name)))].sort();
   const recommended = useMemo(() => orderByPregameInterest((slate?.games ?? []).filter((game) => game.pregame_interest !== undefined)), [slate]);
   return <div className="app">
@@ -132,6 +152,7 @@ export function App() {
             return <article className="game-card" key={game.game_id}>
               <div className="game-meta"><span>{game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip unavailable"}</span><span>{game.state === "sealed" ? "Sealed" : "Acknowledged"}</span></div>
               <h3>{matchup(game)}</h3><p className="pregame-label">Pregame interest · {game.pregame_interest?.toFixed(1) ?? "Not available"}</p>
+              <p className="small-label">Watchability hints can reveal that something unusual happened. Why reveals more detail.</p>
               <div className="game-actions"><button disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button><button className="danger-link" disabled={busy || loading} onClick={() => setConfirming(game.game_id)}>Reveal result ↗</button></div>
               {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite"><strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "No verdict available"}</strong>{shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}{!shown.reason && <button disabled={busy} onClick={() => void disclose(game, "why")}>Why? Show one more hint</button>}</div>}
               {confirming === game.game_id && <div className="confirmation"><p>Reveal this game's score and acknowledge it? Your global timeline will stay where it is.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
@@ -139,7 +160,17 @@ export function App() {
             </article>;
           })}</div>
         </section>
-        <aside className="side-column"><section className="side-panel watch-panel"><p className="eyebrow">The viewing guide</p><h2>What should I watch?</h2><p>Pregame interest alone determines these suggestions.</p>{recommended[0] ? <strong>{matchup(recommended[0])}</strong> : <p>No pregame recommendation available.</p>}</section>
+        <aside className="side-column"><section className="side-panel watch-panel"><p className="eyebrow">The viewing guide</p><h2>What should I watch?</h2><p>Pregame interest alone determines these suggestions.</p>{recommended[0] ? <strong>{matchup(recommended[0])}</strong> : <p>No pregame recommendation available.</p>}
+          <h3>Postgame viewing guide</h3><p>Selection and order use completed-game quality and can hint at surprises. Numeric quality scores stay hidden.</p>
+          {view !== "pregame" ? <p>Use Historically observed pregame to request watchability picks from a verified historical slate.</p> : <>
+            <label>Time budget (minutes)<input type="number" min="0" max="1440" step="1" value={budget} disabled={busy} onChange={(e) => setBudget(Number(e.target.value))} /></label>
+            <label>Planned minutes per game<input type="number" min="1" max="720" step="1" value={plannedMinutes} disabled={busy} onChange={(e) => setPlannedMinutes(Number(e.target.value))} /></label>
+            <p>These are your viewing allocations, not actual game runtimes.</p>
+            <label><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} />I accept outcome-based hints for this request.</label>
+            <div className="game-actions"><button disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend(false)}>Rank by watchability</button><button disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend(true)}>Choose within budget</button></div>
+          </>}
+          {watchPicks !== null && <div aria-live="polite">{watchPicks.length ? <ol>{watchPicks.map((game) => <li key={game.game_id}>{matchup(game)}</li>)}</ol> : <p>No eligible picks for this request. Scores may be unavailable or the budget may be too small; this is not a poor-quality verdict.</p>}</div>}
+        </section>
           <section className="side-panel favorites-panel"><h2>Favorite teams</h2><p>Favorites never change the canonical list order.</p><div className="favorite-choices">{teams.map((team) => <label key={team}><input type="checkbox" checked={favorites.includes(team)} onChange={() => setFavorites((prior) => prior.includes(team) ? prior.filter((name) => name !== team) : [...prior, team])} /><span>{team}</span></label>)}</div></section></aside>
         <section className="media-section"><h2>News &amp; buzz</h2><p>A timeline-filtered media endpoint is not connected yet. Game reveals never unlock later general media.</p></section>
       </div>}

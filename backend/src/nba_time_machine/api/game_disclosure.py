@@ -18,6 +18,8 @@ from nba_time_machine.api.read_models import (
     watchability_from_projection,
 )
 from nba_time_machine.api.timeline import _session_factory
+from nba_time_machine.ranking.config import RankingDisclosureSettings
+from nba_time_machine.ranking.queries import SqlAlchemyPostgameScoreRepository
 from nba_time_machine.spoilers.game_reader import SqlAlchemyGameSnapshotRepository
 from nba_time_machine.spoilers.policy import DisclosureLayer
 from nba_time_machine.spoilers.repository import SqlAlchemyGameAcknowledgementRepository
@@ -42,6 +44,8 @@ async def get_game_disclosure_service(request: Request) -> AsyncIterator[GameDis
             TimelineService(SqlAlchemyTimelineRepository(session)),
             SqlAlchemyGameSnapshotRepository(session),
             SqlAlchemyGameAcknowledgementRepository(session),
+            scores=SqlAlchemyPostgameScoreRepository(session),
+            verdict_bands=RankingDisclosureSettings().bands(),
         )
 
 
