@@ -85,8 +85,13 @@ def recommend_for_budget(
             if current is None or updated[0] > current[0] or (updated[0] == current[0] and updated[1] < current[1]):
                 states[new_used] = updated
     # Sort using string UUIDs because UUID's comparisons are stable across runtimes.
-    best_minutes, (best_value, best_ids) = min(
+    _, (_, best_ids) = min(
         states.items(),
         key=lambda item: (-item[1][0], item[0], tuple(str(i) for i in item[1][1])),
     )
-    return best_ids
+    # Canonical UUID ordering is only a deterministic tie-break when choosing
+    # the optimal subset. The returned itinerary should prioritize the best
+    # hidden watchability within that subset, just like rank_postgame does.
+    # Return IDs only: never return the utilities or the hidden score values.
+    score_by_id = {candidate.score.game_id: candidate.score.value for candidate in ordered}
+    return tuple(sorted(best_ids, key=lambda game_id: (-score_by_id[game_id], str(game_id))))
