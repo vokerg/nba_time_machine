@@ -144,7 +144,7 @@ async function acceptRanking() {
   await act(async () => checkbox.click());
 }
 
-test('mounted ranking requires fresh consent, sends budget without favorites, keeps ordinary list unchanged', async () => {
+test('mounted ranking requires fresh consent, has no time-budget controls and excludes favorites, keeps ordinary list unchanged', async () => {
   const other = '00000000-0000-0000-0000-000000000003';
   const cards = [card, { ...card, game_id: other, home_team: 'Other' }];
   const calls = [];
@@ -159,16 +159,19 @@ test('mounted ranking requires fresh consent, sends budget without favorites, ke
     assert.equal(button('Rank by watchability'), undefined); // replay is not an eligible slate
     await choosePregame();
     assert.equal(button('Rank by watchability').disabled, true);
+    assert.equal(document.querySelector('.watch-panel input[type="number"]'), null);
+    assert.equal(button('Choose within budget'), undefined);
+    assert.doesNotMatch(document.querySelector('.watch-panel').textContent, /budget|minutes|allocation/i);
     assert.equal(calls.filter((call) => call.url.includes('/recommendations/')).length, 0);
     for (const checkbox of document.querySelectorAll('.favorite-choices input')) await act(async () => checkbox.click());
     await acceptRanking();
-    await click('Choose within budget');
+    await click('Rank by watchability');
     await until(() => document.querySelector('.watch-panel ol'));
     const request = calls.find((call) => call.url.includes('/recommendations/'));
     assert.equal(request.url, `/api/profiles/${profile}/recommendations/watchability`);
     assert.deepEqual(JSON.parse(request.options.body), {
       slate_date: '2026-10-13', candidate_game_ids: [game, other], consent_to_outcome_ranking: true,
-      budget_minutes: 240, planned_minutes_per_game: 120,
+      planned_minutes_per_game: 120,
     });
     assert.deepEqual([...document.querySelectorAll('.watch-panel li')].map((el) => el.textContent), ['Away at Other', 'Away at Home']);
     assert.deepEqual([...document.querySelectorAll('.game-card h3')].map((el) => el.textContent), ['Away at Home', 'Away at Other']);
@@ -209,5 +212,21 @@ test('mounted empty picks mean unavailable coverage and stale picks cannot cross
     finish(response({ game_ids: [game] })); await tick();
     assert.equal(document.querySelector('.watch-panel ol'), null);
     assert.equal(document.body.textContent.includes('No eligible picks'), false);
+  } finally { await unmount(root); }
+});
+
+
+test('missing watchability shows no dead-end why action', async () => {
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.endsWith('/watchability')) return response({ game_id: game, disclosure: 'watchability' });
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector('.game-card'));
+    await click('Show watchability hint');
+    await until(() => document.querySelector('.disclosure-box'));
+    assert.match(document.querySelector('.disclosure-box').textContent, /Watchability data is unavailable/);
+    assert.equal(button('Why?'), undefined);
   } finally { await unmount(root); }
 });

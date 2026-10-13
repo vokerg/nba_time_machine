@@ -195,15 +195,15 @@ No fixtures, favorites or raw sports payloads enter the ranking path.
 
 ## Connected viewing guide and archived verdicts (#10)
 
-The backend-connected UI now offers explicit postgame ordering and time-budget
-selection on **Historically observed pregame** slates only. It requires a fresh
+The backend-connected UI now offers explicit postgame ordering on **Historically observed pregame** slates only. It requires a fresh
 consent checkbox for each request and uses the strict client response boundary
 through the same-origin `/api` proxy. Replay and observed/backfill slates are not
 submitted to the historical recommendation API. The ordinary game list and
 pregame guide retain their existing order; favorite teams never enter requests.
-Picks are cleared when the cursor, date, schedule view or viewing allocations
-change, and stale in-flight responses are discarded. No eligible picks can mean
-missing score evidence or an insufficient budget, never a poor-quality verdict.
+Picks are cleared when the cursor, date or schedule view changes, and stale in-flight responses are discarded. No eligible picks can mean
+missing score evidence, never a poor-quality verdict. The UI has no time-budget
+controls; the internal/API budget optimizer remains available to existing callers.
+An unavailable per-game verdict does not show a Why action.
 
 Explicit watchability/why reads now consult the newest eligible archived
 `postgame-v1` score at the persisted cursor. Ordinary pregame/card reads and full

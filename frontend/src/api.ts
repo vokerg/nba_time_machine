@@ -106,10 +106,9 @@ export class BackendClient {
     if (id(result.game_id) !== game) throw new Error("Disclosure game mismatch.");
     return result;
   }
-  async recommend(gameList: GameList, slateDate: string, consent: true, budgetMinutes?: number, plannedMinutesPerGame = 120) {
+  async recommend(gameList: GameList, slateDate: string, consent: true) {
     return requestWatchabilityRecommendations({
       profileId: this.profileId, gameList, slateDate, consentToOutcomeRanking: consent,
-      budgetMinutes, plannedMinutesPerGame,
       fetcher: ((path, options) => this.fetcher("/api" + path, options)) as typeof fetch,
     });
   }

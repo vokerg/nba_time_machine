@@ -108,11 +108,11 @@ test('connected ranking uses same-origin proxy and requires consent before fetch
   const slate = { time_cursor: cursor, games: [card] };
   await assert.rejects(() => client.recommend(slate, '2025-10-21', false), /consent/);
   assert.equal(calls.length, 0);
-  assert.deepEqual(await client.recommend(slate, '2025-10-21', true, 240, 120), [card]);
+  assert.deepEqual(await client.recommend(slate, '2025-10-21', true), [card]);
   assert.equal(calls[0].url, `/api/profiles/${profile}/recommendations/watchability`);
   assert.equal(calls[0].options.method, 'POST');
   assert.deepEqual(JSON.parse(calls[0].options.body), {
     slate_date: '2025-10-21', candidate_game_ids: [game], consent_to_outcome_ranking: true,
-    budget_minutes: 240, planned_minutes_per_game: 120,
+    planned_minutes_per_game: 120,
   });
 });

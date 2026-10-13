@@ -69,11 +69,11 @@ There are no ingested standings, injuries, player statistics, ranking scores or
 media feeds. Replay supports date browsing, cursor progression and individual
 result reveals; it does not make the full product or full-season coverage complete.
 
-The viewing guide can explicitly request postgame ordering or budget picks in
+The viewing guide can explicitly request postgame ordering in
 Historically observed pregame view. Each action requires fresh acceptance of
 outcome-based hints; replay and observed/backfill views do not submit ranking
 requests. Picks contain only the existing safe matchup fields and reset on
-cursor/date/view/budget changes. Favorites affect neither requests nor ordering.
+cursor/date/view changes. Favorites affect neither requests nor ordering.
 Missing score coverage is displayed as unavailable rather than guessed quality.
 See [Ranking](RANKING.md#connected-viewing-guide-and-archived-verdicts-10) for
 provisional verdict bands and the remaining feature-production blocker.
