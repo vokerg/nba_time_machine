@@ -214,3 +214,40 @@ def test_subscription_source_locator_discovery_preserves_access_gates() -> None:
         assert source.requires_auth is True
         assert source.retention_policy == "metadata_only"
         assert "analysis" in source.category
+
+
+def test_independent_team_publications_are_discovery_only() -> None:
+    """Community editorial sources must not be mistaken for official team feeds."""
+    payload = json.loads(SEED.read_text(encoding="utf-8"))
+    sources = {
+        row["id"]: SourceDefinition.model_validate(row)
+        for row in payload["sources"]
+    }
+    expected = {
+        "celticsblog-bos": ("BOS", "https://www.celticsblog.com/"),
+        "golden-state-of-mind-gsw":
+            ("GSW", "https://www.goldenstateofmind.com/"),
+        "mavs-moneyball-dal": ("DAL", "https://www.mavsmoneyball.com/"),
+        "posting-and-toasting-nyk":
+            ("NYK", "https://www.postingandtoasting.com/"),
+        "raptors-republic-tor": ("TOR", "https://raptorsrepublic.com/"),
+    }
+
+    assert len({team for team, _ in expected.values()}) == len(expected)
+    assert len({url for _, url in expected.values()}) == len(expected)
+    for source_id, (team, homepage) in expected.items():
+        source = sources[source_id]
+        assert source.locator == homepage
+        assert source.kind == "media"
+        assert source.adapter == "rss_or_web"  # Discovery placeholder only.
+        assert source.category == ["media", "team_publication", f"team:{team}"]
+        assert source.cadence_minutes == 60
+        assert source.requires_auth is False
+        assert source.enabled is False
+        assert source.verification_status == "unverified"
+        assert source.retention_policy == "metadata_only"
+
+        official = sources[f"nba-team-{team.lower()}-site"]
+        assert official.locator != source.locator
+        assert official.enabled is False
+        assert official.verification_status == "unverified"
