@@ -13,9 +13,16 @@ AGENTS.md                    agent operating rules
 
 ## Environment
 
-Copy `.env.example` to a local untracked file when implementation starts.
+Copy `.env.example` to `.env` at the repository root and fill in local credentials. Backend settings read `.env` relative to the command's working directory. On macOS/Linux, link the root file into `backend/` so Uvicorn, Alembic and backend scripts all use the same configuration:
 
-Neon is intentionally not configured in the foundation PR.
+```bash
+cp .env.example .env  # Only when .env does not already exist.
+chmod 600 .env
+cd backend
+ln -s ../.env .env  # Only when backend/.env does not already exist.
+```
+
+Both files are ignored by Git. Keep database credentials on the backend; do not put them in frontend environment variables.
 
 ## Backend
 
@@ -28,7 +35,7 @@ pytest
 uvicorn nba_time_machine.main:app --reload
 ```
 
-The API can start without PostgreSQL configured. Database configuration is loaded only when a database-backed operation is requested.
+The API can start without PostgreSQL configured. With `DATABASE_URL` configured, startup creates a lazy connection pool; database-backed requests open connections as needed.
 
 ## Local PostgreSQL and migrations
 
@@ -66,7 +73,24 @@ CI starts PostgreSQL, applies all Alembic migrations from an empty database, rol
 
 See `docs/DATABASE_SCHEMA.md` for the current source/collection/capture persistence model.
 
-Live Neon provisioning and migration smoke remain tracked separately under issue #2.
+## Neon setup
+
+In the Neon console, select the intended project, branch, database and role. Copy the connection string with pooling enabled into `DATABASE_URL` in the local `.env`. Copy the same connection with pooling disabled into `DIRECT_DATABASE_URL`. Retain the console's TLS parameters (`sslmode=require` and `channel_binding=require`); the backend accepts standard `postgresql://` URLs.
+
+With backend dependencies installed, run from `backend/`:
+
+```bash
+.venv/bin/alembic current
+.venv/bin/alembic upgrade head
+.venv/bin/alembic check
+.venv/bin/python scripts/sync_sources.py
+```
+
+Inspect the target before migrating an existing database. Source synchronization loads the reviewed registry without launching collectors; configured sources are not evidence of working collection. Repeating the sync is idempotent.
+
+On October 13, 2026, issue #71 validated the owner's Neon database: the existing `0006_recommendation_scores` revision was upgraded to `0008_source_item_entity_links`, `alembic check` reported no differences, and 70 source definitions were synchronized (a second sync changed zero rows). The pooled application connection passed timeline initialize/read/advance/backward-rejection checks in a rolled-back transaction, and the backend's database-backed HTTP timeline lookup returned the expected response. Client TLS was active.
+
+The frontend still uses synthetic demonstration fixtures. Database setup does not connect those screens or ingest historical NBA data. Run destructive migration rollback checks and integration tests against a separate disposable PostgreSQL database, as in the local test workflow above, rather than the owner's Neon database.
 
 ## Frontend
 
