@@ -84,23 +84,24 @@ class SportsCollector:
     async def collect(self, season, *, start=None, end=None, statistics=False):
         validate_window(season, start, end)
         report = CoverageReport(season)
-        # Session-level lock survives short per-capture commits. Overlapping jobs
+        # Transaction-scoped lock survives short per-capture commits on other sessions. Overlapping jobs
         # fail before network requests; all sports writes use this one entry point.
         async with self.factory() as lock_session:
-            locked = await lock_session.scalar(text("SELECT pg_try_advisory_lock(734387)"))
+            locked = await lock_session.scalar(text("SELECT pg_try_advisory_xact_lock(734387)"))
             if not locked:
                 raise ValueError("sports collection already running")
             try:
-                return await self._run(report, start, end, statistics)
+                return await self._run(report, start, end, statistics, lock_session)
             except Exception:
                 if report.run_id:
                     report.gaps.append("Run interrupted by configuration/persistence failure; replay requested window.")
                     await self._checkpoint(report, finished=True)
                 raise
-            finally:
-                await lock_session.execute(text("SELECT pg_advisory_unlock(734387)"))
+            # Closing this session rolls back the dedicated lock transaction.
+            # No session lock escapes onto a pooled connection, and no explicit
+            # unlock can turn successfully persisted data into a failed CLI run.
 
-    async def _run(self, report, start, end, statistics):
+    async def _run(self, report, start, end, statistics, lock_session):
         run_id = uuid4()
         report.run_id = str(run_id)
         async with self.factory.begin() as session:
@@ -121,6 +122,9 @@ class SportsCollector:
                 return None
             if self.last_request is not None:
                 await asyncio.sleep(max(0, self.interval - (monotonic() - self.last_request)))
+            # Keep the dedicated transaction active and fail before requesting
+            # more data if its lock connection is lost (Neon/pool idle timeout).
+            await lock_session.execute(text("SELECT 1"))
             self.last_request = monotonic()
             report.requests += 1
             try:

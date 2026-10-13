@@ -28,7 +28,8 @@ must be registry-verified with full/normalized-full structured-data retention.
 Scheduled invocations require `enabled=true`. `--manual` explicitly authorizes an
 operator invocation of the existing verified source while leaving scheduling
 configuration unchanged. Source policy is rechecked under row lock before writes.
-A session advisory lock prevents overlapping collector jobs. Production schedulers
+A transaction advisory lock prevents overlapping collector jobs; the dedicated
+connection is kept active before each request and released on session close. Production schedulers
 can invoke the same CLI with bounded `--max-requests` (default 400); no daemon or
 scheduler is installed. Suggested cadence: daily full schedule refresh, and bounded
 current-date polling during games; v1 offers no real-time SLA.
@@ -79,3 +80,20 @@ sampled event-stat lookup returned zero rows. This is evidence of working partia
 access, not a complete NBA regular-season/playoff import. Live run reports and
 exact imported counts are recorded on the PR. Complete-season acceptance remains
 blocked on broader provider coverage and independent reconciliation.
+
+## Observed Neon backfill evidence
+
+The additive 2025/26 date pass completed 2025-10-01 through 2026-06-30 on
+2026-10-13: 274 requests, 625 event rows encountered, 612 distinct games
+processed, 597 new observations after the initial 15-event import, no rejected
+events and no provider-request failures. The source report records 183 response
+limit hits. These counts include provider-returned preseason events and do not
+establish complete regular-season or playoff coverage. The 15 separately sampled
+event-stat responses were all empty. See the sanitized persisted
+[coverage report](evidence/nba-2025-26-coverage.json).
+
+The first long-running CLI reported a failure during cleanup after its final
+report had already committed. The collector now uses a transaction advisory lock
+with connection keepalive before requests and automatic release on session close;
+repeat/recovery writes are still idempotent. Check persisted run/outcome state
+before restarting after an interruption.
