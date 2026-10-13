@@ -14,7 +14,7 @@ A user frozen at Sunday 15:00 ET must not receive information learned after that
 
 - Frontend: React + TypeScript + Vite.
 - Backend: Python + FastAPI.
-- Database: PostgreSQL on Neon (to be provisioned later).
+- Database: PostgreSQL on Neon.
 - AI: DeepSeek through an OpenAI-compatible JSON boundary.
 - Development: issue-driven, agent-friendly GitHub workflow.
 
@@ -74,7 +74,7 @@ npm install
 npm run dev
 ```
 
-The initial scaffold intentionally does not connect to Neon, collect live sources, or call DeepSeek. Those are separate GitHub Issues so agents can implement and review them independently.
+For database connection configuration, migrations and source-registry bootstrap, see [Development](docs/DEVELOPMENT.md#neon-setup). The frontend currently displays synthetic demonstration fixtures; connecting the backend to Neon does not yet connect the dashboard or populate historical NBA data.
 
 
 ## Agent entry
