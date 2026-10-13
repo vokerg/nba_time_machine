@@ -162,7 +162,7 @@ export function App() {
         </section>
         <aside className="side-column"><section className="side-panel watch-panel"><p className="eyebrow">The viewing guide</p><h2>What should I watch?</h2><p>Pregame interest alone determines these suggestions.</p>{recommended[0] ? <strong>{matchup(recommended[0])}</strong> : <p>No pregame recommendation available.</p>}
           <h3>Postgame viewing guide</h3><p>Selection and order use completed-game quality and can hint at surprises. Numeric quality scores stay hidden.</p>
-          {view !== "pregame" ? <p>Use Historically observed pregame to request watchability picks from a verified historical slate.</p> : <>
+          {view !== "pregame" ? <p>Use Historically observed pregame to request watchability picks from a historically observed slate.</p> : <>
             <label>Time budget (minutes)<input type="number" min="0" max="1440" step="1" value={budget} disabled={busy} onChange={(e) => setBudget(Number(e.target.value))} /></label>
             <label>Planned minutes per game<input type="number" min="1" max="720" step="1" value={plannedMinutes} disabled={busy} onChange={(e) => setPlannedMinutes(Number(e.target.value))} /></label>
             <p>These are your viewing allocations, not actual game runtimes.</p>

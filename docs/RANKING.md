@@ -104,10 +104,9 @@ archived score with the same (game, kind, version, as-of) is rejected. The
 this contract. These DB rows are internal and must never be serialized directly
 into a spoiler-safe response.
 
-This is a bounded initial slice of #10. Remaining: connect trusted as-of structured fact extraction;
-provide an explicitly gated recommendation application/API service; use
-historical games to tune normalization, thresholds and weights. This
-implementation does not claim real-life ranking quality or frontend wiring.
+This is a bounded initial slice of #10. Remaining: produce trusted as-of structured features and use historical
+games to tune normalization, thresholds and weights. The connected API and
+frontend described below do not establish real-life ranking quality.
 
 
 ## Explicit, cursor-scoped recommendation endpoint (PR #33)
@@ -176,31 +175,23 @@ still contains UUIDs only. Favorite teams are not accepted as ranking input.
 This is a bounded application-boundary slice; it is not a live recommendation
 quality claim. The first structured sports provider does not yet expose the
 trusted feature history required to populate meaningful production scoring,
-so an empty response is normal on unscored data. Real provider normalization,
-historical calibration, verdict integration into the game-disclosure service,
-frontend consent UX and authenticated profile ownership remain future work.
+so an empty response is normal on unscored data. Real provider normalization, historical calibration and authenticated profile
+ownership remain future work. Verdict integration and frontend consent are
+described below.
 Profile UUIDs are presently **opaque state keys, not authenticated accounts**;
 the caller must not mistake this endpoint's consent check for user login or
 authorization.
 
-## Frontend consent boundary (partial #10)
+## Frontend consent boundary (#10)
 
-`frontend/src/watchability.ts` provides a deliberately unmounted request
-helper for a future authenticated/profile-connected interface. It accepts a
-server-projected PREGAME slate, validates 1–32 unique canonical game UUIDs and
-requires per-action `consentToOutcomeRanking: true` before any HTTP call. It sends the validated NBA/Eastern slate date, IDs, consent and
-uniform planned duration/budget. On return, its
-strict response boundary accepts only `game_ids`, rejects extraneous
-postgame fields, unknown and duplicate IDs, and maps selected UUIDs back to
-allowlisted pregame card fields. HTTP error bodies are not surfaced.
-
-This is **not** an active dashboard feature; no fixtures, passive rendering,
-browser favorite teams, untrusted raw sports data or automatic pregame lists
-may silently enter postgame ordering. It awaits backend-connected safe game
-lists, profile authentication/authorization, a deliberate opt-in UI and
-trusted real score evidence. Returning no scored games is normal until those
-producer gaps close. Neither numeric score visibility nor result
-acknowledgement is introduced by this client.
+`frontend/src/watchability.ts` validates backend-projected PREGAME slates,
+1–32 unique canonical UUIDs and per-action `consentToOutcomeRanking: true`
+before any HTTP call. It sends the NBA/Eastern date, IDs, consent and uniform
+planned allocations. Its strict response boundary accepts only `game_ids`,
+rejects extraneous postgame fields, unknown and duplicate IDs, and maps picks
+back to allowlisted pregame card fields. HTTP error bodies are not surfaced.
+`BackendClient.recommend` connects this helper through the same-origin proxy.
+No fixtures, favorites or raw sports payloads enter the ranking path.
 
 ## Connected viewing guide and archived verdicts (#10)
 
@@ -229,7 +220,6 @@ Coarse bands are tunable via `RANKING_VERDICT_MEDIUM_FROM` (default 4),
 `RANKING_VERDICT_HIGH_LABEL` (Worth watching). Defaults are provisional product
 configuration, not calibrated NBA predictions; invalid bands fail configuration.
 
-This supersedes the earlier unmounted-client/frontend-wiring limitations above.
 Issue #10 remains open: the current TheSportsDB importer does not produce vetted
 ranking features or trusted final timestamps, so imported games normally have
 no scores. Historical feature production, source approval history, calibration
