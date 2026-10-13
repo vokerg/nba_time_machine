@@ -13,7 +13,8 @@
     "Yahoo Sports NBA news and SB Nation NBA section URLs located on 2026-10-12. Publisher pages/search-rendered links only; no collector feed, per-item provenance, rights approval, or ingestion smoke. Both remain disabled/unverified with metadata-only retention; see docs/SOURCE_ADDITIONAL_MEDIA_ACCESS.md.",
     "No Dunks, Dunc'd On and Thinking Basketball podcast RSS URLs located on 2026-10-12. Feed MIME reached by a web reader but XML not parsed by the project; item identities, timelines, rights and collector smoke unverified. All three remain disabled/unverified and metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY.md.",
     "Locked On NBA, Brian Windhorst & The Hoop Collective, and The Bill Simmons Podcast direct RSS candidates were located on 2026-10-12. A web reader observed XML MIME but could not inspect items; rights, parser/timestamp and adapter+PostgreSQL smoke remain open. Disabled/unverified, metadata-only; see docs/SOURCE_PODCAST_FEED_DISCOVERY_FOLLOWUP.md.",
-    "The Athletic NBA and Cleaning the Glass official section/site URLs were located on 2026-10-12. Both are subscription/auth-gated discovery identities, not confirmed data access or authorized collectors. They remain disabled/unverified/metadata-only; see docs/SOURCE_SUBSCRIPTION_ACCESS.md."
+    "The Athletic NBA and Cleaning the Glass official section/site URLs were located on 2026-10-12. Both are subscription/auth-gated discovery identities, not confirmed data access or authorized collectors. They remain disabled/unverified/metadata-only; see docs/SOURCE_SUBSCRIPTION_ACCESS.md.",
+    "Five team-focused community/independent editorial publication homepages for BOS, GSW, DAL, NYK and TOR were inspected on 2026-10-13. This identifies distinct editorial sources, not approved RSS feeds or working collectors. All are disabled/unverified with metadata-only retention; see docs/SOURCE_TEAM_PUBLICATIONS.md."
   ],
   "sources": [
     {
@@ -256,6 +257,91 @@
       "enabled": false,
       "verification_status": "unverified",
       "cadence_minutes": 30,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "celticsblog-bos",
+      "name": "CelticsBlog — Boston Celtics",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "team_publication",
+        "team:BOS"
+      ],
+      "locator": "https://www.celticsblog.com/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "golden-state-of-mind-gsw",
+      "name": "Golden State of Mind — Golden State Warriors",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "team_publication",
+        "team:GSW"
+      ],
+      "locator": "https://www.goldenstateofmind.com/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "mavs-moneyball-dal",
+      "name": "Mavs Moneyball — Dallas Mavericks",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "team_publication",
+        "team:DAL"
+      ],
+      "locator": "https://www.mavsmoneyball.com/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "posting-and-toasting-nyk",
+      "name": "Posting and Toasting — New York Knicks",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "team_publication",
+        "team:NYK"
+      ],
+      "locator": "https://www.postingandtoasting.com/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
+      "requires_auth": false,
+      "retention_policy": "metadata_only"
+    },
+    {
+      "id": "raptors-republic-tor",
+      "name": "Raptors Republic — Toronto Raptors",
+      "kind": "media",
+      "adapter": "rss_or_web",
+      "category": [
+        "media",
+        "team_publication",
+        "team:TOR"
+      ],
+      "locator": "https://raptorsrepublic.com/",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 60,
       "requires_auth": false,
       "retention_policy": "metadata_only"
     },
