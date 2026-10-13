@@ -323,3 +323,18 @@ wiring remain separate tasks. Unit tests cover route validation, layer
 exclusion, acknowledgement isolation and ET/DST dates; PostgreSQL integration
 tests cover latest as-of selection, rescheduling, future backfill and stable
 canonical identity.
+
+## Explicit observed-schedule browsing (#74)
+
+The default game-list view retains genuine pre-tip/as-of selection. The optional
+`view=observed` uses the last observation known by the persisted cursor for each
+game, ranking before filtering by tip date. It never filters membership by status,
+scores or final availability. Only basic home/away identity and scheduled tip can
+pass policy after tip, and both observation and availability must precede/equal
+the cursor. All other pregame fields still require pre-tip provenance. No timestamp
+is backdated and no historical pregame reconstruction is claimed. This enables
+inspection of backfilled schedules after their actual observation date.
+
+The connected UI resumes backend state and makes explicit per-game disclosure
+requests; it never silently requests outcomes for acknowledged games. See
+[Frontend integration](../FRONTEND_INTEGRATION.md) for routing and UI state contracts.

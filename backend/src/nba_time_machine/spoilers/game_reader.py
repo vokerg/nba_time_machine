@@ -20,8 +20,9 @@ def utc(value: datetime | None) -> datetime | None:
 
 
 class SqlAlchemyGameSnapshotRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False) -> None:
         self.session = session
+        self.observed_schedule = observed_schedule
 
     async def get(self, game_id: UUID, *, time_cursor: datetime) -> TrustedGameSnapshot | None:
         game = await self.session.get(GameRecord, game_id)
@@ -45,6 +46,13 @@ class SqlAlchemyGameSnapshotRepository:
                     and available <= cursor and observed <= cursor):
                 pregame.append(item)
         safe = pregame[-1] if pregame else None
+        if self.observed_schedule:
+            # No status/result filtering: membership must not depend on who won,
+            # whether final results exist, or other outcome-bearing information.
+            known = [item for item in observations
+                     if utc(item.available_at) is not None and utc(item.observed_at) is not None
+                     and utc(item.available_at) <= cursor and utc(item.observed_at) <= cursor]
+            safe = known[-1] if known else None
         tip = utc(safe.scheduled_tip_at) if safe is not None else next(
             (ts for item in observations
              if (ts := utc(item.actual_tip_at) or utc(item.scheduled_tip_at)) is not None),
@@ -75,7 +83,7 @@ class SqlAlchemyGameSnapshotRepository:
                 fields.append(GameField(GameFieldName.AWAY_TEAM, away.name,
                                         safe.available_at, safe.observed_at))
             fields.append(GameField(GameFieldName.SCHEDULED_TIP,
-                                    safe.scheduled_tip_at.isoformat(),
+                                    utc(safe.scheduled_tip_at).isoformat() if utc(safe.scheduled_tip_at) else None,
                                     safe.available_at, safe.observed_at))
 
         if final is not None:

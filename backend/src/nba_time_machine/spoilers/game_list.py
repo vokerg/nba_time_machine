@@ -1,7 +1,8 @@
 """Trusted historical NBA slate selection and safe profile-scoped list assembly.
 
-Membership is determined ONLY by pre-tip observations already known at the
-persisted time cursor. Current/final game rows are never used to select a slate.
+Default membership uses pre-tip observations known at the persisted cursor.
+The explicit observed view uses latest as-of schedule metadata without filtering
+by status or outcomes; it never reconstructs historical pregame availability.
 """
 
 from __future__ import annotations
@@ -49,13 +50,14 @@ class GameSlateRepository(Protocol):
 
 
 class SqlAlchemyGameSlateRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False) -> None:
         self._session = session
+        self.observed_schedule = observed_schedule
 
     async def game_ids_on_date(
         self, *, slate_date: date, time_cursor: datetime,
     ) -> tuple[UUID, ...]:
-        """Pick each game's LAST historically knowable pre-tip observation.
+        """Pick each game's last knowable schedule observation for this view.
 
         Rank first, THEN filter by the observation's tip date and scheduled
         status. Otherwise a changed schedule could place one game on two dates,
@@ -79,11 +81,13 @@ class SqlAlchemyGameSlateRepository:
             .join(SeasonRecord, SeasonRecord.id == GameRecord.season_id)
             .where(
                 SeasonRecord.league == "NBA",
-                o.scheduled_tip_at.is_not(None),
                 o.available_at <= time_cursor,
                 o.observed_at <= time_cursor,
-                o.available_at < o.scheduled_tip_at,
-                o.observed_at < o.scheduled_tip_at,
+                *(() if self.observed_schedule else (
+                    o.scheduled_tip_at.is_not(None),
+                    o.available_at < o.scheduled_tip_at,
+                    o.observed_at < o.scheduled_tip_at,
+                )),
             )
             .subquery()
         )
@@ -91,7 +95,7 @@ class SqlAlchemyGameSlateRepository:
             select(ranked.c.game_id)
             .where(
                 ranked.c.position == 1,
-                ranked.c.status == "scheduled",
+                *(() if self.observed_schedule else (ranked.c.status == "scheduled",)),
                 ranked.c.scheduled_tip_at >= begin,
                 ranked.c.scheduled_tip_at < end,
             )
@@ -107,7 +111,9 @@ class GameListService:
         slates: GameSlateRepository,
         games: GameSnapshotRepository,
         acknowledgements: GameAcknowledgementRepository,
+        *, observed_schedule: bool = False,
     ) -> None:
+        self.observed_schedule = observed_schedule
         self._timeline = timeline
         self._slates = slates
         self._games = games
@@ -142,6 +148,7 @@ class GameListService:
                 tip_at=tip,
                 protection_ends_at=snapshot.protection_ends_at,
                 acknowledged=acknowledged,
+                observed_schedule=self.observed_schedule,
             )
             projection = project_game(context, DisclosureLayer.PREGAME, snapshot.fields)
             # Missing pre-tip identity or schedule: don't invent an apparent game.

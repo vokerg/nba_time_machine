@@ -1,0 +1,117 @@
+/** Same-origin backend integration. Only allowlisted policy responses enter UI state. */
+import { forwardCursor, parseFull, parseGameList, parseVerdict } from "./dashboard.ts";
+import type { FullReveal, GameList, Reason, Verdict } from "./dashboard.ts";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export type Timeline = { profile_id: string; time_cursor: string; initialized_at: string; updated_at: string };
+export type ScheduleView = "pregame" | "observed";
+
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number) {
+    super(status === 503 ? "Backend database unavailable." : status === 409 ? "This action conflicts with the saved timeline or game state. Reload to resume." : "Backend request unavailable.");
+    this.status = status;
+  }
+}
+
+function id(value: string): string {
+  if (!UUID.test(value)) throw new Error("Invalid profile or game identity.");
+  return value.toLowerCase();
+}
+function instant(value: unknown): value is string {
+  return typeof value === "string" && /(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value));
+}
+export function validDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(value + "T00:00:00Z");
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+export function nbaDate(cursor: string): string {
+  if (!instant(cursor)) throw new Error("Invalid timeline.");
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(cursor));
+  const get = (name: string) => parts.find((part) => part.type === name)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+export function parseTimeline(value: unknown, profileId: string): Timeline {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid timeline response.");
+  const data = value as Record<string, unknown>;
+  if (Object.keys(data).some((key) => !["profile_id", "time_cursor", "initialized_at", "updated_at"].includes(key)) ||
+      data.profile_id !== id(profileId) || !instant(data.time_cursor) || !instant(data.initialized_at) || !instant(data.updated_at)) {
+    throw new Error("Invalid timeline response.");
+  }
+  return data as Timeline;
+}
+
+export class BackendClient {
+  profileId: string;
+  fetcher: typeof fetch;
+  constructor(profileId: string, fetcher: typeof fetch = fetch) {
+    this.profileId = id(profileId);
+    this.fetcher = fetcher.bind(globalThis);
+  }
+  async request(path: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<unknown> {
+    const response = await this.fetcher("/api" + path, {
+      method, signal, cache: "no-store", redirect: "error", credentials: "same-origin",
+      headers: { Accept: "application/json", ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+    if (!response.ok) throw new ApiError(response.status);
+    return response.json();
+  }
+  async resume(signal?: AbortSignal): Promise<Timeline | null> {
+    try {
+      return parseTimeline(await this.request("/timeline/" + this.profileId, "GET", undefined, signal), this.profileId);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
+  }
+  async initialize(cursor: string): Promise<Timeline> {
+    if (!instant(cursor)) throw new Error("Timezone-aware cursor required.");
+    try {
+      return parseTimeline(await this.request("/timeline/" + this.profileId, "POST", { time_cursor: cursor }), this.profileId);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        const saved = await this.resume();
+        if (saved) return saved;
+      }
+      throw error;
+    }
+  }
+  async advance(current: string, hours: number): Promise<Timeline> {
+    const requested = forwardCursor(current, hours);
+    const state = parseTimeline(await this.request("/timeline/" + this.profileId, "PUT", { time_cursor: requested }), this.profileId);
+    if (Date.parse(state.time_cursor) < Date.parse(current)) throw new Error("Invalid regressed timeline response.");
+    return state;
+  }
+  async games(day: string, view: ScheduleView, cursor: string, signal?: AbortSignal): Promise<GameList> {
+    if (!validDate(day) || !["pregame", "observed"].includes(view)) throw new Error("Invalid schedule selection.");
+    const result = parseGameList(await this.request(`/profiles/${this.profileId}/games?date=${day}&view=${view}`, "GET", undefined, signal));
+    if (Date.parse(result.time_cursor) !== Date.parse(cursor)) throw new Error("Timeline changed in another tab. Reload to resume.");
+    const seen = new Set<string>();
+    for (const card of result.games) {
+      const gameId = id(card.game_id);
+      if (seen.has(gameId) || (card.scheduled_tip !== undefined && !instant(card.scheduled_tip))) throw new Error("Invalid game list response.");
+      seen.add(gameId);
+    }
+    return result;
+  }
+  async disclose(gameId: string, layer: "watchability" | "why" | "full", consent: true): Promise<Verdict | Reason | FullReveal> {
+    if (consent !== true) throw new Error("Explicit disclosure consent required.");
+    const game = id(gameId);
+    if (!["watchability", "why", "full"].includes(layer)) throw new Error("Invalid disclosure layer.");
+    const data = await this.request(`/profiles/${this.profileId}/games/${game}/${layer === "full" ? "reveal" : layer}`, layer === "full" ? "POST" : "GET");
+    const result = layer === "full" ? parseFull(data) : parseVerdict(data, layer);
+    if (id(result.game_id) !== game) throw new Error("Disclosure game mismatch.");
+    return result;
+  }
+}
+
+export function profileIdentity(storage: Pick<Storage, "getItem" | "setItem">, generate = () => crypto.randomUUID()): string {
+  const key = "nba-time-machine:profile:v1";
+  const saved = storage.getItem(key);
+  if (saved && UUID.test(saved)) return id(saved);
+  const created = id(generate());
+  storage.setItem(key, created);
+  return created;
+}

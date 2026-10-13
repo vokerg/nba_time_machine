@@ -58,7 +58,7 @@ p { line-height: 1.6; }
 .timeline-panel {
   display: grid; grid-template-columns: minmax(0,1fr) auto;
   background: #d2eda1; border: 1px solid #d2eda1; border-radius: 12px;
-  color: #182b24; padding: 35px 38px 0;
+  color: #182b24; padding: 35px 38px; gap: 24px;
 }
 .timeline-panel .eyebrow { color: #436247; margin-bottom: 8px; }
 .timeline-copy h2 { font-size: clamp(26px, 3vw, 40px); margin: 0 0 5px; line-height: 1.2; }
@@ -153,7 +153,7 @@ p { line-height: 1.6; }
   .masthead { grid-template-columns: 1fr; padding: 54px 0 35px; gap: 28px; }
   .masthead h1 { font-size: clamp(40px, 10vw, 62px); }
   .fixture-explainer { max-width: 500px; }
-  .timeline-panel { display: block; padding: 27px 22px 0; }
+  .timeline-panel { display: block; padding: 27px 22px; }
   .timeline-copy h2 { font-size: 28px; }
   .timeline-controls { justify-content: flex-start; margin-top: 22px; }
   .timeline-controls button { flex: 1; }
@@ -171,3 +171,7 @@ p { line-height: 1.6; }
   .game-actions .danger-link { margin-left: 0; }
   .section-header { align-items: flex-start; flex-direction: column; }
 }
+
+.schedule-controls { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0; }
+.schedule-controls label, .timeline-controls label { display: grid; gap: .5rem; }
+input[type="date"], input[type="datetime-local"], select { color: #182b24; background: #fff; border: 1px solid #c4c4c4; border-radius: .4rem; padding: .65rem; font: inherit; max-width: 100%; }
