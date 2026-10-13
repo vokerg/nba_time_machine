@@ -209,6 +209,16 @@ async def test_budget_uses_user_planned_allocation_not_game_runtime() -> None:
 
 
 @pytest.mark.asyncio
+async def test_budget_service_prioritizes_selected_ids_by_hidden_quality() -> None:
+    service, _, _ = setup((post(A, .7), post(B, .1), post(C, .95)))
+    assert await service.recommend(
+        PROFILE, (B, A, C), slate_date=SLATE_DATE,
+        consent_to_outcome_ranking=True, budget_minutes=120,
+        planned_minutes_per_game=60,
+    ) == (C, A)
+
+
+@pytest.mark.asyncio
 async def test_candidates_must_belong_to_server_projected_slate_before_scores() -> None:
     service, clock, scores = setup((post(A, .9), post(B, .8)), eligible=(A,))
     with pytest.raises(RecommendationSlateUnavailable, match="safe dated slate"):

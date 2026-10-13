@@ -154,6 +154,19 @@ def test_exact_budget_selection_and_stable_ties_exposes_ids_only() -> None:
     assert recommend_for_budget((a, b, c), budget_minutes=0) == ()
 
 
+def test_budget_orders_optimal_subset_by_watchability_not_uuid() -> None:
+    # GAME_C has the highest quality but the largest UUID. The old knapsack
+    # returned the selected set in UUID order, unlike unbudgeted ranking.
+    high = ViewingCandidate(fgame(GAME_C, .95), 60)
+    medium = ViewingCandidate(fgame(GAME_A, .7), 60)
+    excluded = ViewingCandidate(fgame(GAME_B, .1), 120)
+    for candidates in ((medium, excluded, high), (high, medium, excluded)):
+        assert recommend_for_budget(candidates, budget_minutes=120) == (GAME_C, GAME_A)
+    # Equal-quality selected games remain deterministic by canonical UUID.
+    same = ViewingCandidate(fgame(GAME_B, .7), 60)
+    assert recommend_for_budget((same, medium), budget_minutes=120) == (GAME_A, GAME_B)
+
+
 def test_budget_rejects_mixed_kind_and_duplicates() -> None:
     with pytest.raises(ValueError, match="postgame"):
         ViewingCandidate(pgame(GAME_A, 1), 60)

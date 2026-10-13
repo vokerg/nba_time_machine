@@ -26,6 +26,11 @@ endpoint. No provider feature extraction or production calibration is claimed.
 `rank_pregame` and `rank_postgame` reject mixed score kinds and return
 UUIDs only. `recommend_for_budget` solves a bounded 0/1 viewing-time knapsack,
 comparing rich hidden postgame scores but returning only selected game IDs.
+The optimizer uses canonical UUIDs to break equal-utility subset ties, then
+orders the selected games by **descending hidden watchability** (equal scores
+use canonical UUIDs), matching the unbudgeted recommendation semantics.
+The returned IDs remain the only output; score values and utility are not
+exposed to callers or the HTTP response.
 Neither ranking nor budget selection accepts favorite-team inputs; favorites
 belong on a separate UI surface. Direct sorting helpers now reject inconsistent
 versioned scores (including component arithmetic and timestamp mismatches)
