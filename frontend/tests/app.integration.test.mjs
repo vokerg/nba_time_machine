@@ -131,3 +131,102 @@ test('historical profile defaults to season replay and advancement follows the N
     assert.equal(calls.filter((c) => c.url.includes('/reveal')).length, 0);
   } finally { await unmount(root); }
 });
+
+
+async function choosePregame() {
+  const select = document.querySelector('select');
+  await act(async () => { select.value = 'pregame'; select.dispatchEvent(new window.Event('change', { bubbles: true })); });
+  await until(() => document.querySelector('.game-card') && !document.body.textContent.includes('Loading games'));
+}
+async function acceptRanking() {
+  const checkbox = document.querySelector('.watch-panel input[type="checkbox"]');
+  assert.ok(checkbox);
+  await act(async () => checkbox.click());
+}
+
+test('mounted ranking requires fresh consent, has no time-budget controls and excludes favorites, keeps ordinary list unchanged', async () => {
+  const other = '00000000-0000-0000-0000-000000000003';
+  const cards = [card, { ...card, game_id: other, home_team: 'Other' }];
+  const calls = [];
+  const root = await mount(async (url, options) => {
+    calls.push({ url, options });
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/recommendations/')) return response({ game_ids: [other, game] });
+    return response({ ...slate, games: cards });
+  });
+  try {
+    await until(() => document.querySelector('.game-card'));
+    assert.equal(button('Rank by watchability'), undefined); // replay is not an eligible slate
+    await choosePregame();
+    assert.equal(button('Rank by watchability').disabled, true);
+    assert.equal(document.querySelector('.watch-panel input[type="number"]'), null);
+    assert.equal(button('Choose within budget'), undefined);
+    assert.doesNotMatch(document.querySelector('.watch-panel').textContent, /budget|minutes|allocation/i);
+    assert.equal(calls.filter((call) => call.url.includes('/recommendations/')).length, 0);
+    for (const checkbox of document.querySelectorAll('.favorite-choices input')) await act(async () => checkbox.click());
+    await acceptRanking();
+    await click('Rank by watchability');
+    await until(() => document.querySelector('.watch-panel ol'));
+    const request = calls.find((call) => call.url.includes('/recommendations/'));
+    assert.equal(request.url, `/api/profiles/${profile}/recommendations/watchability`);
+    assert.deepEqual(JSON.parse(request.options.body), {
+      slate_date: '2026-10-13', candidate_game_ids: [game, other], consent_to_outcome_ranking: true,
+      planned_minutes_per_game: 120,
+    });
+    assert.deepEqual([...document.querySelectorAll('.watch-panel li')].map((el) => el.textContent), ['Away at Other', 'Away at Home']);
+    assert.deepEqual([...document.querySelectorAll('.game-card h3')].map((el) => el.textContent), ['Away at Home', 'Away at Other']);
+    assert.equal(button('Rank by watchability').disabled, true);
+    assert.equal(document.querySelector('.watch-panel input[type="checkbox"]').checked, false);
+    assert.equal(calls.some((call) => /\/(reveal|watchability|why)$/.test(call.url) && !call.url.includes('/recommendations/')), false);
+    await acceptRanking();
+    await click('Rank by watchability');
+    await until(() => calls.filter((call) => call.url.includes('/recommendations/')).length === 2 && document.querySelector('.watch-panel ol'));
+    assert.equal(Object.hasOwn(JSON.parse(calls.at(-1).options.body), 'budget_minutes'), false);
+    assert.equal(calls.some((call) => call.options.method === 'PUT'), false);
+  } finally { await unmount(root); }
+});
+
+test('mounted empty picks mean unavailable coverage and stale picks cannot cross a schedule change', async () => {
+  let finish;
+  let count = 0;
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/recommendations/')) {
+      count++;
+      return count === 1 ? response({ game_ids: [] }) : new Promise((resolve) => { finish = resolve; });
+    }
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector('.game-card'));
+    await choosePregame();
+    await acceptRanking(); await click('Rank by watchability');
+    await until(() => document.body.textContent.includes('No eligible picks'));
+    assert.match(document.body.textContent, /not a poor-quality verdict/);
+    await acceptRanking(); await click('Rank by watchability');
+    await until(() => finish);
+    // Force an external slate change while ranking is pending, to test generation isolation.
+    const select = document.querySelector('select');
+    await act(async () => { select.value = 'observed'; select.dispatchEvent(new window.Event('change', { bubbles: true })); });
+    await until(() => document.querySelector('.game-card'));
+    finish(response({ game_ids: [game] })); await tick();
+    assert.equal(document.querySelector('.watch-panel ol'), null);
+    assert.equal(document.body.textContent.includes('No eligible picks'), false);
+  } finally { await unmount(root); }
+});
+
+
+test('missing watchability shows no dead-end why action', async () => {
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.endsWith('/watchability')) return response({ game_id: game, disclosure: 'watchability' });
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector('.game-card'));
+    await click('Show watchability hint');
+    await until(() => document.querySelector('.disclosure-box'));
+    assert.match(document.querySelector('.disclosure-box').textContent, /Watchability data is unavailable/);
+    assert.equal(button('Why?'), undefined);
+  } finally { await unmount(root); }
+});

@@ -104,10 +104,9 @@ archived score with the same (game, kind, version, as-of) is rejected. The
 this contract. These DB rows are internal and must never be serialized directly
 into a spoiler-safe response.
 
-This is a bounded initial slice of #10. Remaining: connect trusted as-of structured fact extraction;
-provide an explicitly gated recommendation application/API service; use
-historical games to tune normalization, thresholds and weights. This
-implementation does not claim real-life ranking quality or frontend wiring.
+This is a bounded initial slice of #10. Remaining: produce trusted as-of structured features and use historical
+games to tune normalization, thresholds and weights. The connected API and
+frontend described below do not establish real-life ranking quality.
 
 
 ## Explicit, cursor-scoped recommendation endpoint (PR #33)
@@ -176,28 +175,53 @@ still contains UUIDs only. Favorite teams are not accepted as ranking input.
 This is a bounded application-boundary slice; it is not a live recommendation
 quality claim. The first structured sports provider does not yet expose the
 trusted feature history required to populate meaningful production scoring,
-so an empty response is normal on unscored data. Real provider normalization,
-historical calibration, verdict integration into the game-disclosure service,
-frontend consent UX and authenticated profile ownership remain future work.
+so an empty response is normal on unscored data. Real provider normalization, historical calibration and authenticated profile
+ownership remain future work. Verdict integration and frontend consent are
+described below.
 Profile UUIDs are presently **opaque state keys, not authenticated accounts**;
 the caller must not mistake this endpoint's consent check for user login or
 authorization.
 
-## Frontend consent boundary (partial #10)
+## Frontend consent boundary (#10)
 
-`frontend/src/watchability.ts` provides a deliberately unmounted request
-helper for a future authenticated/profile-connected interface. It accepts a
-server-projected PREGAME slate, validates 1–32 unique canonical game UUIDs and
-requires per-action `consentToOutcomeRanking: true` before any HTTP call. It sends the validated NBA/Eastern slate date, IDs, consent and
-uniform planned duration/budget. On return, its
-strict response boundary accepts only `game_ids`, rejects extraneous
-postgame fields, unknown and duplicate IDs, and maps selected UUIDs back to
-allowlisted pregame card fields. HTTP error bodies are not surfaced.
+`frontend/src/watchability.ts` validates backend-projected PREGAME slates,
+1–32 unique canonical UUIDs and per-action `consentToOutcomeRanking: true`
+before any HTTP call. It sends the NBA/Eastern date, IDs, consent and uniform
+planned allocations. Its strict response boundary accepts only `game_ids`,
+rejects extraneous postgame fields, unknown and duplicate IDs, and maps picks
+back to allowlisted pregame card fields. HTTP error bodies are not surfaced.
+`BackendClient.recommend` connects this helper through the same-origin proxy.
+No fixtures, favorites or raw sports payloads enter the ranking path.
 
-This is **not** an active dashboard feature; no fixtures, passive rendering,
-browser favorite teams, untrusted raw sports data or automatic pregame lists
-may silently enter postgame ordering. It awaits backend-connected safe game
-lists, profile authentication/authorization, a deliberate opt-in UI and
-trusted real score evidence. Returning no scored games is normal until those
-producer gaps close. Neither numeric score visibility nor result
-acknowledgement is introduced by this client.
+## Connected viewing guide and archived verdicts (#10)
+
+The backend-connected UI now offers explicit postgame ordering on **Historically observed pregame** slates only. It requires a fresh
+consent checkbox for each request and uses the strict client response boundary
+through the same-origin `/api` proxy. Replay and observed/backfill slates are not
+submitted to the historical recommendation API. The ordinary game list and
+pregame guide retain their existing order; favorite teams never enter requests.
+Picks are cleared when the cursor, date or schedule view changes, and stale in-flight responses are discarded. No eligible picks can mean
+missing score evidence, never a poor-quality verdict. The UI has no time-budget
+controls; the internal/API budget optimizer remains available to existing callers.
+An unavailable per-game verdict does not show a Why action.
+
+Explicit watchability/why reads now consult the newest eligible archived
+`postgame-v1` score at the persisted cursor. Ordinary pregame/card reads and full
+reveals do not read the score archive. The service rejects duplicate, corrupt,
+wrong-family and future score evidence and projects only a coarse verdict through
+`project_game`. Missing evidence replaces any snapshot hint with no verdict.
+Reasons are not fabricated from components: WHY remains a separately requested
+layer but has no reason until a trusted explanation producer is implemented.
+Hints never acknowledge a game or advance the cursor.
+
+Coarse bands are tunable via `RANKING_VERDICT_MEDIUM_FROM` (default 4),
+`RANKING_VERDICT_HIGH_FROM` (7), `RANKING_VERDICT_LOW_LABEL` (Lower priority),
+`RANKING_VERDICT_MEDIUM_LABEL` (Worth considering), and
+`RANKING_VERDICT_HIGH_LABEL` (Worth watching). Defaults are provisional product
+configuration, not calibrated NBA predictions; invalid bands fail configuration.
+
+Issue #10 remains open: the current TheSportsDB importer does not produce vetted
+ranking features or trusted final timestamps, so imported games normally have
+no scores. Historical feature production, source approval history, calibration
+against actual games and trusted reason production remain outstanding. Profile
+UUIDs remain opaque state keys rather than authenticated user accounts.

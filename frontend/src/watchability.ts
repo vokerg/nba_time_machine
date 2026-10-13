@@ -4,7 +4,7 @@
  * cursor-scoped game list from the same connected profile (never demo fixtures).
  * A ranked game's inclusion/position is a spoiler even without numeric scores.
  */
-import type { GameCard, GameList } from "./dashboard";
+import type { GameCard, GameList } from "./dashboard.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NBA_DATE = /^\d{4}-\d{2}-\d{2}$/;

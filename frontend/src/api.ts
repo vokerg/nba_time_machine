@@ -1,6 +1,7 @@
 /** Same-origin backend integration. Only allowlisted policy responses enter UI state. */
 import { forwardCursor, parseFull, parseGameList, parseVerdict } from "./dashboard.ts";
 import type { FullReveal, GameList, Reason, Verdict } from "./dashboard.ts";
+import { requestWatchabilityRecommendations } from "./watchability.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type Timeline = { profile_id: string; time_cursor: string; initialized_at: string; updated_at: string };
@@ -104,6 +105,12 @@ export class BackendClient {
     const result = layer === "full" ? parseFull(data) : parseVerdict(data, layer);
     if (id(result.game_id) !== game) throw new Error("Disclosure game mismatch.");
     return result;
+  }
+  async recommend(gameList: GameList, slateDate: string, consent: true) {
+    return requestWatchabilityRecommendations({
+      profileId: this.profileId, gameList, slateDate, consentToOutcomeRanking: consent,
+      fetcher: ((path, options) => this.fetcher("/api" + path, options)) as typeof fetch,
+    });
   }
 }
 

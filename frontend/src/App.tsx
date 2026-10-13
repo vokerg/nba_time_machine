@@ -28,10 +28,17 @@ export function App() {
   const [reload, setReload] = useState(0);
   const generation = useRef(0);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [watchPicks, setWatchPicks] = useState<GameCard[] | null>(null);
+  const [rankingConsent, setRankingConsent] = useState(false);
+
+  useEffect(() => {
+    setWatchPicks(null); setRankingConsent(false);
+  }, [timeline, day, view, reload]);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(null); setSlate(null); setTimeline(null); setNewProfile(false);
+    setWatchPicks(null); setRankingConsent(false);
     setDisclosures({}); setConfirming(null); generation.current += 1;
     let alive = true;
     async function resume() {
@@ -54,6 +61,7 @@ export function App() {
     const controller = new AbortController();
     const ticket = ++generation.current;
     setLoading(true); setError(null); setSlate(null); setDisclosures({}); setConfirming(null);
+    setWatchPicks(null); setRankingConsent(false);
     client.games(day, view, timeline.time_cursor, controller.signal).then((data) => {
       if (ticket === generation.current) setSlate(data);
     }).catch((cause: unknown) => {
@@ -74,6 +82,7 @@ export function App() {
   async function advance(hours: number) {
     if (!client || !timeline) return;
     setBusy(true); setError(null); setSlate(null); setDisclosures({}); setConfirming(null); generation.current += 1;
+    setWatchPicks(null); setRankingConsent(false);
     try {
       const saved = await client.advance(timeline.time_cursor, hours);
       setTimeline(saved); setDay(nbaDate(saved.time_cursor));
@@ -81,9 +90,11 @@ export function App() {
     finally { setBusy(false); }
   }
   function selectDate(value: string) {
+    setWatchPicks(null); setRankingConsent(false);
     generation.current += 1; setSlate(null); setDisclosures({}); setConfirming(null); setDay(value);
   }
   function selectView(value: ScheduleView) {
+    setWatchPicks(null); setRankingConsent(false);
     generation.current += 1; setSlate(null); setDisclosures({}); setConfirming(null); setView(value);
   }
   async function disclose(game: GameCard, layer: "watchability" | "why" | "full") {
@@ -102,6 +113,18 @@ export function App() {
       }
     } catch (cause) {
       if (ticket === generation.current) setError(cause instanceof Error ? cause.message : "Disclosure unavailable.");
+    } finally { setBusy(false); }
+  }
+
+  async function recommend() {
+    if (!client || !slate || view !== "pregame" || !rankingConsent) return;
+    const ticket = generation.current;
+    setBusy(true); setError(null); setWatchPicks(null); setRankingConsent(false);
+    try {
+      const picks = await client.recommend(slate, day, true);
+      if (ticket === generation.current) setWatchPicks(picks);
+    } catch (cause) {
+      if (ticket === generation.current) setError(cause instanceof Error ? cause.message : "Watchability ranking unavailable.");
     } finally { setBusy(false); }
   }
 
@@ -132,14 +155,22 @@ export function App() {
             return <article className="game-card" key={game.game_id}>
               <div className="game-meta"><span>{game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip unavailable"}</span><span>{game.state === "sealed" ? "Sealed" : "Acknowledged"}</span></div>
               <h3>{matchup(game)}</h3><p className="pregame-label">Pregame interest · {game.pregame_interest?.toFixed(1) ?? "Not available"}</p>
+              <p className="small-label">Watchability hints can reveal that something unusual happened. Why reveals more detail.</p>
               <div className="game-actions"><button disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button><button className="danger-link" disabled={busy || loading} onClick={() => setConfirming(game.game_id)}>Reveal result ↗</button></div>
-              {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite"><strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "No verdict available"}</strong>{shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}{!shown.reason && <button disabled={busy} onClick={() => void disclose(game, "why")}>Why? Show one more hint</button>}</div>}
+              {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite"><strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>{shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}{!shown.reason && shown.verdict?.watchability_verdict && <button disabled={busy} onClick={() => void disclose(game, "why")}>Why? Show one more hint</button>}</div>}
               {confirming === game.game_id && <div className="confirmation"><p>Reveal this game's score and acknowledge it? Your global timeline will stay where it is.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
               {shown.full && <div className="result-box" aria-live="polite"><p className="small-label">Explicitly revealed</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
             </article>;
           })}</div>
         </section>
-        <aside className="side-column"><section className="side-panel watch-panel"><p className="eyebrow">The viewing guide</p><h2>What should I watch?</h2><p>Pregame interest alone determines these suggestions.</p>{recommended[0] ? <strong>{matchup(recommended[0])}</strong> : <p>No pregame recommendation available.</p>}</section>
+        <aside className="side-column"><section className="side-panel watch-panel"><p className="eyebrow">The viewing guide</p><h2>What should I watch?</h2><p>Pregame interest alone determines these suggestions.</p>{recommended[0] ? <strong>{matchup(recommended[0])}</strong> : <p>No pregame recommendation available.</p>}
+          <h3>Postgame viewing guide</h3><p>Selection and order use completed-game quality and can hint at surprises. Numeric quality scores stay hidden.</p>
+          {view !== "pregame" ? <p>Use Historically observed pregame to request watchability picks from a historically observed slate.</p> : <>
+            <label className="ranking-consent"><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} />I accept outcome-based hints for this request.</label>
+            <div className="game-actions"><button disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend()}>Rank by watchability</button></div>
+          </>}
+          {watchPicks !== null && <div aria-live="polite">{watchPicks.length ? <ol>{watchPicks.map((game) => <li key={game.game_id}>{matchup(game)}</li>)}</ol> : <p>No eligible picks for this request. Watchability data is unavailable; this is not a poor-quality verdict.</p>}</div>}
+        </section>
           <section className="side-panel favorites-panel"><h2>Favorite teams</h2><p>Favorites never change the canonical list order.</p><div className="favorite-choices">{teams.map((team) => <label key={team}><input type="checkbox" checked={favorites.includes(team)} onChange={() => setFavorites((prior) => prior.includes(team) ? prior.filter((name) => name !== team) : [...prior, team])} /><span>{team}</span></label>)}</div></section></aside>
         <section className="media-section"><h2>News &amp; buzz</h2><p>A timeline-filtered media endpoint is not connected yet. Game reveals never unlock later general media.</p></section>
       </div>}

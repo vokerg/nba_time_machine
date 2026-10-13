@@ -101,3 +101,18 @@ test('native fetch receives the browser/global binding rather than the client in
   });
   assert.deepEqual(await client.resume(), timeline);
 });
+
+
+test('connected ranking uses same-origin proxy and requires consent before fetching', async () => {
+  const { client, calls } = fake([{ body: { game_ids: [game] } }]);
+  const slate = { time_cursor: cursor, games: [card] };
+  await assert.rejects(() => client.recommend(slate, '2025-10-21', false), /consent/);
+  assert.equal(calls.length, 0);
+  assert.deepEqual(await client.recommend(slate, '2025-10-21', true), [card]);
+  assert.equal(calls[0].url, `/api/profiles/${profile}/recommendations/watchability`);
+  assert.equal(calls[0].options.method, 'POST');
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    slate_date: '2025-10-21', candidate_game_ids: [game], consent_to_outcome_ranking: true,
+    planned_minutes_per_game: 120,
+  });
+});

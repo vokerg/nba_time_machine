@@ -354,3 +354,15 @@ change. Other pregame facts, full-result authorization, media and strict/observe
 views retain existing contracts. Results stay hidden on cards even after
 acknowledgement; explicit reveal persists only that game's acknowledgement.
 Historical final/protection times are not invented from game date or tipoff.
+
+### Archived watchability disclosure (#10)
+
+Only explicit watchability/why requests consult the postgame archive, at the
+persisted profile cursor. The disclosure service validates one internally
+consistent eligible score and converts it to configured coarse bands before
+`project_game`; no numeric quality or component metadata enters public fields.
+No evidence means no verdict or fabricated reason. Frontend postgame ordering
+requires fresh per-request consent on a historically observed pregame slate;
+retrospective replay does not authorize outcome ranking. Budget inputs are user
+allocations, never observed runtimes. Hints and picks leave acknowledgement and
+media cursor unchanged.

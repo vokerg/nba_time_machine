@@ -122,6 +122,10 @@ p { line-height: 1.6; }
 .side-icon { display: grid; place-items: center; border-radius: 10px; background: #d0ef99; width: 40px; height: 40px; color: #1f3926; font-size: 26px; margin-bottom: 33px; }
 .watch-panel { background: linear-gradient(150deg, #1d3a30, #122724 68%); }
 .watch-panel .eyebrow { color: #badb9c; }
+.ranking-consent { display: flex; align-items: flex-start; gap: 8px; margin: 18px 0; font-size: 12px; line-height: 1.5; }
+.ranking-consent input { accent-color: #c6e48a; flex-shrink: 0; }
+.watch-panel ol { padding-left: 20px; }
+.watch-panel li { margin: 12px 0; }
 .recommendation { margin-top: 25px; border-top: 1px solid #436051; padding-top: 18px; }
 .recommendation strong { display: block; font-family: "Space Grotesk", sans-serif; font-size: 17px; }
 .recommendation p { margin-bottom: 0; }

@@ -227,3 +227,106 @@ def test_api_requires_explicit_post_for_full_result_and_exposes_sparse_models() 
             assert client.get(f"/profiles/{profile}/games/{uuid4()}/pregame").status_code == 404
     finally:
         app.dependency_overrides.clear()
+
+
+class FakeDisclosureScores:
+    def __init__(self, rows):
+        self.rows = rows
+        self.calls = []
+
+    async def postgame_scores_as_of(self, game_ids, *, as_of):
+        self.calls.append((game_ids, as_of))
+        return self.rows
+
+
+def archived_score(*, game_id=GAME_ID, at=FINAL, value=0.9):
+    from nba_time_machine.ranking.scoring import FeatureObservation, PostgameSignal, score_postgame
+    return score_postgame(
+        game_id, {PostgameSignal.CLUTCH: FeatureObservation(value, "source:fact", at, at)},
+        final_at=FINAL, as_of=at,
+    )
+
+
+def archived_disclosure(rows):
+    from nba_time_machine.ranking.disclosure import VerdictBands
+    original = snapshot()
+    clock = FakeTimeline(cursor=FINAL)
+    scores = FakeDisclosureScores(rows)
+    acks = FakeAcks()
+    service = GameDisclosureService(
+        clock, FakeGames(original), acks, scores=scores,
+        verdict_bands=VerdictBands(4, 7, "Low", "Medium", "High"),
+    )
+    return service, clock, scores, acks
+
+
+@pytest.mark.asyncio
+async def test_archived_verdict_is_coarse_explicit_and_does_not_fabricate_reasons():
+    service, clock, scores, acks = archived_disclosure((archived_score(),))
+    profile = uuid4()
+    await service.disclose(profile, GAME_ID, DisclosureLayer.PREGAME)
+    assert scores.calls == []
+    result = await service.disclose(profile, GAME_ID, DisclosureLayer.WATCHABILITY)
+    assert result.projection.fields == {"home_team": "Home", "away_team": "Away",
+                                       "scheduled_tip": TIP.isoformat(), "watchability_verdict": "High"}
+    why = await service.disclose(profile, GAME_ID, DisclosureLayer.WHY)
+    assert why.projection.fields == result.projection.fields
+    assert scores.calls == [((GAME_ID,), FINAL), ((GAME_ID,), FINAL)]
+    assert not acks.rows
+    assert clock.cursor == FINAL
+    await service.reveal_full(profile, GAME_ID)
+    await service.disclose(profile, GAME_ID, DisclosureLayer.FULL)
+    assert len(scores.calls) == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("case", ["missing", "duplicate", "corrupt", "future", "wrong_game", "pregame"])
+async def test_unusable_archive_never_falls_back_to_snapshot_hints(case):
+    from dataclasses import replace
+    from nba_time_machine.ranking.scoring import FeatureObservation, PregameSignal, score_pregame
+    good = archived_score()
+    rows = {
+        "missing": (), "duplicate": (good, good),
+        "corrupt": (replace(good, value=0.1),),
+        "future": (archived_score(at=FINAL + timedelta(days=1)),),
+        "wrong_game": (archived_score(game_id=uuid4()),),
+        "pregame": (score_pregame(GAME_ID, {
+            PregameSignal.TEAM_STRENGTH: FeatureObservation(0.9, "source:fact", CURSOR, CURSOR),
+        }, tip_at=TIP, as_of=CURSOR),),
+    }[case]
+    service, _, _, acks = archived_disclosure(rows)
+    for layer in (DisclosureLayer.WATCHABILITY, DisclosureLayer.WHY):
+        fields = (await service.disclose(uuid4(), GAME_ID, layer)).projection.fields
+        assert "watchability_verdict" not in fields
+        assert "watchability_reason" not in fields
+        assert "home_score" not in fields
+    assert not acks.rows
+
+
+def test_archive_backed_http_projection_never_serializes_score_or_components():
+    service, _, _, _ = archived_disclosure((archived_score(),))
+    app.dependency_overrides[get_game_disclosure_service] = lambda: service
+    try:
+        with TestClient(app) as client:
+            uri = f"/profiles/{uuid4()}/games/{GAME_ID}"
+            assert client.get(uri + "/watchability").json() == {
+                "game_id": str(GAME_ID), "disclosure": "watchability", "watchability_verdict": "High",
+            }
+            assert client.get(uri + "/why").json() == {
+                "game_id": str(GAME_ID), "disclosure": "why", "watchability_verdict": "High",
+            }
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_verdict_bands_are_configurable_and_invalid_configuration_fails(monkeypatch):
+    from nba_time_machine.ranking.config import RankingDisclosureSettings
+    monkeypatch.setenv("RANKING_VERDICT_MEDIUM_FROM", "2")
+    monkeypatch.setenv("RANKING_VERDICT_HIGH_FROM", "5")
+    monkeypatch.setenv("RANKING_VERDICT_HIGH_LABEL", "Try this game")
+    bands = RankingDisclosureSettings().bands()
+    assert bands.medium_from == 2 and bands.high_from == 5
+    assert bands.high_label == "Try this game"
+    monkeypatch.setenv("RANKING_VERDICT_MEDIUM_FROM", "6")
+    with pytest.raises(ValueError):
+        RankingDisclosureSettings().bands()
