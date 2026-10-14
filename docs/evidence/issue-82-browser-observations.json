@@ -1,0 +1,54 @@
+{
+  "environment": "ordinary_chrome_visible_ui",
+  "date": "2026-10-14",
+  "http_status": null,
+  "authentication_audited": false,
+  "new_credentials_supplied": false,
+  "retention": "diagnostic_metadata_only",
+  "observations": [
+    {
+      "game_id": "0022500450",
+      "surface": "box_score",
+      "observed_at": null,
+      "timestamp_precision": "date_only",
+      "fields_seen": ["both_team_tables", "player_links", "minutes", "shooting", "counting_stats", "starter_positions", "dnd", "inactive_section"],
+      "canonical_uuid_matches_verified": false
+    },
+    {
+      "game_id": "0022500450",
+      "surface": "pbp_all",
+      "observed_at": "2026-10-14T04:41:09.008Z",
+      "period_start_markers": [1, 2, 3, 4],
+      "period_end_markers": [1, 2, 3, 4],
+      "clock_text_entries": 105,
+      "complete_chronological_trace_verified": false,
+      "independent_totals_reconciled": false,
+      "trusted_final_at_established": false
+    },
+    {
+      "game_id": "0042500311",
+      "surface": "box_score",
+      "observed_at": "2026-10-14T04:41:43.559Z",
+      "team_tables": 2,
+      "player_links": 23,
+      "minute_formatted_cells": 21,
+      "explicit_dnp_or_dnd_present": true,
+      "inactive_section_present": true,
+      "final_state_text_present": true,
+      "pregame_availability_verified": false
+    },
+    {
+      "game_id": "0022500938",
+      "surface": "box_score_numeric_thresholds",
+      "observed_at": "2026-10-14T04:42:22.334Z",
+      "timestamp_semantics": "page inspected at this time; generic header check followed in the same session",
+      "algorithm": "PTS/MIN header lookup, player-linked rows, explicit minutes and numeric points; no player-name or game-specific threshold branch",
+      "teams": [
+        {"player_rows": 12, "rows_with_minutes_and_points": 10, "points_ge_70": 0, "points_ge_80": 0},
+        {"player_rows": 15, "rows_with_minutes_and_points": 11, "points_ge_70": 1, "points_ge_80": 1}
+      ],
+      "player_team_totals_reconciled": false,
+      "historical_record_verified": false
+    }
+  ]
+}
