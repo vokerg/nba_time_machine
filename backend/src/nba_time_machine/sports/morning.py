@@ -144,14 +144,14 @@ class MorningCollector:
                 refs = espn.scoreboard(json.loads(text), day)
                 report.discovery = "espn"
                 return refs
-            except (ValueError, KeyError, TypeError, IndexError, OverflowError):
+            except (ValueError, KeyError, TypeError, IndexError, OverflowError, AttributeError):
                 report.errors.append("espn_discovery_failed")
         try:
             text = await self.client.fetch("cbs", f"https://www.cbssports.com/nba/schedule/{day:%Y%m%d}/", "schedule")
             refs = cbs.schedule(text, day)
             report.discovery = "cbs"
             return refs
-        except (ValueError, KeyError, TypeError, IndexError, OverflowError):
+        except (ValueError, KeyError, TypeError, IndexError, OverflowError, AttributeError):
             report.errors.append("cbs_discovery_failed")
             return []
 
@@ -167,7 +167,7 @@ class MorningCollector:
                 result.evidence.append(evidence)
                 if evidence.pbp_usable and evidence.box_usable:
                     return
-            except (ValueError, KeyError, TypeError, IndexError, OverflowError):
+            except (ValueError, KeyError, TypeError, IndexError, OverflowError, AttributeError):
                 report.errors.append("espn_game_failed:" + ref.external_id)
         try:
             game_abbr = ref.external_id if ref.provider == "cbs" else ref.cbs_abbr
@@ -175,7 +175,7 @@ class MorningCollector:
                 "https://www.cbssports.com/nba/gametracker/playbyplay/" + quote(game_abbr, safe="") + "/",
                 "gametracker", game_abbr)
             result.evidence.append(cbs.gametracker(text, ref, datetime.now(timezone.utc)))
-        except (ValueError, KeyError, TypeError, IndexError, OverflowError):
+        except (ValueError, KeyError, TypeError, IndexError, OverflowError, AttributeError):
             report.errors.append("cbs_game_failed:" + ref.cbs_abbr)
 
     async def collect(self, day: date, *, game_id: str | None = None) -> MorningReport:

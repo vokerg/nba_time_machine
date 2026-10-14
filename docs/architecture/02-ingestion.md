@@ -256,3 +256,18 @@ See [NBA collection](../NBA_COLLECTION.md) for the bounded TheSportsDB entry
 point, additive Neon writes, idempotent capture revisions and explicit coverage
 reports. Historical backfill availability is actual observation time; it never
 creates pre-tip knowledge. Full season/live/player-stat coverage is provider-gated.
+
+## Morning NBA evidence (#84)
+
+See [Morning NBA collection](../NBA_MORNING_COLLECTION.md) for a bounded one-day
+ESPN-primary/CBS-backup CLI and its existing-table persistence path. Default mode
+is read-only. Explicit writes require reviewed registry policies and append
+normalized capture revisions and game-linked temporal facts at actual observation
+time. Cross-provider teams/games are matched conservatively; ambiguous matches
+are quarantined. Player identities remain source-namespaced in evidence.
+
+Sources remain disabled, and no scheduler is installed. Family coverage and
+source failures are independent. CBS's missing play IDs and unlabeled player
+rows remain partial rather than becoming invented complete evidence. Source
+wall clocks are not publication or trusted final timestamps. This path does not
+compute scores, expose source facts or alter spoiler policy.

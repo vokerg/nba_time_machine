@@ -37,15 +37,18 @@ def stamp(value: str) -> datetime:
 
 
 def clock_ms(value: str) -> int:
-    from decimal import Decimal
-    parts = value.split(":")
+    from decimal import Decimal, InvalidOperation
+    try:
+        parts = [Decimal(p) for p in value.split(":")]
+    except (InvalidOperation, AttributeError):
+        raise ValueError("invalid_clock") from None
     if len(parts) == 2:
-        minute, second = map(Decimal, parts)
+        minute, second = parts
         if minute != int(minute) or not 0 <= second < 60:
             raise ValueError("invalid_clock")
         result = minute * 60 + second
     elif len(parts) == 1:
-        result = Decimal(parts[0])
+        result = parts[0]
     else:
         raise ValueError("invalid_clock")
     if not result.is_finite() or result < 0 or result * 1000 != int(result * 1000):
@@ -94,6 +97,7 @@ class Team(Model):
 class Play(Model):
     external_id: str | None = None
     index: int = Field(ge=0)
+    source_sequence: str | None = None
     period: int = Field(ge=1, le=20, strict=True)
     remaining_ms: int = Field(ge=0, le=720000, strict=True)
     home: int = Field(ge=0, strict=True)
@@ -119,6 +123,7 @@ class PlayerBox(Model):
 
 
 class Evidence(Model):
+    schema_version: Literal[1] = 1
     provider: Literal["espn", "cbs"]
     external_id: str = Field(min_length=1)
     ref: GameRef
@@ -135,6 +140,13 @@ class Evidence(Model):
     notes: tuple[str, ...] = ()
     source_end_at: AwareDatetime | None = None
     source_updated_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def matchup(self):
+        if (self.provider != self.ref.provider or self.home.external_id == self.away.external_id
+                or self.home.abbreviation != self.ref.home or self.away.abbreviation != self.ref.away):
+            raise ValueError("invalid_evidence_identity")
+        return self
 
     @property
     def pbp_usable(self) -> bool:
@@ -227,6 +239,7 @@ def assess(evidence: Evidence) -> Evidence:
             box.add("player_point_totals_mismatch")
     if any(p.team_id not in (h.external_id, a.external_id) for p in evidence.players):
         box.add("wrong_player_team")
-    if any(i not in player_ids for p in plays for i in p.participant_ids):
+    if not box and any(i not in player_ids for p in plays for i in p.participant_ids):
         pbp.add("unresolved_participant")
-    return evidence.model_copy(update={"pbp_errors": tuple(sorted(pbp)), "box_errors": tuple(sorted(box))})
+    notes = evidence.notes + (("participant_box_match_unverified",) if box else ())
+    return evidence.model_copy(update={"pbp_errors": tuple(sorted(pbp)), "box_errors": tuple(sorted(box)), "notes": notes})

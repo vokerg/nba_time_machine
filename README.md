@@ -84,6 +84,8 @@ The launcher requires Python 3 and Node.js/npm on macOS or Linux. It automatical
 
 For database connection configuration, migrations and source-registry bootstrap, see [Development](docs/DEVELOPMENT.md#neon-setup). The frontend connects to profile-scoped backend data through a same-origin proxy. See [Frontend integration](docs/FRONTEND_INTEGRATION.md) for initialization, season browsing and historical coverage; ingestion is a separate operation.
 
+For daily ESPN game evidence with CBS backup, see [Morning NBA collection](docs/NBA_MORNING_COLLECTION.md). The CLI defaults to read-only diagnostics; explicit write mode uses the existing PostgreSQL capture and temporal records.
+
 
 ## Agent entry
 

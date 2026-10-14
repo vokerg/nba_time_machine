@@ -1,5 +1,9 @@
 # Fresh NBA data validation — 2026-10-14
 
+Subsequent owner-directed personal-use implementation is documented in
+[Morning NBA collection (#84)](NBA_MORNING_COLLECTION.md). The findings below
+describe the earlier validation window, including its unknown publication lag.
+
 **ESPN's unauthenticated summary JSON works from the local backend runtime for fresh 2026 preseason games. A two-hour publication target remains unverified. No source passed both technical validation and permission for recurring production access.**
 
 The mandatory Warriors–Lakers game was retrieved and checked using real responses. This materially extends the earlier [PBP research](NBA_PLAY_BY_PLAY_ACCESS_RESEARCH.md) and [signal-access research](NBA_SIGNAL_COVERAGE_RESEARCH.md), which had not tested ESPN JSON. Those reports remain records of their earlier observations.

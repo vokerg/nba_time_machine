@@ -97,6 +97,7 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
                 raise ValueError("wrong_play_identity")
             kind = row["type"]
             plays.append(Play(external_id=str(row["id"]), index=i,
+                source_sequence=str(row["sequenceNumber"]) if row.get("sequenceNumber") is not None else None,
                 period=row["period"]["number"], remaining_ms=clock_ms(row["clock"]["displayValue"]),
                 home=row["homeScore"], away=row["awayScore"], kind=str(kind["id"]),
                 period_end=str(kind["id"]) == "412", game_end=str(kind["id"]) == "402",
