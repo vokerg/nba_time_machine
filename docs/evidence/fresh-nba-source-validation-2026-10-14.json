@@ -1,0 +1,2155 @@
+{
+  "research_date": "2026-10-14",
+  "environment": {
+    "backend_interpreter": "backend/.venv/bin/python",
+    "python": "3.14.8",
+    "http_client": "httpx 0.28.1",
+    "host": "current local macOS backend workspace",
+    "separate_hosted_deployment_tested": false,
+    "app_collector_or_database_invoked": false,
+    "redirects_followed": false,
+    "retries": 0,
+    "private_source_credentials_supplied": false
+  },
+  "requests": [
+    {
+      "label": "nba_schedule",
+      "url": "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 403,
+      "elapsed_seconds": 0.139,
+      "bytes": 423,
+      "headers": {
+        "content-type": "text/html",
+        "date": "Wed, 14 Oct 2026 18:25:30 GMT"
+      },
+      "sha256": "36bfd5ea8fbf0056bb5ae456045d93b3aab229f4cd76c4977e4d449244db754f",
+      "format": "text/html",
+      "request_started_at": "2026-10-14T18:25:30.391689+00:00"
+    },
+    {
+      "label": "nba_box",
+      "url": "https://cdn.nba.com/static/json/liveData/boxscore/boxscore_0012600048.json",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 403,
+      "elapsed_seconds": 0.15,
+      "bytes": 441,
+      "headers": {
+        "content-type": "text/html",
+        "date": "Wed, 14 Oct 2026 18:25:30 GMT"
+      },
+      "sha256": "d3d8f6197fbc6a96415327aa1dad15abe1855e13f8d4ff88027b47ee18f3f3aa",
+      "format": "text/html",
+      "request_started_at": "2026-10-14T18:25:30.383706+00:00"
+    },
+    {
+      "label": "nba_pbp",
+      "url": "https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_0012600048.json",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 403,
+      "elapsed_seconds": 0.216,
+      "bytes": 445,
+      "headers": {
+        "content-type": "text/html",
+        "date": "Wed, 14 Oct 2026 18:25:30 GMT"
+      },
+      "sha256": "ff027ab06e650a261c093f82eba740648a61b948934475650016a5a9e8aadd47",
+      "format": "text/html",
+      "request_started_at": "2026-10-14T18:25:30.324355+00:00"
+    },
+    {
+      "label": "nba_today",
+      "url": "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 403,
+      "elapsed_seconds": 0.159,
+      "bytes": 443,
+      "headers": {
+        "content-type": "text/html",
+        "date": "Wed, 14 Oct 2026 18:25:30 GMT"
+      },
+      "sha256": "41645fc9f875cb0f74e4455546a2f6eb966ca7edc8bcba949f7b1a71ee022ebe",
+      "format": "text/html",
+      "request_started_at": "2026-10-14T18:25:30.387873+00:00"
+    },
+    {
+      "label": "espn_scoreboard",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261013",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.335,
+      "bytes": 94071,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=4",
+        "date": "Wed, 14 Oct 2026 18:25:30 GMT"
+      },
+      "sha256": "6e02a6079ba3e59b445a794dc3b73607cf0d6fea9f34082386939c42de75de14",
+      "format": "json",
+      "keys": [
+        "leagues",
+        "events",
+        "provider"
+      ],
+      "request_started_at": "2026-10-14T18:25:30.399098+00:00"
+    },
+    {
+      "label": "espn_summary",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401898718",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.46,
+      "bytes": 455931,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=3",
+        "date": "Wed, 14 Oct 2026 18:25:30 GMT"
+      },
+      "sha256": "30deb52bb41aac2d2cd0b321ed1145e1d70e5f18383430a73e03b79d08fd7f9d",
+      "format": "json",
+      "keys": [
+        "boxscore",
+        "format",
+        "gameInfo",
+        "leaders",
+        "seasonseries",
+        "injuries",
+        "broadcasts",
+        "pickcenter",
+        "odds",
+        "againstTheSpread",
+        "news",
+        "header",
+        "plays",
+        "videos",
+        "wallclockAvailable",
+        "winprobability",
+        "meta",
+        "standings"
+      ],
+      "request_started_at": "2026-10-14T18:25:30.395461+00:00"
+    },
+    {
+      "label": "espn_pbp",
+      "url": "https://sports.core.api.espn.com/v2/sports/basketball/nba/leagues/nba/events/401898718/competitions/401898718/plays?limit=1000",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 404,
+      "elapsed_seconds": 0.678,
+      "bytes": 52,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:25:31 GMT",
+        "cache-control": "max-age=5, stale-while-revalidate=7200"
+      },
+      "sha256": "59b8d1943a7fc40e3e044d0cea94f61a0e35be976af0e83c623114966c7109f9",
+      "format": "unknown",
+      "request_started_at": "2026-10-14T18:25:30.402735+00:00"
+    },
+    {
+      "label": "espn_today",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261014",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.309,
+      "bytes": 86945,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=10",
+        "date": "Wed, 14 Oct 2026 18:25:52 GMT"
+      },
+      "sha256": "05464cb1948e2c9d014404202e44f7d74fcfd636e51757aa7554469fc04d1d22",
+      "format": "json",
+      "keys": [
+        "leagues",
+        "events",
+        "provider"
+      ],
+      "request_started_at": "2026-10-14T18:25:52.551715+00:00"
+    },
+    {
+      "label": "cbs_schedule",
+      "url": "https://www.cbssports.com/nba/schedule/",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 1.545,
+      "bytes": 513378,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "etag": "W/\"e40dc8397a373d2434ffbf10e2eb02ae\"",
+        "date": "Wed, 14 Oct 2026 18:25:54 GMT",
+        "server": "ContentServer",
+        "cache-control": "private, max-age=0"
+      },
+      "sha256": "65f1381ab1c6cadf491a7d4838566edf590d0927847a8303cdb5d51168d84bf3",
+      "format": "html",
+      "request_started_at": "2026-10-14T18:25:52.547936+00:00"
+    },
+    {
+      "label": "cbs_live",
+      "url": "https://www.cbssports.com/nba/gametracker/live/NBA_20261013_GS%40LAL/",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 2.454,
+      "bytes": 1851914,
+      "headers": {
+        "content-type": "text/html; charset=UTF-8",
+        "etag": "W/\"386f839ecd13c68c678c40e3a7171386\"",
+        "date": "Wed, 14 Oct 2026 18:25:54 GMT",
+        "server": "ContentServer",
+        "cache-control": "private, max-age=0"
+      },
+      "sha256": "f6294b5977e81b464ae59a5506e6a3b560df3d334669e3de1aeec98e0cb64224",
+      "format": "html",
+      "request_started_at": "2026-10-14T18:25:52.503828+00:00"
+    },
+    {
+      "label": "cbs_pbp",
+      "url": "https://www.cbssports.com/nba/gametracker/playbyplay/NBA_20261013_GS%40LAL/",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 2.448,
+      "bytes": 1851972,
+      "headers": {
+        "etag": "W/\"7849f4be4a6bb8a2a6dacbf44ec0b3ef\"",
+        "content-type": "text/html; charset=UTF-8",
+        "date": "Wed, 14 Oct 2026 18:25:54 GMT",
+        "server": "ContentServer",
+        "cache-control": "private, max-age=0"
+      },
+      "sha256": "2f5a38e54dd1f97f28c9a785627fd53331c3404d33e3622d870a6bb3954bb733",
+      "format": "html",
+      "request_started_at": "2026-10-14T18:25:52.543547+00:00"
+    },
+    {
+      "label": "cbs_js",
+      "url": "https://sportsfly.cbsistatic.com/fly-845/bundles/sportsmediajs/js-build/managers/live-app-gametracker-basketball.js",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.209,
+      "bytes": 477216,
+      "headers": {
+        "content-type": "application/javascript",
+        "last-modified": "Wed, 14 Oct 2026 12:39:45 GMT",
+        "etag": "W/\"6acf7811-74820\"",
+        "date": "Wed, 14 Oct 2026 18:26:59 GMT",
+        "server": "ContentServer",
+        "cache-control": "max-age=5184000"
+      },
+      "sha256": "1604e6c703be88e46a483045ce18695dff1e3fc582687bce4b8ed9f15de95f21",
+      "format": "javascript",
+      "request_started_at": "2026-10-14T18:26:59.070423+00:00"
+    },
+    {
+      "label": "espn_preseason_ot",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401908621",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.331,
+      "bytes": 471575,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=2",
+        "date": "Wed, 14 Oct 2026 18:26:59 GMT"
+      },
+      "sha256": "e733914e17f08cd1d15c9c1a2e022b780da97e8c86d3defd68e5f2a5f0a74399",
+      "format": "json",
+      "keys": [
+        "boxscore",
+        "format",
+        "gameInfo",
+        "leaders",
+        "seasonseries",
+        "injuries",
+        "broadcasts",
+        "pickcenter",
+        "odds",
+        "againstTheSpread",
+        "news",
+        "plays",
+        "header",
+        "videos",
+        "wallclockAvailable",
+        "winprobability",
+        "meta",
+        "standings"
+      ],
+      "request_started_at": "2026-10-14T18:26:59.118359+00:00"
+    },
+    {
+      "label": "espn_latest_other",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401901826",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.374,
+      "bytes": 486865,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=7",
+        "date": "Wed, 14 Oct 2026 18:26:59 GMT"
+      },
+      "sha256": "7a30b22f1fdae1e0bc7919def2a5a3668cf12da768aca2f2162e84938f387b09",
+      "format": "json",
+      "keys": [
+        "boxscore",
+        "format",
+        "gameInfo",
+        "leaders",
+        "seasonseries",
+        "injuries",
+        "broadcasts",
+        "pickcenter",
+        "odds",
+        "againstTheSpread",
+        "news",
+        "plays",
+        "header",
+        "videos",
+        "wallclockAvailable",
+        "meta",
+        "winprobability",
+        "standings"
+      ],
+      "request_started_at": "2026-10-14T18:26:59.114446+00:00"
+    },
+    {
+      "label": "cbs_terms",
+      "url": "https://legalterms.cbsinteractive.com/terms-of-use",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 301,
+      "elapsed_seconds": 0.459,
+      "bytes": 86,
+      "headers": {
+        "content-type": "text/html; charset=utf-8",
+        "location": "https://www.viacomcbs.legal/us/en/cbsi/terms-of-use",
+        "server": "redirectv2",
+        "date": "Wed, 14 Oct 2026 18:26:59 GMT"
+      },
+      "sha256": "79d8b31b36cbcfbd848b1ba7f0f071afaf2a33deecdf335125ce5862d9d38cb1",
+      "format": "text/html; charset=utf-8",
+      "request_started_at": "2026-10-14T18:26:59.110091+00:00"
+    },
+    {
+      "label": "espn_regular_board",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20260112",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.373,
+      "bytes": 86423,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=1",
+        "date": "Wed, 14 Oct 2026 18:27:30 GMT"
+      },
+      "sha256": "e390b5b36fea1c9ef72ab2c4f1d7e518a95d335c6c9c009b76e60039eeb515a7",
+      "format": "json",
+      "keys": [
+        "leagues",
+        "events",
+        "provider"
+      ],
+      "request_started_at": "2026-10-14T18:27:29.738135+00:00"
+    },
+    {
+      "label": "espn_playoff_board",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20260518",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.398,
+      "bytes": 19947,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=10",
+        "date": "Wed, 14 Oct 2026 18:27:30 GMT"
+      },
+      "sha256": "fa624b2fed78e8fedd406a636d2c27a8a0fe1e48835e5b64b746cba6f536fee6",
+      "format": "json",
+      "keys": [
+        "leagues",
+        "events",
+        "provider"
+      ],
+      "request_started_at": "2026-10-14T18:27:29.741921+00:00"
+    },
+    {
+      "label": "espn_other_cle",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401898403",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.463,
+      "bytes": 463488,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=6",
+        "date": "Wed, 14 Oct 2026 18:27:30 GMT"
+      },
+      "sha256": "3fb99b677078cfe5b11ee8f0d92085a4274bbebb2c0c67a651316fb4016e2acf",
+      "format": "json",
+      "keys": [
+        "boxscore",
+        "format",
+        "gameInfo",
+        "leaders",
+        "seasonseries",
+        "injuries",
+        "broadcasts",
+        "pickcenter",
+        "odds",
+        "againstTheSpread",
+        "news",
+        "plays",
+        "header",
+        "videos",
+        "wallclockAvailable",
+        "winprobability",
+        "meta",
+        "standings"
+      ],
+      "request_started_at": "2026-10-14T18:27:29.696991+00:00"
+    },
+    {
+      "label": "espn_other_nyk",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401908944",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.477,
+      "bytes": 473070,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=2",
+        "date": "Wed, 14 Oct 2026 18:27:30 GMT"
+      },
+      "sha256": "46f65bb27d5f598fbc1d800682508c60036a2137668f44f527fa92f27acc36a9",
+      "format": "json",
+      "keys": [
+        "boxscore",
+        "format",
+        "gameInfo",
+        "leaders",
+        "seasonseries",
+        "injuries",
+        "broadcasts",
+        "pickcenter",
+        "odds",
+        "againstTheSpread",
+        "header",
+        "news",
+        "videos",
+        "plays",
+        "wallclockAvailable",
+        "winprobability",
+        "meta",
+        "standings"
+      ],
+      "request_started_at": "2026-10-14T18:27:29.733793+00:00"
+    },
+    {
+      "label": "cbs_napi_noauth",
+      "url": "https://sdf-api.cbssports.cloud/napi/util/getTorqStateFile",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.139,
+      "bytes": 13,
+      "headers": {
+        "server": "Varnish",
+        "retry-after": "0",
+        "content-type": "application/json",
+        "date": "Wed, 14 Oct 2026 18:28:06 GMT"
+      },
+      "sha256": "d5eea23a2f7ca3f36d2a5dbf3ab2532a3de3a797ded388afb816068c2863a152",
+      "format": "json",
+      "keys": [
+        "topics"
+      ],
+      "request_started_at": "2026-10-14T18:28:06.166166+00:00"
+    },
+    {
+      "label": "espn_regular",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401810415",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.432,
+      "bytes": 399512,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=1",
+        "date": "Wed, 14 Oct 2026 18:28:06 GMT"
+      },
+      "sha256": "f17c4d45aaf0c51f0008ff30cae2c82685b8183dedf8dc2563805f327e0a070b",
+      "format": "json",
+      "keys": [
+        "boxscore",
+        "format",
+        "gameInfo",
+        "leaders",
+        "seasonseries",
+        "injuries",
+        "broadcasts",
+        "pickcenter",
+        "odds",
+        "againstTheSpread",
+        "news",
+        "plays",
+        "article",
+        "videos",
+        "winprobability",
+        "header",
+        "wallclockAvailable",
+        "meta",
+        "standings"
+      ],
+      "request_started_at": "2026-10-14T18:28:06.117830+00:00"
+    },
+    {
+      "label": "sdv_release_meta",
+      "url": "https://api.github.com/repos/sportsdataverse/sportsdataverse-data/releases/tags/espn_nba_pbp",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.435,
+      "bytes": 131935,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:28:06 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=60, s-maxage=60",
+        "etag": "W/\"e14ee638e72f173827c926478ca02fe345311621d60d9efb7ce5fe0051aaff3c\"",
+        "last-modified": "Thu, 01 Oct 2026 04:43:22 GMT",
+        "server": "github.com"
+      },
+      "sha256": "2e1b50594f3aa3c4250b4a47dd21823719ca64ca0f36b2a83438490ace825c87",
+      "format": "json",
+      "keys": [
+        "url",
+        "assets_url",
+        "upload_url",
+        "html_url",
+        "id",
+        "author",
+        "node_id",
+        "tag_name",
+        "target_commitish",
+        "name",
+        "draft",
+        "immutable",
+        "prerelease",
+        "created_at",
+        "updated_at",
+        "published_at",
+        "assets",
+        "tarball_url",
+        "zipball_url",
+        "body"
+      ],
+      "request_started_at": "2026-10-14T18:28:06.170246+00:00"
+    },
+    {
+      "label": "espn_playoff",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401873197",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.45,
+      "bytes": 501576,
+      "headers": {
+        "content-type": "application/json;charset=UTF-8",
+        "cache-control": "max-age=1",
+        "date": "Wed, 14 Oct 2026 18:28:06 GMT"
+      },
+      "sha256": "0af462c591efadefec7e8de264d20350c9b3f916657ef69e960371e63c21486f",
+      "format": "json",
+      "keys": [
+        "boxscore",
+        "format",
+        "gameInfo",
+        "leaders",
+        "seasonseries",
+        "injuries",
+        "broadcasts",
+        "pickcenter",
+        "odds",
+        "againstTheSpread",
+        "news",
+        "header",
+        "article",
+        "videos",
+        "plays",
+        "wallclockAvailable",
+        "meta",
+        "winprobability",
+        "standings"
+      ],
+      "request_started_at": "2026-10-14T18:28:06.157268+00:00"
+    },
+    {
+      "label": "cbs_latest",
+      "url": "https://www.cbssports.com/nba/gametracker/playbyplay/NBA_20261013_POR%40SAC/",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 2.323,
+      "bytes": 1940257,
+      "headers": {
+        "etag": "W/\"054f31173a188fe1b6f72911fa49d776\"",
+        "content-type": "text/html; charset=UTF-8",
+        "date": "Wed, 14 Oct 2026 18:28:08 GMT",
+        "server": "ContentServer",
+        "cache-control": "private, max-age=0"
+      },
+      "sha256": "d7d22130ced27a93aadeff84df41dd0f6651bdb078401e9917225b122ec57eab",
+      "format": "html",
+      "request_started_at": "2026-10-14T18:28:06.161817+00:00"
+    },
+    {
+      "label": "espn_robots",
+      "url": "https://www.espn.com/robots.txt",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.188,
+      "bytes": 3223,
+      "headers": {
+        "content-type": "text/plain",
+        "date": "Wed, 14 Oct 2026 17:56:55 GMT",
+        "cache-control": "max-age=3600",
+        "server": "AmazonS3",
+        "last-modified": "Tue, 13 Oct 2026 22:04:26 GMT",
+        "etag": "\"20163eef21e4edcf7927170c559038b7\"",
+        "age": "2039"
+      },
+      "sha256": "69e57dadcb6f535e960fcc201f1f8fcd998bc4423f0261186408274b1d8b86a6",
+      "format": "text",
+      "request_started_at": "2026-10-14T18:30:54.280090+00:00"
+    },
+    {
+      "label": "espn_api_robots",
+      "url": "https://site.api.espn.com/robots.txt",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 403,
+      "elapsed_seconds": 0.194,
+      "bytes": 385,
+      "headers": {
+        "server": "AkamaiGHost",
+        "content-type": "text/html",
+        "date": "Wed, 14 Oct 2026 18:30:54 GMT"
+      },
+      "sha256": "6836e9cfb4aec3a195569ca04ae06f922250ae5cecce80712a776ab0d8255c34",
+      "format": "text/html",
+      "request_started_at": "2026-10-14T18:30:54.275694+00:00"
+    },
+    {
+      "label": "sportsdb_day",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=2026-10-13&l=NBA",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.203,
+      "bytes": 50,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:30:54 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=14400",
+        "server": "cloudflare",
+        "last-modified": "Wed, 14 Oct 2026 18:30:54 GMT"
+      },
+      "sha256": "023cd6bf4e9f73c7a4ef3a7449e2a4f579f4214705435606d27eff65df096ab4",
+      "format": "json",
+      "keys": [
+        "events",
+        "Message"
+      ],
+      "request_started_at": "2026-10-14T18:30:54.287842+00:00"
+    },
+    {
+      "label": "nba_robots",
+      "url": "https://www.nba.com/robots.txt",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 403,
+      "elapsed_seconds": 0.277,
+      "bytes": 377,
+      "headers": {
+        "content-type": "text/html",
+        "cache-control": "max-age=3600",
+        "date": "Wed, 14 Oct 2026 18:30:54 GMT"
+      },
+      "sha256": "0d8b497c94a8d2e3ab493551a1a2eca9d243c6fdfd465787cd4534d40bb2feaf",
+      "format": "text/html",
+      "request_started_at": "2026-10-14T18:30:54.232790+00:00"
+    },
+    {
+      "label": "cbs_robots",
+      "url": "https://www.cbssports.com/robots.txt",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.296,
+      "bytes": 875,
+      "headers": {
+        "last-modified": "Wed, 14 Oct 2026 12:35:27 GMT",
+        "content-type": "text/plain",
+        "etag": "\"6acf770f-36b\"",
+        "date": "Wed, 14 Oct 2026 18:30:54 GMT",
+        "server": "ContentServer",
+        "cache-control": "private, max-age=0"
+      },
+      "sha256": "0e197f011062f0aba65546490a8998fc9d20232c824576d163943ab65488854c",
+      "format": "text",
+      "request_started_at": "2026-10-14T18:30:54.284090+00:00"
+    },
+    {
+      "label": "nba_cdn_robots",
+      "url": "https://cdn.nba.com/robots.txt",
+      "auth": "none",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 403,
+      "elapsed_seconds": 0.333,
+      "bytes": 243,
+      "headers": {
+        "content-type": "application/xml",
+        "date": "Wed, 14 Oct 2026 18:30:54 GMT"
+      },
+      "sha256": "6a843f66f277a4fe82689902718fb354d99798932de4f56e115a841b793e4898",
+      "format": "application/xml",
+      "request_started_at": "2026-10-14T18:30:54.270902+00:00"
+    },
+    {
+      "label": "sportsdb_day_id",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=2026-10-13&l=4387",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.219,
+      "bytes": 4976,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:31:23 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=14400",
+        "server": "cloudflare",
+        "last-modified": "Wed, 14 Oct 2026 18:31:23 GMT"
+      },
+      "sha256": "990fe53b3ace109095de55dbc37505e2f6b356db2653361bb536a4ceb953626f",
+      "format": "json",
+      "keys": [
+        "events"
+      ],
+      "request_started_at": "2026-10-14T18:31:23.576023+00:00"
+    },
+    {
+      "label": "sportsdb_terms",
+      "url": "https://www.thesportsdb.com/docs_terms_of_use.php",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.161,
+      "bytes": 18886,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:31:23 GMT",
+        "content-type": "text/html; charset=UTF-8",
+        "cache-control": "no-store, no-cache, must-revalidate",
+        "server": "cloudflare"
+      },
+      "sha256": "fbf719c32160b65784422cfb2fa7828052b78c7f49ced0508387080d3f795e24",
+      "format": "html",
+      "request_started_at": "2026-10-14T18:31:23.635614+00:00"
+    },
+    {
+      "label": "sportsdb_target_14",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/searchevents.php?e=Los_Angeles_Lakers_vs_Golden_State_Warriors&d=2026-10-14",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.178,
+      "bytes": 1719,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:32:08 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "server": "cloudflare"
+      },
+      "sha256": "4c77c4829a20db533d5840f366add7cc3ce78de76e589e09aa1ace35db2bcd21",
+      "format": "json",
+      "keys": [
+        "event"
+      ],
+      "request_started_at": "2026-10-14T18:32:07.937277+00:00"
+    },
+    {
+      "label": "sportsdb_target_13",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/searchevents.php?e=Los_Angeles_Lakers_vs_Golden_State_Warriors&d=2026-10-13",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.129,
+      "bytes": 14,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:32:08 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "server": "cloudflare"
+      },
+      "sha256": "a095f8e74799e63e6ae04eccd3049cda97911c4321ddff5c60da0d1278f96e84",
+      "format": "json",
+      "keys": [
+        "event"
+      ],
+      "request_started_at": "2026-10-14T18:32:07.994676+00:00"
+    },
+    {
+      "label": "sportsdb_stats",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/lookupeventstats.php?id=2601647",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.118,
+      "bytes": 19,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:32:19 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "server": "cloudflare"
+      },
+      "sha256": "2deb2854031152b0fcf383917479366eb300f97da3a994763b34f4af2c11c0d0",
+      "format": "json",
+      "keys": [
+        "eventstats"
+      ],
+      "request_started_at": "2026-10-14T18:32:18.926338+00:00"
+    },
+    {
+      "label": "sportsdb_player_results",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/lookupresults.php?id=2601647",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 404,
+      "elapsed_seconds": 0.127,
+      "bytes": 1245,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:32:19 GMT",
+        "content-type": "text/html",
+        "server": "cloudflare"
+      },
+      "sha256": "dc1d54dab6ec8c00f70137927504e4f222c8395f10760b6beecfcfa94e08249f",
+      "format": "text/html",
+      "request_started_at": "2026-10-14T18:32:18.918193+00:00"
+    },
+    {
+      "label": "sportsdb_lineup",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/lookuplineup.php?id=2601647",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.128,
+      "bytes": 15,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:32:19 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "server": "cloudflare"
+      },
+      "sha256": "28470a5b8249d1ed6b90a2b9d1c726e5fc0f02c4ed1dccaf8b63a103606eafc5",
+      "format": "json",
+      "keys": [
+        "lineup"
+      ],
+      "request_started_at": "2026-10-14T18:32:18.922522+00:00"
+    },
+    {
+      "label": "sportsdb_timeline",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/lookuptimeline.php?id=2601647",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.171,
+      "bytes": 17,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:32:19 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "server": "cloudflare"
+      },
+      "sha256": "c6145adc1d3896ace20e45566bb0f066e0eb897967ae010bf70726e113560743",
+      "format": "json",
+      "keys": [
+        "timeline"
+      ],
+      "request_started_at": "2026-10-14T18:32:18.879627+00:00"
+    },
+    {
+      "label": "sportsdb_results_correct",
+      "url": "https://www.thesportsdb.com/api/v1/json/123/eventresults.php?id=2601647",
+      "auth": "public development key 123; no private credentials",
+      "client": "httpx 0.28.1",
+      "python": "3.14.8",
+      "status": 200,
+      "elapsed_seconds": 0.194,
+      "bytes": 16,
+      "headers": {
+        "date": "Wed, 14 Oct 2026 18:32:35 GMT",
+        "content-type": "application/json; charset=utf-8",
+        "server": "cloudflare"
+      },
+      "sha256": "7d1cbc7b086d21fa8e18b25a57b47a221c263a4879a26d8d718546bfbc0de041",
+      "format": "json",
+      "keys": [
+        "results"
+      ],
+      "request_started_at": "2026-10-14T18:32:35.189672+00:00"
+    }
+  ],
+  "espn_validation": [
+    {
+      "event_id": "401898718",
+      "season": {
+        "year": 2027,
+        "current": true,
+        "type": 1
+      },
+      "scheduled_at": "2026-10-14T02:00Z",
+      "status": {
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final",
+          "shortDetail": "Final"
+        }
+      },
+      "plays_count": 504,
+      "period_counts": {
+        "1": 113,
+        "2": 137,
+        "3": 127,
+        "4": 127
+      },
+      "period_end_markers": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "end_game_marker": true,
+      "unique_play_ids": 504,
+      "game_clock_reversals": 0,
+      "sequence_number_reversals": 2,
+      "wallclock_reversals": 6,
+      "all_plays_have_wallclock": true,
+      "terminal_scores": {
+        "home": 89,
+        "away": 101
+      },
+      "reference_scores": {
+        "home": 89,
+        "away": 101
+      },
+      "quarter_scores": {
+        "home": [
+          29,
+          34,
+          13,
+          13
+        ],
+        "away": [
+          29,
+          21,
+          22,
+          29
+        ]
+      },
+      "derived_away_home_period_points": [
+        [
+          29,
+          29
+        ],
+        [
+          21,
+          34
+        ],
+        [
+          22,
+          13
+        ],
+        [
+          29,
+          13
+        ]
+      ],
+      "scoring_changes": 101,
+      "scoring_transition_anomaly_count": 0,
+      "boxscores": [
+        {
+          "team_id": "9",
+          "roster_rows": 17,
+          "played_rows": 14,
+          "explicit_dnp": 3,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 101,
+          "reported_total_points": 101,
+          "display_minutes_sum": 242.0
+        },
+        {
+          "team_id": "13",
+          "roster_rows": 17,
+          "played_rows": 16,
+          "explicit_dnp": 1,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 89,
+          "reported_total_points": 89,
+          "display_minutes_sum": 240.0
+        }
+      ],
+      "participant_ids_not_in_boxscore": [],
+      "source_meta": {
+        "lastUpdatedAt": "2026-10-14T04:25:54Z",
+        "firstPlayWallClock": "2026-10-14T02:11:13Z",
+        "lastPlayWallClock": "2026-10-14T04:25:54Z",
+        "gameState": "post"
+      },
+      "first_action_fields": {
+        "id": "4018987184",
+        "sequenceNumber": "4",
+        "type": {
+          "id": "615",
+          "text": "Jumpball"
+        },
+        "period": {
+          "number": 1,
+          "displayValue": "1st Quarter"
+        },
+        "clock": {
+          "displayValue": "12:00"
+        },
+        "homeScore": 0,
+        "awayScore": 0,
+        "wallclock": "2026-10-14T02:11:13Z"
+      },
+      "last_action_fields": {
+        "id": "401898718743",
+        "sequenceNumber": "743",
+        "type": {
+          "id": "402",
+          "text": "End Game"
+        },
+        "period": {
+          "number": 4,
+          "displayValue": "4th Quarter"
+        },
+        "clock": {
+          "displayValue": "0.0"
+        },
+        "homeScore": 89,
+        "awayScore": 101,
+        "wallclock": "2026-10-14T04:25:54Z"
+      }
+    },
+    {
+      "event_id": "401901826",
+      "season": {
+        "year": 2027,
+        "current": true,
+        "type": 1
+      },
+      "scheduled_at": "2026-10-14T02:00Z",
+      "status": {
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final",
+          "shortDetail": "Final"
+        }
+      },
+      "plays_count": 536,
+      "period_counts": {
+        "1": 140,
+        "2": 138,
+        "3": 130,
+        "4": 128
+      },
+      "period_end_markers": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "end_game_marker": true,
+      "unique_play_ids": 536,
+      "game_clock_reversals": 0,
+      "sequence_number_reversals": 6,
+      "wallclock_reversals": 5,
+      "all_plays_have_wallclock": true,
+      "terminal_scores": {
+        "home": 98,
+        "away": 110
+      },
+      "reference_scores": {
+        "home": 98,
+        "away": 110
+      },
+      "quarter_scores": {
+        "home": [
+          22,
+          17,
+          27,
+          32
+        ],
+        "away": [
+          33,
+          33,
+          27,
+          17
+        ]
+      },
+      "derived_away_home_period_points": [
+        [
+          33,
+          22
+        ],
+        [
+          33,
+          17
+        ],
+        [
+          27,
+          27
+        ],
+        [
+          17,
+          32
+        ]
+      ],
+      "scoring_changes": 117,
+      "scoring_transition_anomaly_count": 2,
+      "boxscores": [
+        {
+          "team_id": "22",
+          "roster_rows": 17,
+          "played_rows": 15,
+          "explicit_dnp": 2,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 110,
+          "reported_total_points": 110,
+          "display_minutes_sum": 239.0
+        },
+        {
+          "team_id": "23",
+          "roster_rows": 14,
+          "played_rows": 11,
+          "explicit_dnp": 3,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 98,
+          "reported_total_points": 98,
+          "display_minutes_sum": 240.0
+        }
+      ],
+      "participant_ids_not_in_boxscore": [],
+      "source_meta": {
+        "lastUpdatedAt": "2026-10-14T04:27:40Z",
+        "firstPlayWallClock": "2026-10-14T02:10:06Z",
+        "lastPlayWallClock": "2026-10-14T04:27:40Z",
+        "gameState": "post"
+      },
+      "first_action_fields": {
+        "id": "4019018264",
+        "sequenceNumber": "4",
+        "type": {
+          "id": "615",
+          "text": "Jumpball"
+        },
+        "period": {
+          "number": 1,
+          "displayValue": "1st Quarter"
+        },
+        "clock": {
+          "displayValue": "12:00"
+        },
+        "homeScore": 0,
+        "awayScore": 0,
+        "wallclock": "2026-10-14T02:10:06Z"
+      },
+      "last_action_fields": {
+        "id": "401901826762",
+        "sequenceNumber": "762",
+        "type": {
+          "id": "402",
+          "text": "End Game"
+        },
+        "period": {
+          "number": 4,
+          "displayValue": "4th Quarter"
+        },
+        "clock": {
+          "displayValue": "0.0"
+        },
+        "homeScore": 98,
+        "awayScore": 110,
+        "wallclock": "2026-10-14T04:27:40Z"
+      }
+    },
+    {
+      "event_id": "401908621",
+      "season": {
+        "year": 2027,
+        "current": true,
+        "type": 1
+      },
+      "scheduled_at": "2026-10-14T00:00Z",
+      "status": {
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final/OT",
+          "shortDetail": "Final/OT",
+          "altDetail": "OT"
+        }
+      },
+      "plays_count": 537,
+      "period_counts": {
+        "1": 127,
+        "2": 129,
+        "3": 114,
+        "4": 127,
+        "5": 40
+      },
+      "period_end_markers": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "end_game_marker": true,
+      "unique_play_ids": 537,
+      "game_clock_reversals": 0,
+      "sequence_number_reversals": 5,
+      "wallclock_reversals": 6,
+      "all_plays_have_wallclock": true,
+      "terminal_scores": {
+        "home": 114,
+        "away": 112
+      },
+      "reference_scores": {
+        "home": 114,
+        "away": 112
+      },
+      "quarter_scores": {
+        "home": [
+          25,
+          34,
+          26,
+          15,
+          14
+        ],
+        "away": [
+          33,
+          28,
+          23,
+          16,
+          12
+        ]
+      },
+      "derived_away_home_period_points": [
+        [
+          33,
+          25
+        ],
+        [
+          28,
+          34
+        ],
+        [
+          23,
+          26
+        ],
+        [
+          16,
+          15
+        ],
+        [
+          12,
+          14
+        ]
+      ],
+      "scoring_changes": 112,
+      "scoring_transition_anomaly_count": 0,
+      "boxscores": [
+        {
+          "team_id": "11",
+          "roster_rows": 15,
+          "played_rows": 15,
+          "explicit_dnp": 0,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 112,
+          "reported_total_points": 112,
+          "display_minutes_sum": 266.0
+        },
+        {
+          "team_id": "25",
+          "roster_rows": 16,
+          "played_rows": 16,
+          "explicit_dnp": 0,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 114,
+          "reported_total_points": 114,
+          "display_minutes_sum": 264.0
+        }
+      ],
+      "participant_ids_not_in_boxscore": [],
+      "source_meta": {
+        "lastUpdatedAt": "2026-10-14T02:40:45Z",
+        "firstPlayWallClock": "2026-10-14T00:10:55Z",
+        "lastPlayWallClock": "2026-10-14T02:40:45Z",
+        "gameState": "post"
+      },
+      "first_action_fields": {
+        "id": "4019086214",
+        "sequenceNumber": "4",
+        "type": {
+          "id": "615",
+          "text": "Jumpball"
+        },
+        "period": {
+          "number": 1,
+          "displayValue": "1st Quarter"
+        },
+        "clock": {
+          "displayValue": "12:00"
+        },
+        "homeScore": 0,
+        "awayScore": 0,
+        "wallclock": "2026-10-14T00:10:55Z"
+      },
+      "last_action_fields": {
+        "id": "401908621782",
+        "sequenceNumber": "782",
+        "type": {
+          "id": "402",
+          "text": "End Game"
+        },
+        "period": {
+          "number": 5,
+          "displayValue": "OT"
+        },
+        "clock": {
+          "displayValue": "0.0"
+        },
+        "homeScore": 114,
+        "awayScore": 112,
+        "wallclock": "2026-10-14T02:40:45Z"
+      }
+    },
+    {
+      "event_id": "401898403",
+      "season": {
+        "year": 2027,
+        "current": true,
+        "type": 1
+      },
+      "scheduled_at": "2026-10-13T23:00Z",
+      "status": {
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final",
+          "shortDetail": "Final"
+        }
+      },
+      "plays_count": 492,
+      "period_counts": {
+        "1": 133,
+        "2": 133,
+        "3": 110,
+        "4": 116
+      },
+      "period_end_markers": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "end_game_marker": true,
+      "unique_play_ids": 492,
+      "game_clock_reversals": 0,
+      "sequence_number_reversals": 0,
+      "wallclock_reversals": 4,
+      "all_plays_have_wallclock": true,
+      "terminal_scores": {
+        "home": 132,
+        "away": 116
+      },
+      "reference_scores": {
+        "home": 132,
+        "away": 116
+      },
+      "quarter_scores": {
+        "home": [
+          35,
+          37,
+          36,
+          24
+        ],
+        "away": [
+          28,
+          24,
+          31,
+          33
+        ]
+      },
+      "derived_away_home_period_points": [
+        [
+          28,
+          35
+        ],
+        [
+          24,
+          37
+        ],
+        [
+          31,
+          36
+        ],
+        [
+          33,
+          24
+        ]
+      ],
+      "scoring_changes": 130,
+      "scoring_transition_anomaly_count": 0,
+      "boxscores": [
+        {
+          "team_id": "5",
+          "roster_rows": 21,
+          "played_rows": 13,
+          "explicit_dnp": 8,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 116,
+          "reported_total_points": 116,
+          "display_minutes_sum": 242.0
+        },
+        {
+          "team_id": "19",
+          "roster_rows": 21,
+          "played_rows": 16,
+          "explicit_dnp": 5,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 132,
+          "reported_total_points": 132,
+          "display_minutes_sum": 240.0
+        }
+      ],
+      "participant_ids_not_in_boxscore": [],
+      "source_meta": {
+        "lastUpdatedAt": "2026-10-14T01:26:06Z",
+        "firstPlayWallClock": "2026-10-13T23:10:55Z",
+        "lastPlayWallClock": "2026-10-14T01:26:06Z",
+        "gameState": "post"
+      },
+      "first_action_fields": {
+        "id": "4018984034",
+        "sequenceNumber": "4",
+        "type": {
+          "id": "615",
+          "text": "Jumpball"
+        },
+        "period": {
+          "number": 1,
+          "displayValue": "1st Quarter"
+        },
+        "clock": {
+          "displayValue": "12:00"
+        },
+        "homeScore": 0,
+        "awayScore": 0,
+        "wallclock": "2026-10-13T23:10:55Z"
+      },
+      "last_action_fields": {
+        "id": "401898403702",
+        "sequenceNumber": "702",
+        "type": {
+          "id": "402",
+          "text": "End Game"
+        },
+        "period": {
+          "number": 4,
+          "displayValue": "4th Quarter"
+        },
+        "clock": {
+          "displayValue": "0.0"
+        },
+        "homeScore": 132,
+        "awayScore": 116,
+        "wallclock": "2026-10-14T01:26:06Z"
+      }
+    },
+    {
+      "event_id": "401908944",
+      "season": {
+        "year": 2027,
+        "current": true,
+        "type": 1
+      },
+      "scheduled_at": "2026-10-13T23:00Z",
+      "status": {
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final",
+          "shortDetail": "Final"
+        }
+      },
+      "plays_count": 521,
+      "period_counts": {
+        "1": 144,
+        "2": 128,
+        "3": 130,
+        "4": 119
+      },
+      "period_end_markers": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "end_game_marker": true,
+      "unique_play_ids": 521,
+      "game_clock_reversals": 0,
+      "sequence_number_reversals": 4,
+      "wallclock_reversals": 9,
+      "all_plays_have_wallclock": true,
+      "terminal_scores": {
+        "home": 148,
+        "away": 98
+      },
+      "reference_scores": {
+        "home": 148,
+        "away": 98
+      },
+      "quarter_scores": {
+        "home": [
+          42,
+          44,
+          30,
+          32
+        ],
+        "away": [
+          22,
+          25,
+          31,
+          20
+        ]
+      },
+      "derived_away_home_period_points": [
+        [
+          22,
+          42
+        ],
+        [
+          25,
+          44
+        ],
+        [
+          31,
+          30
+        ],
+        [
+          20,
+          32
+        ]
+      ],
+      "scoring_changes": 137,
+      "scoring_transition_anomaly_count": 0,
+      "boxscores": [
+        {
+          "team_id": "18",
+          "roster_rows": 13,
+          "played_rows": 13,
+          "explicit_dnp": 0,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 98,
+          "reported_total_points": 98,
+          "display_minutes_sum": 240.0
+        },
+        {
+          "team_id": "28",
+          "roster_rows": 23,
+          "played_rows": 18,
+          "explicit_dnp": 5,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 148,
+          "reported_total_points": 148,
+          "display_minutes_sum": 240.0
+        }
+      ],
+      "participant_ids_not_in_boxscore": [],
+      "source_meta": {
+        "lastUpdatedAt": "2026-10-14T01:32:58Z",
+        "firstPlayWallClock": "2026-10-13T23:13:16Z",
+        "lastPlayWallClock": "2026-10-14T01:32:58Z",
+        "gameState": "post"
+      },
+      "first_action_fields": {
+        "id": "4019089444",
+        "sequenceNumber": "4",
+        "type": {
+          "id": "615",
+          "text": "Jumpball"
+        },
+        "period": {
+          "number": 1,
+          "displayValue": "1st Quarter"
+        },
+        "clock": {
+          "displayValue": "12:00"
+        },
+        "homeScore": 0,
+        "awayScore": 0,
+        "wallclock": "2026-10-13T23:13:16Z"
+      },
+      "last_action_fields": {
+        "id": "401908944774",
+        "sequenceNumber": "774",
+        "type": {
+          "id": "402",
+          "text": "End Game"
+        },
+        "period": {
+          "number": 4,
+          "displayValue": "4th Quarter"
+        },
+        "clock": {
+          "displayValue": "0.0"
+        },
+        "homeScore": 148,
+        "awayScore": 98,
+        "wallclock": "2026-10-14T01:32:58Z"
+      }
+    },
+    {
+      "event_id": "401810415",
+      "season": {
+        "year": 2026,
+        "current": false,
+        "type": 2
+      },
+      "scheduled_at": "2026-01-13T00:30Z",
+      "status": {
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final",
+          "shortDetail": "Final"
+        }
+      },
+      "plays_count": 469,
+      "period_counts": {
+        "1": 114,
+        "2": 124,
+        "3": 102,
+        "4": 129
+      },
+      "period_end_markers": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "end_game_marker": true,
+      "unique_play_ids": 469,
+      "game_clock_reversals": 0,
+      "sequence_number_reversals": 1,
+      "wallclock_reversals": 2,
+      "all_plays_have_wallclock": true,
+      "terminal_scores": {
+        "home": 102,
+        "away": 115
+      },
+      "reference_scores": {
+        "home": 102,
+        "away": 115
+      },
+      "quarter_scores": {
+        "home": [
+          28,
+          23,
+          26,
+          25
+        ],
+        "away": [
+          45,
+          35,
+          19,
+          16
+        ]
+      },
+      "derived_away_home_period_points": [
+        [
+          45,
+          28
+        ],
+        [
+          35,
+          23
+        ],
+        [
+          19,
+          26
+        ],
+        [
+          16,
+          25
+        ]
+      ],
+      "scoring_changes": 119,
+      "scoring_transition_anomaly_count": 0,
+      "boxscores": [
+        {
+          "team_id": "20",
+          "roster_rows": 15,
+          "played_rows": 13,
+          "explicit_dnp": 2,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 115,
+          "reported_total_points": 115,
+          "display_minutes_sum": 240.0
+        },
+        {
+          "team_id": "28",
+          "roster_rows": 13,
+          "played_rows": 13,
+          "explicit_dnp": 0,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 102,
+          "reported_total_points": 102,
+          "display_minutes_sum": 240.0
+        }
+      ],
+      "participant_ids_not_in_boxscore": [],
+      "source_meta": {
+        "lastUpdatedAt": "2026-01-13T02:57:33Z",
+        "firstPlayWallClock": "2026-01-13T00:42:14Z",
+        "lastPlayWallClock": "2026-01-13T02:57:33Z",
+        "gameState": "post"
+      },
+      "first_action_fields": {
+        "id": "4018104154",
+        "sequenceNumber": "4",
+        "type": {
+          "id": "615",
+          "text": "Jumpball"
+        },
+        "period": {
+          "number": 1,
+          "displayValue": "1st Quarter"
+        },
+        "clock": {
+          "displayValue": "12:00"
+        },
+        "homeScore": 0,
+        "awayScore": 0,
+        "wallclock": "2026-01-13T00:42:14Z"
+      },
+      "last_action_fields": {
+        "id": "401810415690",
+        "sequenceNumber": "690",
+        "type": {
+          "id": "402",
+          "text": "End Game"
+        },
+        "period": {
+          "number": 4,
+          "displayValue": "4th Quarter"
+        },
+        "clock": {
+          "displayValue": "0.0"
+        },
+        "homeScore": 102,
+        "awayScore": 115,
+        "wallclock": "2026-01-13T02:57:33Z"
+      }
+    },
+    {
+      "event_id": "401873197",
+      "season": {
+        "year": 2026,
+        "current": false,
+        "type": 3
+      },
+      "scheduled_at": "2026-05-19T00:30Z",
+      "status": {
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final/2OT",
+          "shortDetail": "Final/2OT",
+          "altDetail": "2OT"
+        }
+      },
+      "plays_count": 579,
+      "period_counts": {
+        "1": 120,
+        "2": 113,
+        "3": 112,
+        "4": 123,
+        "5": 48,
+        "6": 63
+      },
+      "period_end_markers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "end_game_marker": true,
+      "unique_play_ids": 579,
+      "game_clock_reversals": 0,
+      "sequence_number_reversals": 2,
+      "wallclock_reversals": 2,
+      "all_plays_have_wallclock": true,
+      "terminal_scores": {
+        "home": 115,
+        "away": 122
+      },
+      "reference_scores": {
+        "home": 115,
+        "away": 122
+      },
+      "quarter_scores": {
+        "home": [
+          27,
+          17,
+          29,
+          28,
+          7,
+          7
+        ],
+        "away": [
+          27,
+          24,
+          29,
+          21,
+          7,
+          14
+        ]
+      },
+      "derived_away_home_period_points": [
+        [
+          27,
+          27
+        ],
+        [
+          24,
+          17
+        ],
+        [
+          29,
+          29
+        ],
+        [
+          21,
+          28
+        ],
+        [
+          7,
+          7
+        ],
+        [
+          14,
+          7
+        ]
+      ],
+      "scoring_changes": 125,
+      "scoring_transition_anomaly_count": 0,
+      "boxscores": [
+        {
+          "team_id": "24",
+          "roster_rows": 14,
+          "played_rows": 9,
+          "explicit_dnp": 5,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 122,
+          "reported_total_points": 122,
+          "display_minutes_sum": 291.0
+        },
+        {
+          "team_id": "25",
+          "roster_rows": 14,
+          "played_rows": 12,
+          "explicit_dnp": 2,
+          "all_ids_unique": true,
+          "all_played_have_minutes": true,
+          "sum_points": 115,
+          "reported_total_points": 115,
+          "display_minutes_sum": 289.0
+        }
+      ],
+      "participant_ids_not_in_boxscore": [],
+      "source_meta": {
+        "lastUpdatedAt": "2026-05-19T03:43:09Z",
+        "firstPlayWallClock": "2026-05-19T00:37:12Z",
+        "lastPlayWallClock": "2026-05-19T03:43:09Z",
+        "gameState": "post"
+      },
+      "first_action_fields": {
+        "id": "4018731974",
+        "sequenceNumber": "4",
+        "type": {
+          "id": "615",
+          "text": "Jumpball"
+        },
+        "period": {
+          "number": 1,
+          "displayValue": "1st Quarter"
+        },
+        "clock": {
+          "displayValue": "12:00"
+        },
+        "homeScore": 0,
+        "awayScore": 0,
+        "wallclock": "2026-05-19T00:37:12Z"
+      },
+      "last_action_fields": {
+        "id": "401873197851",
+        "sequenceNumber": "851",
+        "type": {
+          "id": "402",
+          "text": "End Game"
+        },
+        "period": {
+          "number": 6,
+          "displayValue": "2OT"
+        },
+        "clock": {
+          "displayValue": "0.0"
+        },
+        "homeScore": 115,
+        "awayScore": 122,
+        "wallclock": "2026-05-19T03:43:09Z"
+      }
+    }
+  ],
+  "cbs_validation": {
+    "mandatory_game_id": 50037013,
+    "game_abbr": "NBA_20261013_GS@LAL",
+    "period_rows": [
+      110,
+      128,
+      119,
+      116
+    ],
+    "total_rows": 473,
+    "zero_clock_period_ends": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "clock_reversals": [
+      {
+        "period": 1,
+        "from": "2:42",
+        "to": "2:43"
+      }
+    ],
+    "score_bearing_rows": 110,
+    "score_changes": 101,
+    "unchanged_score_annotations": 9,
+    "period_ending_away_home_scores": [
+      [
+        29,
+        29
+      ],
+      [
+        50,
+        63
+      ],
+      [
+        72,
+        76
+      ],
+      [
+        101,
+        89
+      ]
+    ],
+    "play_row_ids_observed": false,
+    "box_team_points": [
+      101,
+      89
+    ],
+    "played_rows": [
+      14,
+      16
+    ],
+    "box_player_ids": [
+      17,
+      18
+    ],
+    "display_minutes_sums": [
+      232,
+      232
+    ],
+    "latest_sample": {
+      "game_abbr": "NBA_20261013_POR@SAC",
+      "period_rows": [
+        143,
+        130,
+        122,
+        125
+      ],
+      "total_rows": 520,
+      "clock_reversals": 0,
+      "scores": [
+        110,
+        98
+      ]
+    },
+    "standalone_json_probe_response": {
+      "topics": []
+    },
+    "pbp_array_in_embedded_scoreboard": []
+  },
+  "sportsdb_validation": {
+    "target_search": [
+      {
+        "idEvent": "2601647",
+        "strEvent": "Los Angeles Lakers vs Golden State Warriors",
+        "dateEvent": "2026-10-14",
+        "strTime": "02:00:00",
+        "strStatus": "FT",
+        "intHomeScore": "89",
+        "intAwayScore": "101"
+      }
+    ],
+    "timeline": {
+      "timeline": null
+    },
+    "lineup": {
+      "lineup": null
+    },
+    "results": {
+      "results": null
+    },
+    "stats": {
+      "eventstats": null
+    },
+    "incorrect_league_name_probe": {
+      "events": [],
+      "Message": "Invalid League ID passed"
+    }
+  },
+  "sportsdataverse_release_assets": [
+    {
+      "name": "play_by_play_2026.csv",
+      "size": 281361475,
+      "updated_at": "2026-09-09T05:16:45Z"
+    },
+    {
+      "name": "play_by_play_2026.parquet",
+      "size": 22436946,
+      "updated_at": "2026-09-09T05:16:34Z"
+    },
+    {
+      "name": "play_by_play_2026.rds",
+      "size": 24260852,
+      "updated_at": "2026-09-09T05:16:37Z"
+    },
+    {
+      "name": "timestamp.json",
+      "size": 43,
+      "updated_at": "2026-09-09T05:16:47Z"
+    },
+    {
+      "name": "timestamp.txt",
+      "size": 24,
+      "updated_at": "2026-09-09T05:16:46Z"
+    }
+  ],
+  "publication_lag": "unknown; no observation within two hours of the source-reported end-game timestamp",
+  "retention": "Request metadata, diagnostics and limited response field excerpts only; full temporary responses removed after analysis."
+}
