@@ -5,6 +5,11 @@ sports store and retention-enforcing capture store. It performs additive writes
 against the configured database; it never migrates, deletes, resets or changes
 credentials. Do not run integration tests against the owner's Neon database.
 
+For fresh morning-after PBP/player statistics, use the separate bounded
+[morning collection command](NBA_MORNING_COLLECTION.md) added in #84. It uses
+ESPN first and CBS partial backup through the same capture/identity/temporal
+tables; this TheSportsDB season command is unchanged.
+
 From `backend/`:
 
 ```bash

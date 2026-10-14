@@ -18,6 +18,42 @@
   ],
   "sources": [
     {
+      "id": "espn-nba-games",
+      "name": "ESPN NBA morning game evidence",
+      "kind": "structured",
+      "adapter": "espn_nba",
+      "category": ["games", "stats", "play_by_play"],
+      "locator": "https://site.api.espn.com",
+      "enabled": false,
+      "verification_status": "verified",
+      "cadence_minutes": 1440,
+      "requires_auth": false,
+      "retention_policy": "normalized_full",
+      "adapter_settings": {
+        "scope": "owner-authorized personal morning collection; issue #84",
+        "terms": "Automated-access restrictions remain documented; no provider license claimed.",
+        "full_content_storage": false
+      }
+    },
+    {
+      "id": "cbs-nba-games",
+      "name": "CBS NBA morning game evidence backup",
+      "kind": "structured",
+      "adapter": "cbs_nba",
+      "category": ["games", "stats", "play_by_play"],
+      "locator": "https://www.cbssports.com",
+      "enabled": false,
+      "verification_status": "verified",
+      "cadence_minutes": 1440,
+      "requires_auth": false,
+      "retention_policy": "normalized_full",
+      "adapter_settings": {
+        "scope": "owner-authorized personal backup; access/parser verified, coverage partial; issue #84",
+        "terms": "Unauthorized automated-gathering restrictions remain documented; no provider license claimed.",
+        "full_content_storage": false
+      }
+    },
+    {
       "id": "nba-official-news",
       "name": "NBA.com News",
       "kind": "web",

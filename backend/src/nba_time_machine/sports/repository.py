@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from nba_time_machine.db import (
@@ -33,9 +33,11 @@ class StructuredSportsStore:
         *,
         source_id: str = "thesportsdb-nba",
         provider_key: str = PROVIDER_KEY,
+        reconcile_existing: bool = False,
     ) -> None:
         self._source_id = source_id
         self._provider_key = provider_key
+        self._reconcile_existing = reconcile_existing
 
     async def store_thesportsdb_event(
         self,
@@ -67,16 +69,7 @@ class StructuredSportsStore:
                 f"Structured sports source {self._source_id!r} is not in the registry"
             )
 
-        season = await self._ensure_season(session, normalized.season_label)
-        home_team = await self._ensure_team(session, normalized.home_team)
-        away_team = await self._ensure_team(session, normalized.away_team)
-        game = await self._ensure_game(
-            session,
-            normalized,
-            season_id=season.id,
-            home_team_id=home_team.id,
-            away_team_id=away_team.id,
-        )
+        game = await self.resolve_game_identity(session, normalized)
 
         existing = await session.scalar(
             select(GameObservationRecord).where(
@@ -121,6 +114,14 @@ class StructuredSportsStore:
         await session.flush()
         return observation
 
+    async def resolve_game_identity(self, session: AsyncSession, normalized: NormalizedGameObservation) -> GameRecord:
+        """Resolve provider mappings, optionally joining an existing dated matchup."""
+        season = await self._ensure_season(session, normalized.season_label)
+        home = await self._ensure_team(session, normalized.home_team)
+        away = await self._ensure_team(session, normalized.away_team)
+        return await self._ensure_game(session, normalized, season_id=season.id,
+                                      home_team_id=home.id, away_team_id=away.id)
+
     async def _ensure_season(
         self,
         session: AsyncSession,
@@ -160,15 +161,27 @@ class StructuredSportsStore:
                 raise SportsProviderResponseError(
                     "Provider team identity points to a missing team"
                 )
+            if self._reconcile_existing:
+                aliases = {"Los Angeles Clippers": "LA Clippers"}
+                if record.league != LEAGUE or aliases.get(record.name, record.name).casefold() != team.name.casefold():
+                    raise SportsProviderResponseError("Provider team identity changed canonical team")
             return record
 
-        record = TeamRecord(
-            league=LEAGUE,
-            name=team.name,
-            abbreviation=None,
-        )
-        session.add(record)
-        await session.flush()
+        record = None
+        if self._reconcile_existing:
+            names = {team.name.casefold()}
+            if team.name in ("LA Clippers", "Los Angeles Clippers"):
+                names.update(("la clippers", "los angeles clippers"))
+            candidates = list((await session.scalars(select(TeamRecord).where(
+                TeamRecord.league == LEAGUE, func.lower(TeamRecord.name).in_(names),
+            ))).all())
+            if len(candidates) > 1:
+                raise SportsProviderResponseError("Ambiguous canonical team identity")
+            record = candidates[0] if candidates else None
+        if record is None:
+            record = TeamRecord(league=LEAGUE, name=team.name, abbreviation=None)
+            session.add(record)
+            await session.flush()
         session.add(
             SportsExternalIdentityRecord(
                 provider_key=self._provider_key,
@@ -214,14 +227,30 @@ class StructuredSportsStore:
                 )
             return game
 
-        game = GameRecord(
-            season_id=season_id,
-            home_team_id=home_team_id,
-            away_team_id=away_team_id,
-            game_type=None,
-        )
-        session.add(game)
-        await session.flush()
+        game = None
+        if self._reconcile_existing:
+            from nba_time_machine.sports.morning_models import EASTERN
+            if normalized.scheduled_tip_at is None:
+                raise SportsProviderResponseError("Missing matchup date for canonical matching")
+            nba_day = normalized.scheduled_tip_at.astimezone(EASTERN).date()
+            start = datetime.combine(nba_day, time(), EASTERN)
+            candidates = list((await session.scalars(select(GameRecord).join(
+                GameObservationRecord, GameObservationRecord.game_id == GameRecord.id,
+            ).where(
+                GameRecord.season_id == season_id,
+                GameRecord.home_team_id == home_team_id,
+                GameRecord.away_team_id == away_team_id,
+                GameObservationRecord.scheduled_tip_at >= start,
+                GameObservationRecord.scheduled_tip_at < start + timedelta(days=1),
+            ).distinct())).all())
+            if len(candidates) > 1:
+                raise SportsProviderResponseError("Ambiguous canonical game identity")
+            game = candidates[0] if candidates else None
+        if game is None:
+            game = GameRecord(season_id=season_id, home_team_id=home_team_id,
+                              away_team_id=away_team_id, game_type=None)
+            session.add(game)
+            await session.flush()
         session.add(
             SportsExternalIdentityRecord(
                 provider_key=self._provider_key,

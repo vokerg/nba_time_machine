@@ -1,0 +1,295 @@
+{
+  "issue": 84,
+  "date": "2026-10-14",
+  "environment": "current backend Python; write/replay against disposable localhost PostgreSQL; no owner Neon writes",
+  "retention": "health/count diagnostics only; no full source response content",
+  "reports": {
+    "primary_write": {
+      "day": "2026-10-13",
+      "started_at": "2026-10-14T18:58:42.482060+00:00",
+      "discovery": "espn",
+      "requests": 2,
+      "errors": [],
+      "run_id": "2429195f-35b6-4057-9e31-d20a7a2ab32e",
+      "captures_written": 1,
+      "persistence_errors": [],
+      "games": [
+        {
+          "home": "LAL",
+          "away": "GSW",
+          "pbp_provider": "espn",
+          "box_provider": "espn",
+          "evidence": [
+            {
+              "provider": "espn",
+              "game_id": "401898718",
+              "observed_at": "2026-10-14T18:58:43.700570+00:00",
+              "status": "final",
+              "plays": 504,
+              "players": 34,
+              "pbp_errors": [],
+              "box_errors": []
+            }
+          ]
+        }
+      ],
+      "attempts": [
+        {
+          "provider": "espn",
+          "stage": "scoreboard",
+          "game": null,
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 94071,
+          "retry_after": null
+        },
+        {
+          "provider": "espn",
+          "stage": "summary",
+          "game": "401898718",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 455931,
+          "retry_after": null
+        }
+      ]
+    },
+    "primary_replay": {
+      "day": "2026-10-13",
+      "started_at": "2026-10-14T18:59:56.965794+00:00",
+      "discovery": "espn",
+      "requests": 2,
+      "errors": [],
+      "run_id": "b6cc0695-364d-4c2b-b8cb-167e615491b3",
+      "captures_written": 0,
+      "persistence_errors": [],
+      "games": [
+        {
+          "home": "LAL",
+          "away": "GSW",
+          "pbp_provider": "espn",
+          "box_provider": "espn",
+          "evidence": [
+            {
+              "provider": "espn",
+              "game_id": "401898718",
+              "observed_at": "2026-10-14T18:59:58.155333+00:00",
+              "status": "final",
+              "plays": 504,
+              "players": 34,
+              "pbp_errors": [],
+              "box_errors": []
+            }
+          ]
+        }
+      ],
+      "attempts": [
+        {
+          "provider": "espn",
+          "stage": "scoreboard",
+          "game": null,
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 94071,
+          "retry_after": null
+        },
+        {
+          "provider": "espn",
+          "stage": "summary",
+          "game": "401898718",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 455931,
+          "retry_after": null
+        }
+      ]
+    },
+    "day": {
+      "day": "2026-10-13",
+      "started_at": "2026-10-14T19:01:04.842781+00:00",
+      "discovery": "espn",
+      "requests": 7,
+      "errors": [],
+      "run_id": null,
+      "captures_written": 0,
+      "persistence_errors": [],
+      "games": [
+        {
+          "home": "ORL",
+          "away": "CLE",
+          "pbp_provider": "espn",
+          "box_provider": "espn",
+          "evidence": [
+            {
+              "provider": "espn",
+              "game_id": "401898403",
+              "observed_at": "2026-10-14T19:01:06.062873+00:00",
+              "status": "final",
+              "plays": 492,
+              "players": 42,
+              "pbp_errors": [],
+              "box_errors": []
+            }
+          ]
+        },
+        {
+          "home": "TOR",
+          "away": "NYK",
+          "pbp_provider": "espn",
+          "box_provider": "espn",
+          "evidence": [
+            {
+              "provider": "espn",
+              "game_id": "401908944",
+              "observed_at": "2026-10-14T19:01:07.087524+00:00",
+              "status": "final",
+              "plays": 521,
+              "players": 36,
+              "pbp_errors": [],
+              "box_errors": []
+            }
+          ]
+        },
+        {
+          "home": "OKC",
+          "away": "IND",
+          "pbp_provider": "espn",
+          "box_provider": "espn",
+          "evidence": [
+            {
+              "provider": "espn",
+              "game_id": "401908621",
+              "observed_at": "2026-10-14T19:01:07.980719+00:00",
+              "status": "final",
+              "plays": 537,
+              "players": 31,
+              "pbp_errors": [],
+              "box_errors": []
+            }
+          ]
+        },
+        {
+          "home": "LAL",
+          "away": "GSW",
+          "pbp_provider": "espn",
+          "box_provider": "espn",
+          "evidence": [
+            {
+              "provider": "espn",
+              "game_id": "401898718",
+              "observed_at": "2026-10-14T19:01:09.052599+00:00",
+              "status": "final",
+              "plays": 504,
+              "players": 34,
+              "pbp_errors": [],
+              "box_errors": []
+            }
+          ]
+        },
+        {
+          "home": "SAC",
+          "away": "POR",
+          "pbp_provider": null,
+          "box_provider": "espn",
+          "evidence": [
+            {
+              "provider": "espn",
+              "game_id": "401901826",
+              "observed_at": "2026-10-14T19:01:10.284133+00:00",
+              "status": "final",
+              "plays": 536,
+              "players": 31,
+              "pbp_errors": [
+                "invalid_score_transition",
+                "score_regression",
+                "scoring_event_mismatch"
+              ],
+              "box_errors": []
+            },
+            {
+              "provider": "cbs",
+              "game_id": "50037014",
+              "observed_at": "2026-10-14T19:01:13.151945+00:00",
+              "status": "final",
+              "plays": 520,
+              "players": 35,
+              "pbp_errors": [
+                "invalid_score_transition",
+                "missing_play_ids",
+                "score_regression"
+              ],
+              "box_errors": [
+                "unknown_participation"
+              ]
+            }
+          ]
+        }
+      ],
+      "attempts": [
+        {
+          "provider": "espn",
+          "stage": "scoreboard",
+          "game": null,
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 94071,
+          "retry_after": null
+        },
+        {
+          "provider": "espn",
+          "stage": "summary",
+          "game": "401898403",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 463488,
+          "retry_after": null
+        },
+        {
+          "provider": "espn",
+          "stage": "summary",
+          "game": "401908944",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 473070,
+          "retry_after": null
+        },
+        {
+          "provider": "espn",
+          "stage": "summary",
+          "game": "401908621",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 471575,
+          "retry_after": null
+        },
+        {
+          "provider": "espn",
+          "stage": "summary",
+          "game": "401898718",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 455931,
+          "retry_after": null
+        },
+        {
+          "provider": "espn",
+          "stage": "summary",
+          "game": "401901826",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 486865,
+          "retry_after": null
+        },
+        {
+          "provider": "cbs",
+          "stage": "gametracker",
+          "game": "NBA_20261013_POR@SAC",
+          "status": "ok",
+          "http_status": 200,
+          "bytes": 1940257,
+          "retry_after": null
+        }
+      ]
+    }
+  }
+}
