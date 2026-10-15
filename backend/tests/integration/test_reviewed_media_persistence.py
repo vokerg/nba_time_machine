@@ -73,6 +73,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                     status="final", home_score=100, away_score=90,
                 ))
             await session.flush()
+            pending_reviews = []
             def add_item(name, *, sensitivity="general", games=(), observed=OBS, reviewed=REVIEW, cleared=True):
                 item_id, capture_id = uuid4(), uuid4()
                 ids[name] = (item_id, capture_id)
@@ -90,7 +91,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                     text_content=f"{name} excerpt", content_hash=name,
                 ))
                 if reviewed is not None:
-                    session.add(MediaReviewRecord(
+                    pending_reviews.append(MediaReviewRecord(
                         capture_id=capture_id, reviewed_at=reviewed, sensitivity=sensitivity,
                         game_ids=list(games), rights_cleared=cleared, link_cleared=True,
                     ))
@@ -104,6 +105,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
             add_item("revised")
             add_item("unlinked-result", sensitivity="outcome_dependent", games=(a,))
             await session.flush()
+            session.add_all(pending_reviews)
             # Only the earlier revision is reviewed. The newer revision
             # invalidates an earlier safe headline at this same cursor.
             revised_id = ids["revised"][0]
