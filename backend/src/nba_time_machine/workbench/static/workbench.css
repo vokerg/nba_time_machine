@@ -290,7 +290,7 @@ button.game-link span {
 }
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin: 18px 0;
 }
@@ -451,4 +451,12 @@ select {
 }
 #detail td {
   vertical-align: top;
+}
+
+.metric:first-child {
+  border: 2px solid #567a3d;
+}
+.proposed-score {
+  font-weight: 700;
+  color: #294e37;
 }

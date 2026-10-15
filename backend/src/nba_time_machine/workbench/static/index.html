@@ -14,13 +14,12 @@
         <span class="eyebrow">NBA TIME MACHINE / INTERNAL TOOLS</span>
         <h1>Scoring workbench<span class="pill">LOCAL ONLY</span></h1>
         <p>
-          Inspect the evidence. Understand the calculation. Compare an
-          experiment.
+          See how each game is scored and tune the proposed formula.
         </p>
       </div>
       <div class="boundary">
         Full game details · Spoilers visible<br /><strong
-          >Read-only database · Preview changes only</strong
+          >Read-only database · Proposed scores are for tuning</strong
         >
       </div>
     </header>
@@ -32,14 +31,14 @@
             id="asof"
             type="datetime-local"
             step="1" /></label
-        ><button id="load">Load stored slate</button>
+        ><button id="load">Load stored games</button>
         <div class="exports">
           <button id="export-config" class="secondary" disabled>
-            Export config</button
+            Export formula settings</button
           ><button id="export-session" class="secondary" disabled>
             Export review session</button
           ><label class="file-button"
-            >Import JSON<input
+            >Import settings or review<input
               id="import"
               type="file"
               accept=".json,application/json"
@@ -49,26 +48,25 @@
       <p id="status" role="status">Connecting to your configured database…</p>
       <div class="layout">
         <aside class="panel">
-          <span class="eyebrow">EXPERIMENT</span>
+          <span class="eyebrow">PROPOSED FORMULA</span>
           <h2>Tune the formula</h2>
           <p>
-            Saved ratings stay unchanged. This preview uses the same measured
-            evidence.
+            Tune the proposed score here. The consumer app keeps using its current score until a formula is adopted.
           </p>
           <label
-            >Configuration version<input id="version" maxlength="64"
+            >Formula version<input id="version" maxlength="64"
           /></label>
           <div id="controls"></div>
           <div class="thresholds">
             <label
-              >Considering from<input
+              >Worth considering starts at<input
                 id="medium"
                 type="number"
                 min="0"
                 max="10"
                 step="0.1" /></label
             ><label
-              >Watching from<input
+              >Worth watching starts at<input
                 id="high"
                 type="number"
                 min="0"
@@ -76,16 +74,15 @@
                 step="0.1"
             /></label>
           </div>
-          <button id="preview" disabled>Compare preview</button
+          <button id="preview" disabled>Recalculate proposed scores</button
           ><button id="reset" class="secondary" disabled>
-            Reset experiment
+            Restore default formula
           </button>
           <p class="formula" id="formula">
-            Score = 10 × Σ(normalized signal × weight) ÷ Σ(active weights)<br />Normalized
-            signal = min(measurement ÷ scale, 1)
+            Load stored games to see the proposed formula and score breakdown.
           </p>
           <details open>
-            <summary>What the rating does not include</summary>
+            <summary>Signals not yet included</summary>
             <div id="missing"></div>
           </details>
         </aside>
@@ -94,20 +91,20 @@
             <div class="section-heading">
               <div>
                 <span class="eyebrow">STORED SLATE</span>
-                <h2>Saved vs. experimental</h2>
+                <h2>Proposed scores vs. current app scores</h2>
               </div>
               <span id="coverage" class="muted"></span>
             </div>
+            <p class="muted">Proposed score is the number being tuned. Current app score feeds consumer hints when disclosure rules allow. Change = proposed − current app score; both use the selected evidence cutoff.</p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>Game</th>
-                    <th>Saved</th>
-                    <th>Baseline</th>
-                    <th>Preview</th>
-                    <th>Δ baseline</th>
-                    <th>Evidence</th>
+                    <th>Proposed score / 10</th>
+                    <th>Current app score / 10</th>
+                    <th>Change vs. app</th>
+                    <th>Data coverage</th>
                   </tr>
                 </thead>
                 <tbody id="games"></tbody>
@@ -121,7 +118,7 @@
           <section class="panel" id="detail">
             <h2>Choose a game</h2>
             <p>
-              Its calculation, provenance and supporting plays will appear here.
+              Its proposed score, calculation and source evidence will appear here.
             </p>
           </section>
         </div>
@@ -129,7 +126,7 @@
     </main>
     <footer>
       Separate developer tool · No changes to timelines, acknowledgements,
-      evidence or active ratings · Scales and weights are uncalibrated
+      evidence or current app scores · Formula settings are provisional
     </footer>
   </body>
 </html>
