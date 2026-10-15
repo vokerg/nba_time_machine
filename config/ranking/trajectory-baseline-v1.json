@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "version": "trajectory-baseline-v1",
+  "weights": {"clutch": 25, "lead_changes": 15, "comeback": 20, "overtime": 10},
+  "scales": {"clutch": 300000, "lead_changes": 20, "comeback": 25, "overtime": 3},
+  "medium_from": 4,
+  "high_from": 7
+}
