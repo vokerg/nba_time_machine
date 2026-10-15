@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,6 +18,7 @@ from .models import Base
 class MediaReviewRecord(Base):
     __tablename__ = "media_reviews"
     __table_args__ = (
+        Index("ix_media_reviews_reviewed_at", "reviewed_at", "capture_id"),
         CheckConstraint(
             "sensitivity IN ('general', 'pregame', 'outcome_dependent')",
             name="sensitivity_valid",
