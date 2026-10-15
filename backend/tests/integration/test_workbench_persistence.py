@@ -15,6 +15,58 @@ from test_workbench import baseline
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
+async def test_candidate_inspection_cannot_change_queue_media_or_disclosure():
+    """Combined #86/#88/#92/#93 contract: tuning grants no consumer permissions."""
+    import httpx
+    from uuid import uuid4
+    from fastapi import FastAPI
+    from nba_time_machine.api.watch_queue import router as queue_router
+    from nba_time_machine.api.media_feed import router as media_router
+    from nba_time_machine.spoilers.repository import SqlAlchemyGameAcknowledgementRepository
+    from nba_time_machine.temporal import TimelineService, SqlAlchemyTimelineRepository
+    from test_entertainment_features import candidate
+
+    engine, factory = await setup()
+    profile = uuid4()
+    consumer = FastAPI()
+    consumer.state.session_factory = factory
+    consumer.include_router(queue_router)
+    consumer.include_router(media_router)
+    try:
+        game, _ = await capture(factory)
+        # The consumer remains before collection; the operator inspects later data.
+        cursor = NOW - timedelta(minutes=1)
+        async with factory() as session:
+            await TimelineService(SqlAlchemyTimelineRepository(session)).initialize(profile, cursor)
+        async with factory.begin() as session:
+            assert await MorningRankingPipeline(session).process(game, as_of=NOW + timedelta(hours=1), write=True)
+        base = f'/profiles/{profile}'
+        params = {'time_cursor': cursor.isoformat()}
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=consumer), base_url='http://test') as client:
+            assert (await client.put(f'{base}/watch-queue/{game}', json={
+                **params, 'queue_state': 'done'})).status_code == 204
+            queue_before = await client.get(f'{base}/watch-queue', params=params)
+            media_before = await client.get(f'{base}/media', params=params)
+            assert queue_before.status_code == media_before.status_code == 200
+            card = queue_before.json()['items'][0]['game']
+            assert card is not None and card['state'] == 'sealed'
+            for forbidden in ('watchability', 'score', 'winner', 'runtime'):
+                assert forbidden not in str(queue_before.json())
+            assert media_before.json()['items'] == []
+            async with factory.begin() as session:
+                await session.execute(text('SET TRANSACTION READ ONLY'))
+                report = await inspect_slate(session, DAY, NOW + timedelta(hours=1), baseline(), candidate())
+                item = next(g for g in report['games'] if g['game_id'] == str(game))
+                assert item['experiment']['score'] > item['archived']['score']
+            assert (await client.get(f'{base}/watch-queue', params=params)).json() == queue_before.json()
+            assert (await client.get(f'{base}/media', params=params)).json() == media_before.json()
+        async with factory() as session:
+            assert (await TimelineService(SqlAlchemyTimelineRepository(session)).resume(profile)).time_cursor == cursor
+            assert not await SqlAlchemyGameAcknowledgementRepository(session).is_acknowledged(profile, game)
+    finally:
+        await engine.dispose()
+
+
 async def test_readonly_transaction_rejects_writes_at_database_boundary():
     engine, factory = await setup()
     app.state.session_factory = factory
