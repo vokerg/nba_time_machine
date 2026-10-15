@@ -22,6 +22,7 @@ from .models import (
 from .ranking_models import RecommendationScoreRecord
 from .session import create_database_engine, create_session_factory
 from .timeline_models import TimelineStateRecord
+from .watch_queue_models import WatchQueueRecord
 
 __all__ = [
     "AIResultMetadataRecord",
@@ -44,6 +45,7 @@ __all__ = [
     "TeamRecord",
     "TemporalFactRecord",
     "TimelineStateRecord",
+    "WatchQueueRecord",
     "create_database_engine",
     "create_session_factory",
 ]
