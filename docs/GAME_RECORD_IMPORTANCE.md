@@ -90,3 +90,24 @@ The current pipeline correctly withholds archives referencing an older input
 revision. Explicit processing can append a new v1 snapshot for the updated
 capture; it does not overwrite older ratings. Equal trajectory inputs should
 produce equal numeric v1 scores despite new provenance. No v4 adoption occurs.
+
+
+## Verified operation and tests
+
+All **442 backend tests** passed on fresh disposable PostgreSQL, including record
+mismatch/absence/duplicates, impossible subtraction, wrong phase/Cup scope,
+implausible full-season records, isolation from usable PBP/boxes and v4 HTTP
+inspection with the history reader replaced by a test that raises if called.
+Nine workbench DOM tests passed, including direct records, subtraction labels,
+v4 setting payloads and legacy configs.
+
+Owner-authorized November 10 re-collection stored nine revised normalized
+captures with matching game-specific records. Eight eligible v1 snapshots were
+appended for the updated evidence references; numeric app scores match their
+previous snapshots and old rows remain intact. All nine entering records agree
+with the earlier independent history audit; v4 itself never reads that history.
+There are eight complete proposals, with Atlanta–Clippers still withheld for its
+independent PBP issue. Read-only inspection changed no fact/score counts, all
+score arithmetic reconciles and no standings ranks/race terms are invented.
+Sanitized [verification](evidence/game-record-importance-2025-11-10.json) contains
+counts and checks, not full game results or ratings.
