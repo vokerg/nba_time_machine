@@ -73,6 +73,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                     status="final", home_score=100, away_score=90,
                 ))
             await session.flush()
+            pending_captures = []
             pending_reviews = []
             def add_item(name, *, sensitivity="general", games=(), observed=OBS, reviewed=REVIEW, cleared=True):
                 item_id, capture_id = uuid4(), uuid4()
@@ -82,7 +83,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                     title=name, canonical_url=f"https://example.org/{name}",
                     discovered_at=observed, captured_at=observed, available_at=observed,
                 ))
-                session.add(RawCaptureRecord(
+                pending_captures.append(RawCaptureRecord(
                     id=capture_id, source_id=source_id, source_item_id=item_id,
                     collection_run_id=run_id, external_id=name,
                     canonical_url=f"https://example.org/{name}",
@@ -104,6 +105,8 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
             add_item("uncleared", cleared=False)
             add_item("revised")
             add_item("unlinked-result", sensitivity="outcome_dependent", games=(a,))
+            await session.flush()
+            session.add_all(pending_captures)
             await session.flush()
             session.add_all(pending_reviews)
             # Only the earlier revision is reviewed. The newer revision
