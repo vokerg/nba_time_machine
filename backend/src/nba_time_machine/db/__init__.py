@@ -4,6 +4,7 @@ from .ai_models import AIResultMetadataRecord
 from .acknowledgement_models import GameAcknowledgementRecord
 from .config import DatabaseNotConfiguredError, DatabaseSettings
 from .entity_link_models import SourceItemEntityLinkRecord
+from .media_models import MediaReviewRecord
 from .models import (
     Base,
     CollectionRunRecord,
@@ -32,6 +33,7 @@ __all__ = [
     "DatabaseSettings",
     "GameAcknowledgementRecord",
     "GameObservationRecord",
+    "MediaReviewRecord",
     "GameRecord",
     "PlayerRecord",
     "RawCaptureRecord",
