@@ -109,10 +109,10 @@ export class BackendClient {
     if (id(result.game_id) !== game) throw new Error("Disclosure game mismatch.");
     return result;
   }
-  async queue(cursor: string, signal?: AbortSignal): Promise<WatchQueue> {
-    if (!instant(cursor)) throw new Error("Invalid timeline.");
+  async queue(cursor: string, view: ScheduleView, signal?: AbortSignal): Promise<WatchQueue> {
+    if (!instant(cursor) || !["pregame", "observed", "replay"].includes(view)) throw new Error("Invalid queue selection.");
     const data = parseWatchQueue(await this.request(
-      `/profiles/${this.profileId}/watch-queue?time_cursor=${encodeURIComponent(cursor)}&view=replay`,
+      `/profiles/${this.profileId}/watch-queue?time_cursor=${encodeURIComponent(cursor)}&view=${view}`,
       "GET", undefined, signal,
     ));
     if (Date.parse(data.time_cursor) !== Date.parse(cursor)) throw new Error("Timeline changed in another tab. Reload to resume.");

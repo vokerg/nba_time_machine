@@ -81,7 +81,7 @@ export function App() {
     const controller = new AbortController();
     const ticket = ++queueGeneration.current;
     setQueue(null); setQueueError(null); setQueueLoading(true);
-    client.queue(timeline.time_cursor, controller.signal).then((data) => {
+    client.queue(timeline.time_cursor, view, controller.signal).then((data) => {
       if (ticket === queueGeneration.current) setQueue(data);
     }).catch((cause: unknown) => {
       if (!controller.signal.aborted && ticket === queueGeneration.current)
@@ -90,7 +90,7 @@ export function App() {
       if (ticket === queueGeneration.current) setQueueLoading(false);
     });
     return () => { controller.abort(); queueGeneration.current += 1; };
-  }, [client, timeline, queueRevision]);
+  }, [client, timeline, view, queueRevision]);
 
   async function editQueue(gameId: string, state: QueueState | null) {
     if (!client || !timeline) return;
@@ -211,7 +211,7 @@ export function App() {
         </section>
           <section className="side-panel queue-panel" aria-labelledby="queue-heading">
             <p className="eyebrow">Personal, not a reveal</p><h2 id="queue-heading">Watch Queue</h2>
-            <p>Queued / done / dismissed tracks your plans only. It never acknowledges games or moves your timeline. Cards use spoiler-safe season replay; unavailable games stay hidden.</p>
+            <p>Queued / done / dismissed tracks your plans only. It never acknowledges games or moves your timeline. Cards follow your selected schedule view; unavailable games stay hidden.</p>
             {queueError && <p role="alert">Watch Queue: {queueError} <button disabled={busy} onClick={() => setReload((n) => n + 1)}>Reload saved state</button></p>}
             {queueLoading && <p role="status">Loading Watch Queue…</p>}
             {!queueLoading && queue?.items.length === 0 && <p>Your Watch Queue is empty.</p>}

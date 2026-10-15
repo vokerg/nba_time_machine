@@ -275,3 +275,28 @@ test('personal queue actions do not reveal results or change sealed slate state'
     assert.equal(calls.filter((call) => call.url.includes('/timeline/') && call.options.method === 'PUT').length, 0);
   } finally { await unmount(root); }
 });
+
+test('queue follows schedule view and discards pending replay data after strict-mode switch', async () => {
+  const saved = [{ game_id: game, queue_state: 'queued', game: null }];
+  let releaseReplay;
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/watch-queue')) {
+      if (url.includes('view=replay')) return new Promise((resolve) => { releaseReplay = resolve; });
+      return response({ time_cursor: cursor, items: saved });
+    }
+    return response(slate);
+  });
+  try {
+    await until(() => releaseReplay && document.querySelector('.game-card'));
+    const select = document.querySelector('.schedule-controls select');
+    await act(async () => { select.value = 'pregame'; select.dispatchEvent(new window.Event('change', { bubbles: true })); });
+    await until(() => document.querySelector('.queue-item')?.textContent.includes('Game details unavailable'));
+    releaseReplay(response({ time_cursor: cursor, items: [
+      { game_id: game, queue_state: 'queued', game: { ...card, home_team: 'Retrospective team' } }
+    ] }));
+    await tick();
+    assert.match(document.querySelector('.queue-item').textContent, /Saved game/);
+    assert.doesNotMatch(document.querySelector('.queue-item').textContent, /Retrospective team/);
+  } finally { await unmount(root); }
+});

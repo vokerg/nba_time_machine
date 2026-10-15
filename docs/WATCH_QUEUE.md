@@ -27,10 +27,12 @@ IDs and preserves original insertion order on re-state. Sorting and membership
 never depend on results, rating, tip outcome, game length or update cadence.
 Deleting and re-adding intentionally creates a new position.
 
-The default queue view uses the explicitly labeled retrospective **season
-replay** identity/scheduled-tip exception for games through the cursor's NBA
-Eastern day. It does not claim verified pregame observation. `view=pregame`
-and `view=observed` retain strict historical observation gates. All views
+The queue uses the user's **selected schedule view**. In explicitly selected
+`view=replay`, it inherits the documented retrospective identity/scheduled-tip
+exception for games through the cursor's NBA Eastern day; this is not verified
+pregame observation. `view=pregame` and `view=observed` retain their strict
+historical observation gates. Switching modes re-fetches the queue and discards
+stale responses from the previous mode. All views
 pass snapshots through the existing `DisclosureLayer.PREGAME` policy and safe
 `GameCardResponse` serializer, so no score, winner, rating, postgame status,
 thumbnail, runtime or provider payload enters the queue. Future-day and missing
