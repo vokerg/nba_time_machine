@@ -1,6 +1,10 @@
-# Retrospective regular-season game importance (#96)
+# Legacy v3 reconstructed standings comparison (#96)
 
-The local workbench's schema-3 proposal adds an editable **game-importance
+The default is now [game-supplied records, schema 4](GAME_RECORD_IMPORTANCE.md).
+No history reconstruction is required for that path. Explicitly importing the
+earlier schema-3 config retains this comparison mode.
+
+The local workbench's legacy schema-3 proposal adds an editable **game-importance
 bonus** to the existing drama, player and extreme-pattern contributions. Current
 app scores and strict pregame ranking are unchanged. This is a transparent
 heuristic for tuning, not a prediction of playoff outcomes.

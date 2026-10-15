@@ -13,6 +13,7 @@ from nba_time_machine.db import (
 from nba_time_machine.ranking.morning_features import FEATURE_VERSION
 from nba_time_machine.ranking.entertainment_features import entertainment_measurements
 from nba_time_machine.ranking.context_reader import read_context
+from nba_time_machine.ranking.game_records import game_record_context
 from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
 from nba_time_machine.ranking.queries import _score_from_row
 from nba_time_machine.ranking.scoring import POSTGAME_VERSION
@@ -20,7 +21,7 @@ from nba_time_machine.sports.morning_models import EASTERN, Evidence, assess
 from nba_time_machine.sports.morning_store import source_policy
 from nba_time_machine.workbench.calculations import MISSING, TuningConfig, preview, candidate_preview
 from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSettings, enrichment_preview
-from nba_time_machine.workbench.context import ContextSettings, context_preview
+from nba_time_machine.workbench.context import ContextSettings, context_preview, record_preview
 from nba_time_machine.workbench.evidence import supporting_plays
 
 
@@ -105,7 +106,13 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             result["diagnostics"].append("invalid_evidence_schema")
     else:
         result["diagnostics"].append("no_stored_provider_game_evidence_at_this_as_of")
-    context = await read_context(session, parsed, as_of) if parsed else None
+    context = (game_record_context(parsed, result.get("provenance")) if experiment.schema_version == 4
+               else await read_context(session, parsed, as_of)) if parsed else None
+    if context is not None and experiment.schema_version == 4:
+        try:
+            source_policy(await session.get(SourceRecord, fact.source_id), parsed.provider, manual=True)
+        except ValueError:
+            context.update(status="missing", reason="Game source policy is not approved.", home=None, away=None)
     if derived:
         fact, metrics, score = derived
         result["metrics"] = asdict(metrics)
@@ -126,8 +133,9 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         result["enrichment"]["candidate_eligible"] = derived is not None and experiment.schema_version >= 2
     if context is not None:
         result["context"] = result["experiment"].pop("context", None) if result["experiment"] else None
-        result["context"] = result["context"] or context_preview(context, experiment.context or ContextSettings())
-        result["context"]["included_in_proposal"] = derived is not None and experiment.schema_version == 3
+        result["context"] = result["context"] or (record_preview(context, experiment.importance) if experiment.schema_version == 4
+            else context_preview(context, experiment.context or ContextSettings()))
+        result["context"]["included_in_proposal"] = derived is not None and experiment.schema_version >= 3
     row = await session.scalar(select(RecommendationScoreRecord).where(
         RecommendationScoreRecord.game_id == game_id,
         RecommendationScoreRecord.score_kind == "postgame",
@@ -156,4 +164,7 @@ async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningCon
         "missing_criteria": ([m for m in MISSING if m["signal"] != "stakes"] + [{
             "signal": "exact_stakes", "label": "Exact playoff leverage / clinching / elimination",
             "reason": "The v3 formula includes reconstructed records, leader matchups and a standings-race proxy; exact playoff consequences remain unimplemented."
-        }] if experiment.schema_version == 3 else MISSING), "games": games}
+        }] if experiment.schema_version == 3 else [m for m in MISSING if m["signal"] != "stakes"] + [{
+            "signal":"standings_stakes", "label":"Standings leaders / playoff stakes",
+            "reason":"The v4 formula uses the two game records for win-rate strength. Full historical standings, ranks and exact playoff/seeding consequences are unavailable."
+        }] if experiment.schema_version == 4 else MISSING), "games": games}

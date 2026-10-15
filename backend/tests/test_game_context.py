@@ -100,7 +100,7 @@ def test_v3_is_explicit_legacy_compatible_and_reconciles_uncapped_total():
     from nba_time_machine.ranking.entertainment_features import entertainment_measurements
     from nba_time_machine.ranking.morning_features import trajectory_features
     e = game()
-    config = TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
+    config = TuningConfig.model_validate_json(CANDIDATE_CONFIG.with_name('entertainment-context-v3.json').read_text())
     result = candidate_preview(trajectory_features(e), entertainment_measurements(e), config, context())
     old = candidate_preview(trajectory_features(e), entertainment_measurements(e), candidate())
     assert result['before_cap'] == old['before_cap'] + result['context_bonus']

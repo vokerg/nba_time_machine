@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from nba_time_machine.ranking.morning_features import TrajectoryFeatures
 from nba_time_machine.ranking.entertainment_features import EntertainmentMeasurements
 from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSettings, enrichment_preview
-from nba_time_machine.workbench.context import ContextSettings, context_preview
+from nba_time_machine.workbench.context import ContextSettings, RecordSettings, context_preview, record_preview
 
 SIGNALS = {
     "clutch": ("Clutch time", "clutch_ms", "milliseconds"),
@@ -29,7 +29,7 @@ MISSING = [
 
 class TuningConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False, strict=True)
-    schema_version: Literal[1, 2, 3] = 1
+    schema_version: Literal[1, 2, 3, 4] = 1
     version: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
     weights: dict[str, float]
     scales: dict[str, float]
@@ -38,6 +38,7 @@ class TuningConfig(BaseModel):
     player: PlayerSettings | None = None
     pattern: PatternSettings | None = None
     context: ContextSettings | None = None
+    importance: RecordSettings | None = None
 
     @model_validator(mode="after")
     def valid_config(self):
@@ -45,6 +46,8 @@ class TuningConfig(BaseModel):
             raise ValueError("enriched formulas require explicit player and pattern settings")
         if (self.schema_version == 3) != (self.context is not None):
             raise ValueError("only v3 requires explicit context settings")
+        if (self.schema_version == 4) != (self.importance is not None):
+            raise ValueError("only v4 requires explicit game-record importance settings")
         if self.schema_version == 1 and (self.player is not None or self.pattern is not None):
             raise ValueError("v1 cannot carry enrichment settings")
         if set(self.weights) != set(SIGNALS) or set(self.scales) != set(SIGNALS):
@@ -92,6 +95,8 @@ def candidate_preview(metrics: TrajectoryFeatures, measurements: EntertainmentMe
     player = details["player_bonus"]["points"] if details["player_bonus"] is not None else None
     pattern = details["pattern_bonus"]["points"] if details["pattern_bonus"] is not None else None
     importance = context_preview(context, config.context) if config.schema_version == 3 and context is not None else None
+    if config.schema_version == 4 and context is not None:
+        importance = record_preview(context, config.importance)
     context_bonus = importance["bonus"] if importance is not None else None
     uncapped = base["score"] + sum(v for v in (player, pattern, context_bonus) if v is not None)
     capped = min(10, uncapped)
@@ -99,11 +104,11 @@ def candidate_preview(metrics: TrajectoryFeatures, measurements: EntertainmentMe
     verdict = ("Worth watching" if value >= config.high_from else
                "Worth considering" if value >= config.medium_from else "Lower priority")
     missing = ([] if player is not None else ["player performance"]) + ([] if pattern is not None else ["extreme patterns"])
-    if config.schema_version == 3 and context_bonus is None:
+    if config.schema_version >= 3 and context_bonus is None:
         missing.append("game importance")
     return {**base, "score": value, "verdict": verdict, "drama_score": base["score"],
         "player_bonus": player, "pattern_bonus": pattern, "before_cap": uncapped,
         "cap_adjustment": capped - uncapped, "rounding_adjustment": value - capped,
-        **({"context_bonus": context_bonus, "context": importance} if config.schema_version == 3 else {}),
+        **({"context_bonus": context_bonus, "context": importance} if config.schema_version >= 3 else {}),
         "coverage": "partial" if missing else "complete", "missing_families": missing,
         "enrichment": details}

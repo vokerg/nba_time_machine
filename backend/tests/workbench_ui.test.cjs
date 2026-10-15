@@ -272,3 +272,31 @@ test("v3 importance controls round-trip percentages and old configs drop context
     assert.equal(JSON.parse(s.requests.at(-1).options.body).config.context,undefined);
   } finally {s.close();}
 });
+
+
+test("v4 uses game records, shows the subtraction and sends no history settings", async () => {
+  const config = JSON.parse(fs.readFileSync(path.join(root,"config/ranking/entertainment-records-v4.json")));
+  const s=await setup(config,value=>{
+    const record={name:'Fixture Team',conference:'East',wins:6,losses:4,games_played:10,win_pct:.6,
+      conference_rank:null,league_rank:null,provider_after_wins:7,provider_after_losses:4,removed_result:'win'};
+    value.games[0].context={status:'available',source_method:'game_records',entering_day:'2025-11-10',
+      home:record,away:{...record,name:'Other Fixture'},standings:[],basis:'Game-specific totals',reason:'Fixture',
+      bonus:0,included_in_proposal:true,ranking_note:'Ranks and playoff stakes unavailable',provenance:[],
+      calculation:{home_smoothed_win_pct:.55,away_smoothed_win_pct:.55,home_strength_magnitude:.2,
+        away_strength_magnitude:.2,strength_magnitude:.2,sample_games:10,sample_confidence:.5,
+        matchup_magnitude:.1,combined_magnitude:.1,max_bonus:2}};
+    return value;
+  });
+  try {
+    const d=s.w.document;
+    assert.equal(d.getElementById('context-leader_rank_limit'),null);
+    assert.equal(d.getElementById('context-win_pct_floor').value,'50');
+    assert.match(d.getElementById('detail').textContent,/Provider record after game/);
+    assert.match(d.getElementById('detail').textContent,/Record entering game/);
+    assert.doesNotMatch(d.getElementById('detail').textContent,/All 30 teams|147 earlier|Race proxy/);
+    input(s.w,'context-max_bonus','1.5');d.getElementById('preview').click();
+    await new Promise(resolve=>setImmediate(resolve));
+    const sent=JSON.parse(s.requests.at(-1).options.body).config;
+    assert.equal(sent.schema_version,4);assert.equal(sent.importance.max_bonus,1.5);assert.equal(sent.context,undefined);
+  } finally{s.close();}
+});

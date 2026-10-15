@@ -103,11 +103,11 @@ function fillConfig(value) {
   }
   if (value.schema_version >= 2)
     $("controls").append(WorkbenchEnrichment.controls(value, markDirty));
-  if (value.schema_version === 3)
+  if (value.schema_version >= 3)
     $("controls").append(WorkbenchContext.controls(value, markDirty));
   $("formula").textContent =
     value.schema_version >= 2
-      ? "Proposed score = drama + player bonus + extreme-pattern bonus" + (value.schema_version === 3 ? " + game-importance bonus" : "") + ", capped at 10. Includes clutch time, lead changes, comeback size and overtime."
+      ? "Proposed score = drama + player bonus + extreme-pattern bonus" + (value.schema_version >= 3 ? " + game-importance bonus" : "") + ", capped at 10. Includes clutch time, lead changes, comeback size and overtime."
       : "Proposed score uses drama only with this legacy formula: clutch time, lead changes, comeback size and overtime. Player and extreme-pattern bonuses are not included.";
 }
 function readConfig() {
@@ -127,6 +127,7 @@ function readConfig() {
   if (next.schema_version >= 2)
     Object.assign(next, WorkbenchEnrichment.read(config));
   if (next.schema_version === 3) next.context = WorkbenchContext.read(config);
+  if (next.schema_version === 4) next.importance = WorkbenchContext.read(config);
   return next;
 }
 async function request(url, options) {
@@ -233,6 +234,10 @@ function renderGames() {
         `${game.status} · ${new Date(game.tip).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })} ET`,
       ),
     );
+    if (game.context?.source_method === "game_records" && game.context.home && game.context.away) {
+      const {home, away} = game.context;
+      link.append(el("span", `Entering records: ${away.team} ${away.wins}–${away.losses} · ${home.team} ${home.wins}–${home.losses}`));
+    }
     link.addEventListener("click", () => {
       selected = game.game_id;
       renderGames();

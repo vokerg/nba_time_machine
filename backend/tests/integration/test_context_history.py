@@ -32,7 +32,7 @@ async def test_history_replay_asof_corrections_ties_revocation_and_readonly_prop
     e = evidence()
     e = e.model_copy(update={'season':'2025-2026', 'game_type':'regular_season',
         'ref': e.ref.model_copy(update={'day':target, 'scheduled_at':datetime(2025,11,10,23,tzinfo=timezone.utc)})})
-    v3 = TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
+    v3 = TuningConfig.model_validate_json(CANDIDATE_CONFIG.with_name('entertainment-context-v3.json').read_text())
     try:
         async with factory.begin() as session:
             session.add(CollectionRunRecord(id=run_id, collector_version='synthetic-history-test', started_at=NOW))

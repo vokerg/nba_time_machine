@@ -82,10 +82,10 @@ expected pregame closeness; historical rarity; and tactical/subjective game
 quality. The v2 candidate now includes measured player production and extreme
 game patterns; saved production ratings keep their original model. Favorites never enter canonical ratings.
 
-The default proposed formula is the [schema-3 importance formula](GAME_IMPORTANCE.md),
+The default proposed formula is the [schema-4 game-record formula](GAME_RECORD_IMPORTANCE.md),
 which retains the [v2 player/performance and pattern terms](SCORING_ENRICHMENT.md)
-and adds reconstructed regular-season context. Restore default formula restores
-its checked-in settings. The original baseline and schema-1/2 files remain supported.
+and adds the two game-supplied entering records. Restore default formula restores
+its checked-in settings. The original baseline and schema-1/2/3 files remain supported.
 
 ## Score and contribution labels
 
@@ -118,6 +118,7 @@ compatibility; those internal names are not the main UI labels.
 - Enriched config: `schema_version: 2`, the same drama settings plus explicit
   `player` and `pattern` settings; see the linked v2 formula contract.
 - Context config: `schema_version: 3`, the v2 settings plus explicit `context` settings; see [game importance](GAME_IMPORTANCE.md).
+- Game-record config: `schema_version: 4`, v2 settings plus `importance`; it requires no season reconstruction.
 - Report: `schema_version: 1`, slate/cutoff timestamps, baseline/experiment
   configurations, missing criteria, and per-game saved/derived calculations,
   provenance, diagnostics and normalized evidence.
@@ -160,3 +161,8 @@ The schema-3 [game-importance proposal](GAME_IMPORTANCE.md) adds reconstructed
 2025–26 opening-day records, shared standings ranks and transparent matchup/race
 heuristics. These are retrospective inputs collected now, not pre-tip observations.
 Schemas 1/2 remain readable; current app scoring and spoiler gates are unchanged.
+
+
+The default v4 now uses the two game-supplied records, shows the postgame-total
+subtraction and omits ranks/race terms. See [game-record importance](GAME_RECORD_IMPORTANCE.md).
+The v3 history mode is only selected by explicit old-config imports.
