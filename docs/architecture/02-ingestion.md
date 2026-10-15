@@ -271,3 +271,8 @@ source failures are independent. CBS's missing play IDs and unlabeled player
 rows remain partial rather than becoming invented complete evidence. Source
 wall clocks are not publication or trusted final timestamps. This path does not
 compute scores, expose source facts or alter spoiler policy.
+
+The separate [morning ranking pipeline](../MORNING_RANKING_PIPELINE.md) revalidates
+stored evidence and derives versioned trajectory features into existing temporal
+facts and the hidden score archive. Collection remains separate from feature
+production and spoiler disclosure.

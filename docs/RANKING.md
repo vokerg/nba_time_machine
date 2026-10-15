@@ -220,6 +220,10 @@ Coarse bands are tunable via `RANKING_VERDICT_MEDIUM_FROM` (default 4),
 `RANKING_VERDICT_HIGH_LABEL` (Worth watching). Defaults are provisional product
 configuration, not calibrated NBA predictions; invalid bands fail configuration.
 
+The separate [morning ranking processor](MORNING_RANKING_PIPELINE.md) now produces
+four measured trajectory signals and archives hidden scores for per-game hints.
+It does not manufacture pregame observations for ranked slate picks.
+
 Issue #10 remains open: the current TheSportsDB importer does not produce vetted
 ranking features or trusted final timestamps, so imported games normally have
 no scores. Historical feature production, source approval history, calibration

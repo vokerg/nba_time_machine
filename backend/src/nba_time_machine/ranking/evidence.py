@@ -39,7 +39,7 @@ class SqlAlchemyRankingEvidenceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def _game_observation(
+    async def game_observation_as_of(
         self, game_id: UUID, as_of: datetime,
     ) -> GameObservationRecord | None:
         # Choose latest knowable observation BEFORE inspecting status. Otherwise
@@ -144,7 +144,7 @@ class SqlAlchemyRankingEvidenceRepository:
         cursor = _utc(as_of)
         if cursor is None:
             raise ValueError("as_of must be timezone-aware")
-        observation = await self._game_observation(game_id, cursor)
+        observation = await self.game_observation_as_of(game_id, cursor)
         if (
             observation is None
             or observation.status != "scheduled"
@@ -174,7 +174,7 @@ class SqlAlchemyRankingEvidenceRepository:
         cursor = _utc(as_of)
         if cursor is None:
             raise ValueError("as_of must be timezone-aware")
-        observation = await self._game_observation(game_id, cursor)
+        observation = await self.game_observation_as_of(game_id, cursor)
         if observation is None or observation.status != "final":
             return None
         final = _utc(observation.final_at)
