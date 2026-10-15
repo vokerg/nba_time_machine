@@ -89,3 +89,7 @@ view or an honest unavailable placeholder. Switching schedule views re-queries t
 at the saved cursor and cannot replay data from the previous view. Only an explicit, separately confirmed result reveal
 can acknowledge a game. Queue reads require the currently saved global cursor;
 stale concurrent-tab responses fail closed.
+
+## Reviewed general News & Buzz feed (#91)
+
+The dashboard requests the profile's reviewed, timeline-bound media feed independently of the selected game/schedule view. See [Reviewed News & Buzz](MEDIA_FEED.md) for review/retention requirements, page-key semantics and operational coverage limitations. Individual game reveals do not reload or unlock news.
