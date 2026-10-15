@@ -12,6 +12,7 @@ from nba_time_machine.db import (
 )
 from nba_time_machine.ranking.morning_features import FEATURE_VERSION
 from nba_time_machine.ranking.entertainment_features import entertainment_measurements
+from nba_time_machine.ranking.context_reader import read_context
 from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
 from nba_time_machine.ranking.queries import _score_from_row
 from nba_time_machine.ranking.scoring import POSTGAME_VERSION
@@ -19,6 +20,7 @@ from nba_time_machine.sports.morning_models import EASTERN, Evidence, assess
 from nba_time_machine.sports.morning_store import source_policy
 from nba_time_machine.workbench.calculations import MISSING, TuningConfig, preview, candidate_preview
 from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSettings, enrichment_preview
+from nba_time_machine.workbench.context import ContextSettings, context_preview
 from nba_time_machine.workbench.evidence import supporting_plays
 
 
@@ -103,12 +105,13 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             result["diagnostics"].append("invalid_evidence_schema")
     else:
         result["diagnostics"].append("no_stored_provider_game_evidence_at_this_as_of")
+    context = await read_context(session, parsed, as_of) if parsed else None
     if derived:
         fact, metrics, score = derived
         result["metrics"] = asdict(metrics)
         result["baseline"] = preview(metrics, baseline)
         measurements = entertainment_measurements(parsed)
-        result["experiment"] = candidate_preview(metrics, measurements, experiment)
+        result["experiment"] = candidate_preview(metrics, measurements, experiment, context)
         if parsed:
             result["supporting_plays"] = supporting_plays(parsed, metrics)
     else:
@@ -120,7 +123,11 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         candidate_details = result["experiment"].pop("enrichment", None) if result["experiment"] else None
         result["enrichment"] = candidate_details or enrichment_preview(
             measurements, experiment.player or PlayerSettings(), experiment.pattern or PatternSettings())
-        result["enrichment"]["candidate_eligible"] = derived is not None and experiment.schema_version == 2
+        result["enrichment"]["candidate_eligible"] = derived is not None and experiment.schema_version >= 2
+    if context is not None:
+        result["context"] = result["experiment"].pop("context", None) if result["experiment"] else None
+        result["context"] = result["context"] or context_preview(context, experiment.context or ContextSettings())
+        result["context"]["included_in_proposal"] = derived is not None and experiment.schema_version == 3
     row = await session.scalar(select(RecommendationScoreRecord).where(
         RecommendationScoreRecord.game_id == game_id,
         RecommendationScoreRecord.score_kind == "postgame",
@@ -146,4 +153,7 @@ async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningCon
         "coverage": "Stored observations only; missing games are not proof of an empty slate. No live fetch.",
         "baseline_config": baseline.model_dump(exclude_none=True), "experiment_config": experiment.model_dump(exclude_none=True),
         "default_candidate_config": (default_candidate or experiment).model_dump(exclude_none=True),
-        "missing_criteria": MISSING, "games": games}
+        "missing_criteria": ([m for m in MISSING if m["signal"] != "stakes"] + [{
+            "signal": "exact_stakes", "label": "Exact playoff leverage / clinching / elimination",
+            "reason": "The v3 formula includes reconstructed records, leader matchups and a standings-race proxy; exact playoff consequences remain unimplemented."
+        }] if experiment.schema_version == 3 else MISSING), "games": games}

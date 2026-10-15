@@ -101,11 +101,13 @@ function fillConfig(value) {
     block.append(fields);
     $("controls").append(block);
   }
-  if (value.schema_version === 2)
+  if (value.schema_version >= 2)
     $("controls").append(WorkbenchEnrichment.controls(value, markDirty));
+  if (value.schema_version === 3)
+    $("controls").append(WorkbenchContext.controls(value, markDirty));
   $("formula").textContent =
-    value.schema_version === 2
-      ? "Proposed score = drama + player bonus + extreme-pattern bonus, capped at 10. Includes clutch time, lead changes, comeback size and overtime."
+    value.schema_version >= 2
+      ? "Proposed score = drama + player bonus + extreme-pattern bonus" + (value.schema_version === 3 ? " + game-importance bonus" : "") + ", capped at 10. Includes clutch time, lead changes, comeback size and overtime."
       : "Proposed score uses drama only with this legacy formula: clutch time, lead changes, comeback size and overtime. Player and extreme-pattern bonuses are not included.";
 }
 function readConfig() {
@@ -122,8 +124,9 @@ function readConfig() {
     next.scales[key] =
       Number($(`scales-${key}`).value) * (key === "clutch" ? 60000 : 1);
   }
-  if (next.schema_version === 2)
+  if (next.schema_version >= 2)
     Object.assign(next, WorkbenchEnrichment.read(config));
+  if (next.schema_version === 3) next.context = WorkbenchContext.read(config);
   return next;
 }
 async function request(url, options) {
@@ -250,7 +253,7 @@ function renderGames() {
       el(
         "span",
         game.experiment?.coverage === "partial"
-          ? "Incomplete: player data missing"
+          ? "Incomplete: " + (game.experiment.missing_families || ["player performance"]).join(", ")
           : game.baseline
             ? "Complete for this formula"
             : "Unavailable",
@@ -285,7 +288,7 @@ function renderDetail() {
     [
       "Proposed score · out of 10",
       proposal?.score,
-      proposal ? proposal.verdict + (proposal.coverage === "partial" ? " · Incomplete: player data missing" : " · For tuning") : "Unavailable: insufficient validated data",
+      proposal ? proposal.verdict + (proposal.coverage === "partial" ? " · Incomplete: " + (proposal.missing_families || ["player performance"]).join(", ") : " · For tuning") : "Unavailable: insufficient validated data",
     ],
     [
       "Current app score · out of 10",
@@ -360,6 +363,7 @@ function renderDetail() {
       ),
     );
   }
+  WorkbenchContext.render(target, game);
   WorkbenchEnrichment.render(target, game);
   const review = reviews[game.game_id] || { rating: "", notes: "" };
   const fields = el("div", undefined, "review"),

@@ -153,3 +153,9 @@ live October 14 workbench was checked against the configured DB: proposed/curren
 scores, signed change, collapsed calculation check, score components, verdict
 bands and player magnitude explanations were visible. No scoring, config schema,
 export key or consumer behavior changes are part of this revision.
+
+
+The schema-3 [game-importance proposal](GAME_IMPORTANCE.md) adds reconstructed
+2025–26 opening-day records, shared standings ranks and transparent matchup/race
+heuristics. These are retrospective inputs collected now, not pre-tip observations.
+Schemas 1/2 remain readable; current app scoring and spoiler gates are unchanged.

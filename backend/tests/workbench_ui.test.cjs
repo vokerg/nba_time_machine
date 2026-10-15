@@ -16,6 +16,7 @@ const enrichedConfig = JSON.parse(
     path.join(root, "config/ranking/entertainment-preview-v2.json"),
   ),
 );
+const contextConfig = JSON.parse(fs.readFileSync(path.join(root, "config/ranking/entertainment-context-v3.json")));
 const id = "11111111-1111-4111-8111-111111111111";
 const metric = {
   score: 3.2,
@@ -75,6 +76,7 @@ async function setup(initial = baseline, transform = (value) => value) {
   w.URL.revokeObjectURL = () => {};
   w.HTMLAnchorElement.prototype.click = function () {};
   w.eval(fs.readFileSync(path.join(assets, "enrichment.js"), "utf8"));
+  w.eval(fs.readFileSync(path.join(assets, "context.js"), "utf8"));
   w.eval(fs.readFileSync(path.join(assets, "workbench.js"), "utf8"));
   await new Promise((resolve) => setImmediate(resolve));
   return { w, requests, downloads, close: () => w.close() };
@@ -191,7 +193,7 @@ test("proposed score leads, app comparison uses the stored score and verificatio
     assert.deepEqual([...d.querySelectorAll('#games tr:first-child td')].slice(1, 4).map(e => e.textContent), ['4.50', '2.00', '+2.50']);
     assert.deepEqual([...d.querySelectorAll('.metric strong')].map(e => e.textContent), ['4.50', '2.00']);
     assert.match(d.querySelector('.metric').textContent, /Proposed score · out of 10/);
-    assert.match(d.querySelector('.metric').textContent, /player data missing/);
+    assert.match(d.querySelector('.metric').textContent, /player performance/);
     assert.equal(d.getElementById('calculation-check').open, false);
     assert.match(d.getElementById('calculation-check').textContent, /Recalculated original formula: 3.20/);
     assert.match(d.getElementById('detail').textContent, /below 4 = Lower priority/);
@@ -240,4 +242,33 @@ test("player magnitude and game-score contributions carry different scales", asy
     assert.match(d.getElementById('detail').textContent, /= 1.0000 game-score points/);
     assert.doesNotMatch(d.getElementById('detail').textContent, /Severity|Candidate total/);
   } finally { s.close(); }
+});
+
+test("v3 importance controls round-trip percentages and old configs drop context settings", async () => {
+  const s = await setup(contextConfig, value => {
+    value.games[0].context = {status:'missing', reason:'Fixture missing history', entering_day:'2025-11-10',
+      basis:'Reconstructed later', included_in_proposal: value.experiment_config.schema_version===3,
+      provenance:[{day:'<img src=x onerror=unsafe()>', observed_at:'Fixture'}], missing_days:['2025-10-21']};
+    return value;
+  });
+  try {
+    const d=s.w.document;
+    assert.equal(d.getElementById('context-win_pct_floor').value,'50');
+    input(s.w,'context-win_pct_floor','55');
+    input(s.w,'context-max_bonus','1.5');
+    d.getElementById('preview').click();
+    await new Promise(resolve => setImmediate(resolve));
+    const sent=JSON.parse(s.requests.at(-1).options.body).config;
+    assert.equal(sent.schema_version,3);
+    assert.equal(sent.context.win_pct_floor,.55);
+    assert.equal(sent.context.max_bonus,1.5);
+    assert.match(d.getElementById('detail').textContent,/Game importance · entering 2025-11-10/);
+    assert.equal(d.querySelectorAll('#detail img').length,0);
+    const field=d.getElementById('import');
+    Object.defineProperty(field,'files',{value:[{size:100,text:async()=>JSON.stringify(enrichedConfig)}]});
+    field.dispatchEvent(new s.w.Event('change',{bubbles:true}));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(d.getElementById('context-max_bonus'),null);
+    assert.equal(JSON.parse(s.requests.at(-1).options.body).config.context,undefined);
+  } finally {s.close();}
 });

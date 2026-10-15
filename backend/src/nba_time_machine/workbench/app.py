@@ -18,7 +18,7 @@ from nba_time_machine.workbench.service import inspect_slate
 
 STATIC = Path(__file__).parent / "static"
 DEFAULT_CONFIG = Path(__file__).resolve().parents[4] / "config/ranking/trajectory-baseline-v1.json"
-CANDIDATE_CONFIG = DEFAULT_CONFIG.with_name("entertainment-preview-v2.json")
+CANDIDATE_CONFIG = DEFAULT_CONFIG.with_name("entertainment-context-v3.json")
 
 
 @asynccontextmanager

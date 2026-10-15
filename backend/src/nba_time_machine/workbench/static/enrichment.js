@@ -139,6 +139,7 @@ window.WorkbenchEnrichment = (() => {
             ["Drama · clutch, lead changes, comeback & overtime", fmt(c.drama_score)],
             ["Player-performance bonus", fmt(c.player_bonus)],
             ["Extreme-pattern bonus", fmt(c.pattern_bonus)],
+            ...(c.context_bonus !== undefined ? [["Game-importance bonus", fmt(c.context_bonus)]] : []),
             ["10-point cap adjustment", fmt(c.cap_adjustment)],
             ["Final rounding", fmt(c.rounding_adjustment)],
             ["Proposed score · out of 10", fmt(c.score)],
@@ -148,7 +149,7 @@ window.WorkbenchEnrichment = (() => {
       target.append(
         node(
           "p",
-          `Proposed score = min(10, drama + player bonus + extreme-pattern bonus). ${c.coverage === "partial" ? "Incomplete: player data is missing; the total includes only available contributions." : "All required data is available."} Current app score stays unchanged.`,
+          `Proposed score = min(10, drama + player bonus + extreme-pattern bonus${c.context_bonus !== undefined ? " + game-importance bonus" : ""}). ${c.coverage === "partial" ? "Incomplete: " + (c.missing_families || ["player performance"]).join(", ") + "; the total includes only available contributions." : "All required data is available."} Current app score stays unchanged.`,
           "formula",
         ),
       );
