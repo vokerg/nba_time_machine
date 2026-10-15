@@ -33,6 +33,13 @@ export function parseWatchQueue(value: unknown): WatchQueue {
     if (item.game !== null) {
       game = parseGameList({ time_cursor: raw.time_cursor, games: [item.game] }).games[0];
       if (game.game_id.toLowerCase() !== id) throw new Error("Queue card identity mismatch.");
+      // parseGameList is deliberately sparse; the queue must additionally
+      // validate tip instants before the UI formats them.
+      if (game.scheduled_tip !== undefined &&
+          (!/(?:Z|[+-]\\d\\d:\\d\\d)$/.test(game.scheduled_tip) ||
+           !Number.isFinite(Date.parse(game.scheduled_tip)))) {
+        throw new Error("Invalid queue game timestamp.");
+      }
     }
     return { game_id: id, queue_state: item.queue_state as QueueState, game };
   });

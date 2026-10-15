@@ -146,9 +146,25 @@ async def test_queue_persists_order_state_and_sealed_cards_without_cursor_side_e
             assert (await client.delete(f"{base}/{first}", params=params)).status_code == 204
             remaining = (await client.get(base, params=params)).json()["items"]
             assert [item["game_id"] for item in remaining] == [str(future), str(missing), str(posttip)]
+            # Saved intentions survive advancing the global cursor. Only the
+            # existing timeline rules may change the *game* disclosure state.
+            async with factory() as session:
+                await TimelineService(SqlAlchemyTimelineRepository(session)).advance(profile, FINAL)
+            assert (await client.get(base, params=params)).status_code == 409
+            advanced = (await client.get(base, params={
+                "time_cursor": FINAL.isoformat(), "view": "observed",
+            })).json()
+            assert advanced["time_cursor"] == FINAL.isoformat().replace("+00:00", "Z")
+            assert [item["game_id"] for item in advanced["items"]] == [
+                str(future), str(missing), str(posttip),
+            ]
+            assert [item["queue_state"] for item in advanced["items"]] == ["queued"] * 3
+            assert advanced["items"][2]["game"]["state"] == "acknowledged"
+            assert "home_score" not in str(advanced)
+            assert "away_score" not in str(advanced)
         async with factory() as session:
             timeline = TimelineService(SqlAlchemyTimelineRepository(session))
-            assert (await timeline.resume(profile)).time_cursor == CURSOR
+            assert (await timeline.resume(profile)).time_cursor == FINAL
             assert (await timeline.resume(other)).time_cursor == CURSOR
             acks = SqlAlchemyGameAcknowledgementRepository(session)
             assert not await acks.is_acknowledged(profile, first)

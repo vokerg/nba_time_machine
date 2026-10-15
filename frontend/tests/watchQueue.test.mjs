@@ -15,6 +15,8 @@ test('queue metadata is personal-only and projected cards pass the existing whit
     { ...items[0], game: { ...card, result: 'Home won' } },
     { ...items[0], game: { ...card, watchability_verdict: 'Amazing' } },
     { ...items[0], game: { ...card, thumbnail_url: 'spoiler.jpg' } },
+    { ...items[0], game: { ...card, scheduled_tip: '2026-10-13T12:00:00' } },
+    { ...items[0], game: { ...card, scheduled_tip: 'invalid' } },
     { ...items[0], game: { ...card, game_id: '00000000-0000-0000-0000-000000000003' } },
     { ...items[0], queue_state: 'acknowledged' },
     { ...items[0], home_score: 124 },
