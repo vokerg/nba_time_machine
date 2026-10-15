@@ -1,6 +1,5 @@
 """Separate loopback-only workbench. NEVER import routes into the consumer app."""
 import ipaddress
-import json
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path

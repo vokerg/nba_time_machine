@@ -1,20 +1,21 @@
 """Operator-only, as-of inspection using the canonical database and scoring code."""
 from dataclasses import asdict
 from datetime import date, datetime, time, timedelta, timezone
-from uuid import UUID
+from urllib.parse import quote
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
 
 from nba_time_machine.db import (
     GameObservationRecord, GameRecord, RecommendationScoreRecord, SeasonRecord,
-    SourceRecord, TeamRecord, TemporalFactRecord,
+    SourceRecord, SportsExternalIdentityRecord, TeamRecord, TemporalFactRecord,
 )
 from nba_time_machine.ranking.morning_features import FEATURE_VERSION
 from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
 from nba_time_machine.ranking.queries import _score_from_row
 from nba_time_machine.ranking.scoring import POSTGAME_VERSION
 from nba_time_machine.sports.morning_models import EASTERN, Evidence, assess
+from nba_time_machine.sports.morning_store import source_policy
 from nba_time_machine.workbench.calculations import MISSING, TuningConfig, preview
 from nba_time_machine.workbench.evidence import supporting_plays
 
@@ -51,6 +52,7 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
     facts = (await session.scalars(select(TemporalFactRecord).where(
         TemporalFactRecord.game_id == game_id,
         TemporalFactRecord.fact_type == "provider_game_evidence",
+        TemporalFactRecord.source_id == observation.source_id,
         TemporalFactRecord.observed_at <= as_of, TemporalFactRecord.available_at <= as_of,
     ).order_by(TemporalFactRecord.observed_at.desc(), TemporalFactRecord.available_at.desc())
       .limit(2))).all()
@@ -66,8 +68,35 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         try:
             parsed = assess(Evidence.model_validate({**fact.value, "observed_at": fact.observed_at}))
             result["evidence"] = parsed.model_dump(mode="json")
+            result["provenance"]["source_url"] = (
+                "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=" + quote(parsed.external_id, safe="")
+                if parsed.provider == "espn" else
+                "https://www.cbssports.com/nba/gametracker/playbyplay/" + quote(parsed.ref.cbs_abbr, safe="") + "/")
             result["diagnostics"].extend(parsed.pbp_errors)
             result["box_diagnostics"] = list(parsed.box_errors)
+            if not derived:
+                if observation.status != "final":
+                    result["diagnostics"].append("game_not_final")
+                if len(facts) > 1 and (facts[0].observed_at, facts[0].available_at) == (facts[1].observed_at, facts[1].available_at):
+                    result["diagnostics"].append("ambiguous_same_time_evidence")
+                if fact.valid_from > as_of or (fact.valid_to is not None and fact.valid_to <= as_of):
+                    result["diagnostics"].append("evidence_not_valid_at_cutoff")
+                if (fact.observed_at, fact.available_at) != (observation.observed_at, observation.available_at):
+                    result["diagnostics"].append("evidence_observation_revision_mismatch")
+                if parsed.ref.scheduled_at is None or parsed.ref.scheduled_at != observation.scheduled_tip_at:
+                    result["diagnostics"].append("missing_or_inconsistent_scheduled_tip")
+                if (parsed.home.score, parsed.away.score) != (observation.home_score, observation.away_score):
+                    result["diagnostics"].append("evidence_observation_scores_mismatch")
+                mapped = await session.scalar(select(SportsExternalIdentityRecord.game_id).where(
+                    SportsExternalIdentityRecord.provider_key == parsed.provider,
+                    SportsExternalIdentityRecord.entity_type == "game",
+                    SportsExternalIdentityRecord.external_id == parsed.external_id))
+                if mapped != game_id:
+                    result["diagnostics"].append("canonical_game_mapping_mismatch")
+                try:
+                    source_policy(source, parsed.provider, manual=True)
+                except ValueError:
+                    result["diagnostics"].append("source_policy_not_approved")
         except (ValidationError, ValueError, TypeError):
             result["diagnostics"].append("invalid_evidence_schema")
     else:

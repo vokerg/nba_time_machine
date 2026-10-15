@@ -26,7 +26,7 @@ MISSING = [
 
 
 class TuningConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False, strict=True)
     schema_version: Literal[1] = 1
     version: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
     weights: dict[str, float]

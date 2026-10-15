@@ -59,4 +59,5 @@ jobs:
           node-version: "22"
       - run: npm install
       - run: npm run test
+      - run: node --test ../backend/tests/workbench_ui.test.cjs
       - run: npm run build
