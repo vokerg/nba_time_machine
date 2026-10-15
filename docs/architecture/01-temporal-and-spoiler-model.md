@@ -366,3 +366,18 @@ requires fresh per-request consent on a historically observed pregame slate;
 retrospective replay does not authorize outcome ranking. Budget inputs are user
 allocations, never observed runtimes. Hints and picks leave acknowledgement and
 media cursor unchanged.
+
+## Reviewed general media history (#91)
+
+General media uses **a separate profile-cursor-bound query** with no season-replay
+exception. The query selects the latest per-item raw capture revision observed
+by the cursor, requires explicit per-revision operator review (classification,
+complete game linkage and rights clearance), then sends typed fields through
+`project_general_media` before JSON serialization. Review time is a
+conservative availability lower bound; publisher dates never backdate it.
+Updated but unreviewed headlines fail closed instead of falling back to a
+safe-looking earlier revision. Outcome-linked media additionally verifies each
+linked game's unsealed status; one game's explicit acknowledgement never
+advances the global media clock or exposes a different sealed game. Link
+candidates are not authorizations. See [Media feed](../MEDIA_FEED.md) for
+cursor-bound paging and operational source/rights review.

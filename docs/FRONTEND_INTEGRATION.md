@@ -77,3 +77,19 @@ cursor/date/view changes. Favorites affect neither requests nor ordering.
 Missing score coverage is displayed as unavailable rather than guessed quality.
 See [Ranking](RANKING.md#connected-viewing-guide-and-archived-verdicts-10) for
 provisional verdict bands and the remaining feature-production blocker.
+
+## Personal Watch Queue (#90)
+
+The side-panel queue and buttons on game cards call the profile-scoped persisted
+Watch Queue endpoint (see [Watch Queue](WATCH_QUEUE.md)). Saving, marking
+`done`, dismissing or removing is personal bookkeeping: none of these actions
+changes the sealed/acknowledged status or requests spoiler-bearing evidence.
+Queue entries render the existing pregame policy card for the selected schedule
+view or an honest unavailable placeholder. Switching schedule views re-queries the queue
+at the saved cursor and cannot replay data from the previous view. Only an explicit, separately confirmed result reveal
+can acknowledge a game. Queue reads require the currently saved global cursor;
+stale concurrent-tab responses fail closed.
+
+## Reviewed general News & Buzz feed (#91)
+
+The dashboard requests the profile's reviewed, timeline-bound media feed independently of the selected game/schedule view. See [Reviewed News & Buzz](MEDIA_FEED.md) for review/retention requirements, page-key semantics and operational coverage limitations. Individual game reveals do not reload or unlock news.

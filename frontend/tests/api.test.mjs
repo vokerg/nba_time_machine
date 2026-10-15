@@ -15,7 +15,7 @@ function fake(responses) {
     assert.equal(options.redirect, 'error');
     const next = responses.shift();
     assert.ok(next, 'unexpected or passive endpoint request');
-    return new Response(JSON.stringify(next.body), { status: next.status ?? 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(next.status === 204 ? null : JSON.stringify(next.body), { status: next.status ?? 200, headers: { 'Content-Type': 'application/json' } });
   };
   return { calls, client: new BackendClient(profile, fetcher) };
 }
@@ -115,4 +115,46 @@ test('connected ranking uses same-origin proxy and requires consent before fetch
     slate_date: '2025-10-21', candidate_game_ids: [game], consent_to_outcome_ranking: true,
     planned_minutes_per_game: 120,
   });
+});
+
+test('queue reads and writes stay cursor-scoped without passive result disclosure', async () => {
+  const queued = { game_id: game, queue_state: 'queued', game: card };
+  const { client, calls } = fake([
+    { body: { time_cursor: cursor, items: [queued] } },
+    { status: 204 },
+    { status: 204 },
+    { body: { time_cursor: '2026-10-14T12:00:00Z', items: [] } },
+  ]);
+  assert.deepEqual((await client.queue(cursor, 'replay')).items, [queued]);
+  await client.saveQueue(game, 'done', cursor);
+  await client.removeQueue(game, cursor);
+  assert.deepEqual(calls.slice(0, 3).map((c) => c.options.method), ['GET', 'PUT', 'DELETE']);
+  assert.ok(calls[0].url.includes('view=replay'));
+  assert.deepEqual(JSON.parse(calls[1].options.body), { time_cursor: cursor, queue_state: 'done' });
+  assert.equal(calls[2].url, `/api/profiles/${profile}/watch-queue/${game}?time_cursor=${encodeURIComponent(cursor)}`);
+  assert.equal(calls.some((c) => /reveal|watchability|\/why/.test(c.url)), false);
+  await assert.rejects(client.queue(cursor, 'replay'), /another tab/);
+  await assert.rejects(client.saveQueue(game, 'acknowledged', cursor));
+  await assert.rejects(client.queue(cursor, 'unsafe'));
+  assert.equal(calls.length, 4);
+});
+
+test('media is cursor-scoped, strictly typed and uses opaque pagination without spoiler fallback', async () => {
+  const seen = { item_id: 'safe', headline: 'Safe article', source: 'NBA',
+    known_at: cursor, url: 'https://example.org/safe', media_type: 'article' };
+  const { client, calls } = fake([
+    { body: { time_cursor: cursor, items: [seen], next_page: 'another_page' } },
+    { body: { time_cursor: cursor, items: [{ ...seen, headline: 'Future', known_at: '2026-10-14T12:00:00Z' }] } },
+    { body: { time_cursor: '2026-10-14T12:00:00Z', items: [] } },
+    { body: { time_cursor: cursor, items: [{ ...seen, home_score: 99 }] } },
+  ]);
+  assert.equal((await client.media(cursor)).items[0].headline, 'Safe article');
+  assert.match(calls[0].url, /\/media\?time_cursor=/);
+  assert.match(calls[0].url, /limit=10/);
+  await assert.rejects(client.media(cursor, 'bad token'), /Invalid media request/);
+  await assert.rejects(client.media(cursor), /Future media/);
+  await assert.rejects(client.media(cursor), /another tab/);
+  await assert.rejects(client.media(cursor), /Unexpected field/);
+  assert.equal(calls.length, 4);
+  assert.ok(calls.every((call) => call.options.method === 'GET'));
 });
