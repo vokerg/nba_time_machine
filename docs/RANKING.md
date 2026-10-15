@@ -229,3 +229,8 @@ ranking features or trusted final timestamps, so imported games normally have
 no scores. Historical feature production, source approval history, calibration
 against actual games and trusted reason production remain outstanding. Profile
 UUIDs remain opaque state keys rather than authenticated user accounts.
+
+The local workbench also offers a [v2 entertainment candidate](SCORING_ENRICHMENT.md)
+with measured player production and extreme-game-pattern bonuses. These
+read-only experiments preserve `postgame-v1` and public disclosure contracts;
+no historical rarity percentile or pregame context is inferred.

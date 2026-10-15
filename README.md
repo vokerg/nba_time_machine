@@ -87,6 +87,11 @@ For database connection configuration, migrations and source-registry bootstrap,
 For daily ESPN game evidence with CBS backup, see [Morning NBA collection](docs/NBA_MORNING_COLLECTION.md). The CLI defaults to read-only diagnostics; explicit write mode uses the existing PostgreSQL capture and temporal records. The separate [ranking processor](docs/MORNING_RANKING_PIPELINE.md) derives traceable features and hidden watchability ratings from complete stored trajectories.
 
 
+For local rating inspection and tuning against your configured database, run
+`backend/.venv/bin/python backend/scripts/run_scoring_workbench.py` and open
+<http://127.0.0.1:8765>. This separate read-only developer tool exposes full score
+breakdowns and evidence; see [Scoring workbench](docs/SCORING_WORKBENCH.md).
+
 ## Agent entry
 
 When a coding agent is told only **`Go`**, it must follow the recovery-first factory protocol in `AGENTS.md`: finish/recover unfinished PR work first, otherwise select the next unblocked issue, and leave all partial work resumable from GitHub-visible state.
