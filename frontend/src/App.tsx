@@ -22,7 +22,7 @@ export function App() {
   const [view, setView] = useState<ScheduleView>("replay");
   const [slate, setSlate] = useState<GameList | null>(null);
   const [disclosures, setDisclosures] = useState<Record<string, Disclosure>>({});
-  const [confirming, setConfirming] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<{ gameId: string; from: "slate" | "queue" } | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,9 +194,9 @@ export function App() {
               <div className="game-meta"><span>{game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip unavailable"}</span><span>{game.state === "sealed" ? "Sealed" : "Acknowledged"}</span></div>
               <h3>{matchup(game)}</h3><p className="pregame-label">Pregame interest · {game.pregame_interest?.toFixed(1) ?? "Not available"}</p>
               <p className="small-label">Watchability hints can reveal that something unusual happened. Why reveals more detail.</p>
-              <div className="game-actions"><button disabled={busy || loading || queueLoading || !queue} onClick={() => void editQueue(game.game_id, queuedIds.has(game.game_id) ? null : "queued")}>{queuedIds.has(game.game_id) ? "Remove from queue" : "Save to queue"}</button><button disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button><button className="danger-link" disabled={busy || loading} onClick={() => setConfirming(game.game_id)}>Reveal result ↗</button></div>
+              <div className="game-actions"><button disabled={busy || loading || queueLoading || !queue} onClick={() => void editQueue(game.game_id, queuedIds.has(game.game_id) ? null : "queued")}>{queuedIds.has(game.game_id) ? "Remove from queue" : "Save to queue"}</button><button disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button><button className="danger-link" disabled={busy || loading} onClick={() => setConfirming({ gameId: game.game_id, from: "slate" })}>Reveal result ↗</button></div>
               {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite"><strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>{shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}{!shown.reason && shown.verdict?.watchability_verdict && <button disabled={busy} onClick={() => void disclose(game, "why")}>Why? Show one more hint</button>}</div>}
-              {confirming === game.game_id && <div className="confirmation"><p>Reveal this game's score and acknowledge it? Your global timeline will stay where it is.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
+              {confirming?.gameId === game.game_id && confirming.from === "slate" && <div className="confirmation"><p>Reveal this game's score and acknowledge it? Your global timeline will stay where it is.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
               {shown.full && <div className="result-box" aria-live="polite"><p className="small-label">Explicitly revealed</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
             </article>;
           })}</div>
@@ -224,9 +224,9 @@ export function App() {
                 <div className="game-actions">
                   <label>My plan <select aria-label="My plan" value={item.queue_state} disabled={busy} onChange={(e) => void editQueue(item.game_id, e.target.value as QueueState)}><option value="queued">Queued</option><option value="done">Done</option><option value="dismissed">Dismissed</option></select></label>
                   <button disabled={busy} onClick={() => void editQueue(item.game_id, null)}>Remove</button>
-                  {game && <button className="danger-link" disabled={busy} onClick={() => setConfirming(item.game_id)}>Reveal result ↗</button>}
+                  {game && <button className="danger-link" disabled={busy} onClick={() => setConfirming({ gameId: item.game_id, from: "queue" })}>Reveal result ↗</button>}
                 </div>
-                {game && confirming === item.game_id && <div className="confirmation"><p>Reveal this game's result separately from your queue plan? The global cursor stays unchanged.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
+                {game && confirming?.gameId === item.game_id && confirming.from === "queue" && <div className="confirmation"><p>Reveal this game's result separately from your queue plan? The global cursor stays unchanged.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
                 {game && shown.full && <div className="result-box"><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong></div>}
               </li>;
             })}</ol>

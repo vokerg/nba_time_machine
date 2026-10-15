@@ -300,3 +300,27 @@ test('queue follows schedule view and discards pending replay data after strict-
     assert.doesNotMatch(document.querySelector('.queue-item').textContent, /Retrospective team/);
   } finally { await unmount(root); }
 });
+
+test('queue reveal confirmation is shown only where requested even if game is on the slate', async () => {
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/watch-queue')) return response({
+      time_cursor: cursor, items: [{ game_id: game, queue_state: 'queued', game: card }],
+    });
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector('.queue-item') && document.querySelector('.game-card'));
+    const queueButton = document.querySelector('.queue-panel .danger-link');
+    await act(async () => queueButton.click());
+    assert.equal(document.querySelectorAll('.confirmation').length, 1);
+    assert.ok(document.querySelector('.queue-panel .confirmation'));
+    assert.equal(document.querySelector('.game-card .confirmation'), null);
+    await click('Keep result hidden');
+    const slateButton = document.querySelector('.game-card .danger-link');
+    await act(async () => slateButton.click());
+    assert.equal(document.querySelectorAll('.confirmation').length, 1);
+    assert.ok(document.querySelector('.game-card .confirmation'));
+    assert.equal(document.querySelector('.queue-panel .confirmation'), null);
+  } finally { await unmount(root); }
+});
