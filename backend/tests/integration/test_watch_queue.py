@@ -115,7 +115,8 @@ async def test_queue_persists_order_state_and_sealed_cards_without_cursor_side_e
             assert body["items"][2]["game"] is None  # No observations.
             assert body["items"][3]["game"]["home_team"] == "Home"  # Explicit retrospective replay.
             wire = str(body)
-            for forbidden in ("140", "121", "130", "101", "home_score", "away_score", "result",
+            # UUIDs can contain any digit sequence; assert forbidden *field names*.
+            for forbidden in ("home_score", "away_score", "result",
                               "watchability", "thumbnail", "runtime"):
                 assert forbidden not in wire
             assert (await client.get(other_base, params=params)).json()["items"] == []
