@@ -16,6 +16,7 @@ from nba_time_machine.db import GameRecord, SeasonRecord, TimelineStateRecord, W
 from nba_time_machine.spoilers.game_reader import SqlAlchemyGameSnapshotRepository
 from nba_time_machine.spoilers.policy import DisclosureLayer, GameContext, game_is_unsealed, project_game
 from nba_time_machine.spoilers.repository import SqlAlchemyGameAcknowledgementRepository
+from nba_time_machine.spoilers.service import TrustedGameSnapshot
 
 QueueState = Literal["queued", "done", "dismissed"]
 QueueView = Literal["pregame", "observed", "replay"]
@@ -109,7 +110,9 @@ class WatchQueueService:
         for row in rows:
             card = None
             snapshot = await reader.get(row.game_id, time_cursor=cursor)
-            if snapshot is not None and snapshot.tip_at is not None and (
+            if (type(snapshot) is TrustedGameSnapshot and snapshot.game_id == row.game_id
+                    and snapshot.tip_at is not None and snapshot.tip_at.tzinfo is not None
+                    and snapshot.tip_at.utcoffset() is not None) and (
                 view != "replay" or
                 snapshot.tip_at.astimezone(_NBA_CLOCK).date() <= cursor.astimezone(_NBA_CLOCK).date()
             ):
