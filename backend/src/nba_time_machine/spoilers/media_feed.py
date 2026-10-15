@@ -21,7 +21,7 @@ from nba_time_machine.api.read_models import (
     MediaFeedItemResponse, MediaFeedResponse, media_item_from_projection,
 )
 from nba_time_machine.db import (
-    RawCaptureRecord, SourceItemEntityLinkRecord, SourceItemRecord, SourceRecord,
+    GameObservationRecord, RawCaptureRecord, SourceItemEntityLinkRecord, SourceItemRecord, SourceRecord,
 )
 from nba_time_machine.db.media_models import MediaReviewRecord
 from nba_time_machine.ingestion.adapters import canonical_url
@@ -169,12 +169,27 @@ class MediaFeedService:
                     continue
                 contexts: dict[UUID, GameContext] = {}
                 for game_id in media.related_game_ids:
+                    # Future-only schedule observations cannot make a pregame
+                    # story eligible at a historical cursor.
+                    known_tip = await self.session.scalar(
+                        select(GameObservationRecord.scheduled_tip_at)
+                        .where(
+                            GameObservationRecord.game_id == game_id,
+                            GameObservationRecord.observed_at <= cursor,
+                            GameObservationRecord.available_at <= cursor,
+                            GameObservationRecord.scheduled_tip_at.is_not(None),
+                        )
+                        .order_by(GameObservationRecord.observed_at.desc(), GameObservationRecord.id.desc())
+                        .limit(1)
+                    )
+                    if utc(known_tip) is None:
+                        break
                     snapshot = await self.game_reader.get(game_id, time_cursor=cursor)
                     if snapshot is None:
                         break
                     contexts[game_id] = GameContext(
                         game_id=game_id, time_cursor=cursor,
-                        tip_at=snapshot.tip_at,
+                        tip_at=utc(known_tip),
                         protection_ends_at=snapshot.protection_ends_at,
                         acknowledged=await self.acks.is_acknowledged(profile_id, game_id),
                     )
