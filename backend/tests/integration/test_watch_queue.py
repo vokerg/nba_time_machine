@@ -93,7 +93,7 @@ async def test_queue_persists_order_state_and_sealed_cards_without_cursor_side_e
                 "time_cursor": CURSOR.isoformat().replace("+00:00", "Z"),
                 "items": [],
             }
-            for game_id in (first, future, missing):
+            for game_id in (first, future, missing, posttip):
                 result = await client.put(f"{base}/{game_id}", json={
                     "time_cursor": CURSOR.isoformat(), "queue_state": "queued",
                 })
