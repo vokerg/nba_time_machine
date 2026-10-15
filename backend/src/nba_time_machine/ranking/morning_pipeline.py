@@ -4,7 +4,7 @@ No fetches, inferred actual final time, pregame inputs, or public serialization.
 Caller owns the transaction; the sports advisory lock serializes writes.
 """
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -34,7 +34,7 @@ class MorningRankingPipeline:
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must include a timezone")
         # The latest game observation masks older final states, across providers.
-        observation = await SqlAlchemyRankingEvidenceRepository(self.session)._game_observation(game_id, as_of)
+        observation = await SqlAlchemyRankingEvidenceRepository(self.session).game_observation_as_of(game_id, as_of)
         if observation is None or observation.status != "final":
             return None
         rows = (await self.session.scalars(select(TemporalFactRecord).where(
@@ -90,13 +90,19 @@ class MorningRankingPipeline:
         score = score_postgame(game_id, features, final_at=boundary, as_of=as_of)
         return fact, metrics, score
 
-    async def process(self, game_id: UUID, *, as_of: datetime, write: bool = False) -> bool:
+    async def process(self, game_id: UUID, *, as_of: datetime, write: bool = False,
+                      slate_date: date | None = None) -> bool:
         if write:
             await self.session.execute(text("SELECT pg_advisory_xact_lock(734387)"))
+            # Coordinate registry revocation with feature/archive writes too.
+            await self.session.execute(select(SourceRecord).where(
+                SourceRecord.id.in_(SOURCE_IDS.values())).order_by(SourceRecord.id).with_for_update())
         result = await self.derive(game_id, as_of=as_of)
         if result is None:
             return False
         fact, metrics, score = result
+        if slate_date is not None and fact.value["ref"]["day"] != slate_date.isoformat():
+            return False
         if write:
             existing = (await self.session.scalars(select(TemporalFactRecord).where(
                 TemporalFactRecord.game_id == game_id,

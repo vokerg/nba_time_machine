@@ -125,6 +125,10 @@ manual runs cannot manufacture pre-tip knowledge. No scorer, ranking archive,
 policy layer, AI context or UI reads are changed by this issue. Importing evidence
 does not itself create watchability recommendations.
 
+The separate [morning ranking processor](MORNING_RANKING_PIPELINE.md) can now
+derive versioned trajectory features from complete stored evidence and archive
+hidden scores for explicit per-game hints. Collection alone does not run it.
+
 ## Validation
 
 Generated synthetic fixtures: `backend/tests/morning_fixtures.py`. Offline tests

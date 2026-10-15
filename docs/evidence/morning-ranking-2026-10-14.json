@@ -1,0 +1,231 @@
+{
+  "nba_day": "2026-10-14",
+  "database": "disposable local PostgreSQL; no owner Neon writes",
+  "collector": {
+    "day": "2026-10-14",
+    "started_at": "2026-10-15T03:26:32.326800+00:00",
+    "discovery": "espn",
+    "requests": 8,
+    "errors": [
+      "cbs_game_failed:NBA_20261014_PHX@SA"
+    ],
+    "run_id": "3fbafe66-77fa-40cb-a432-797f01f9f612",
+    "captures_written": 6,
+    "persistence_errors": [],
+    "games": [
+      {
+        "home": "MIA",
+        "away": "BKN",
+        "pbp_provider": "espn",
+        "box_provider": "espn",
+        "evidence": [
+          {
+            "provider": "espn",
+            "game_id": "401898404",
+            "observed_at": "2026-10-15T03:26:33.487809+00:00",
+            "status": "final",
+            "plays": 516,
+            "players": 40,
+            "pbp_errors": [],
+            "box_errors": []
+          }
+        ]
+      },
+      {
+        "home": "BOS",
+        "away": "CHA",
+        "pbp_provider": "espn",
+        "box_provider": "espn",
+        "evidence": [
+          {
+            "provider": "espn",
+            "game_id": "401898405",
+            "observed_at": "2026-10-15T03:26:34.459765+00:00",
+            "status": "final",
+            "plays": 480,
+            "players": 37,
+            "pbp_errors": [],
+            "box_errors": []
+          }
+        ]
+      },
+      {
+        "home": "SAS",
+        "away": "PHX",
+        "pbp_provider": null,
+        "box_provider": "espn",
+        "evidence": [
+          {
+            "provider": "espn",
+            "game_id": "401898722",
+            "observed_at": "2026-10-15T03:26:35.506538+00:00",
+            "status": "final",
+            "plays": 487,
+            "players": 37,
+            "pbp_errors": [
+              "invalid_score_transition",
+              "score_regression",
+              "scoring_event_mismatch",
+              "unresolved_participant"
+            ],
+            "box_errors": []
+          }
+        ]
+      },
+      {
+        "home": "DAL",
+        "away": "NOP",
+        "pbp_provider": "espn",
+        "box_provider": "espn",
+        "evidence": [
+          {
+            "provider": "espn",
+            "game_id": "401901825",
+            "observed_at": "2026-10-15T03:26:37.607058+00:00",
+            "status": "final",
+            "plays": 541,
+            "players": 33,
+            "pbp_errors": [],
+            "box_errors": []
+          }
+        ]
+      },
+      {
+        "home": "MIL",
+        "away": "CHI",
+        "pbp_provider": "espn",
+        "box_provider": "espn",
+        "evidence": [
+          {
+            "provider": "espn",
+            "game_id": "401908942",
+            "observed_at": "2026-10-15T03:26:38.651926+00:00",
+            "status": "final",
+            "plays": 565,
+            "players": 42,
+            "pbp_errors": [],
+            "box_errors": []
+          }
+        ]
+      },
+      {
+        "home": "MIN",
+        "away": "DET",
+        "pbp_provider": "espn",
+        "box_provider": "espn",
+        "evidence": [
+          {
+            "provider": "espn",
+            "game_id": "401914125",
+            "observed_at": "2026-10-15T03:26:39.502987+00:00",
+            "status": "final",
+            "plays": 503,
+            "players": 35,
+            "pbp_errors": [],
+            "box_errors": []
+          }
+        ]
+      },
+      {
+        "home": "LAC",
+        "away": "DEN",
+        "pbp_provider": null,
+        "box_provider": null,
+        "evidence": []
+      }
+    ],
+    "attempts": [
+      {
+        "provider": "espn",
+        "stage": "scoreboard",
+        "game": null,
+        "status": "ok",
+        "http_status": 200,
+        "bytes": 119077,
+        "retry_after": null
+      },
+      {
+        "provider": "espn",
+        "stage": "summary",
+        "game": "401898404",
+        "status": "ok",
+        "http_status": 200,
+        "bytes": 469347,
+        "retry_after": null
+      },
+      {
+        "provider": "espn",
+        "stage": "summary",
+        "game": "401898405",
+        "status": "ok",
+        "http_status": 200,
+        "bytes": 442759,
+        "retry_after": null
+      },
+      {
+        "provider": "espn",
+        "stage": "summary",
+        "game": "401898722",
+        "status": "ok",
+        "http_status": 200,
+        "bytes": 451579,
+        "retry_after": null
+      },
+      {
+        "provider": "cbs",
+        "stage": "gametracker",
+        "game": "NBA_20261014_PHX@SA",
+        "status": "http_301",
+        "http_status": 301,
+        "bytes": 0,
+        "retry_after": null
+      },
+      {
+        "provider": "espn",
+        "stage": "summary",
+        "game": "401901825",
+        "status": "ok",
+        "http_status": 200,
+        "bytes": 472821,
+        "retry_after": null
+      },
+      {
+        "provider": "espn",
+        "stage": "summary",
+        "game": "401908942",
+        "status": "ok",
+        "http_status": 200,
+        "bytes": 454296,
+        "retry_after": null
+      },
+      {
+        "provider": "espn",
+        "stage": "summary",
+        "game": "401914125",
+        "status": "ok",
+        "http_status": 200,
+        "bytes": 456059,
+        "retry_after": null
+      }
+    ]
+  },
+  "processing": {
+    "as_of": "2026-10-15T03:27:00Z",
+    "stored_games": 6,
+    "feature_bundles_after_replay": 5,
+    "archived_scores_after_replay": 5,
+    "http_coarse_verdicts": 5,
+    "unavailable": 1,
+    "public_fields_checked": [
+      "game_id",
+      "disclosure",
+      "watchability_verdict"
+    ],
+    "numeric_scores_or_metrics_exposed": false
+  },
+  "limitations": [
+    "One discovered unfinished game had no persisted evidence and was not a processing candidate.",
+    "One stored partial trajectory remained unscored; CBS fallback returned HTTP 301.",
+    "Weights and normalization are provisional, not calibrated."
+  ]
+}
