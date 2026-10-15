@@ -109,7 +109,11 @@ export function parseMediaFeed(value: unknown): MediaFeed {
     if (
       typeof item.item_id !== "string" || typeof item.headline !== "string" ||
       !textOrAbsent(item.excerpt) || !textOrAbsent(item.thumbnail_url) ||
-      !finiteOrAbsent(item.runtime_seconds) ||\n      !textOrAbsent(item.source) || !textOrAbsent(item.source_id) ||\n      (item.media_type !== undefined && !["article", "podcast", "video"].includes(item.media_type as string)) ||\n      (item.known_at !== undefined && (typeof item.known_at !== "string" || !/(?:Z|[+-]\\d\\d:\\d\\d)$/.test(item.known_at) || !Number.isFinite(Date.parse(item.known_at)))) ||\n      (item.url !== undefined && (typeof item.url !== "string" || !/^https:\\/\\/[^\\s/]+\\//.test(item.url)))
+      !finiteOrAbsent(item.runtime_seconds) ||
+      !textOrAbsent(item.source) || !textOrAbsent(item.source_id) ||
+      (item.media_type !== undefined && !["article", "podcast", "video"].includes(item.media_type as string)) ||
+      (item.known_at !== undefined && (typeof item.known_at !== "string" || !/(?:Z|[+-]\d\d:\d\d)$/.test(item.known_at) || !Number.isFinite(Date.parse(item.known_at)))) ||
+      (item.url !== undefined && (typeof item.url !== "string" || !/^https:\/\/[^\s/]+\//.test(item.url)))
     ) {
       throw new Error("Invalid safe media projection");
     }
