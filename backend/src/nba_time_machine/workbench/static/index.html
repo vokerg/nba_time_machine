@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>NBA · Scoring workbench</title>
     <link rel="stylesheet" href="/static/workbench.css" />
+    <script src="/static/enrichment.js" defer></script>
     <script src="/static/workbench.js" defer></script>
   </head>
   <body>
@@ -77,9 +78,9 @@
           </div>
           <button id="preview" disabled>Compare preview</button
           ><button id="reset" class="secondary" disabled>
-            Reset to baseline
+            Reset experiment
           </button>
-          <p class="formula">
+          <p class="formula" id="formula">
             Score = 10 × Σ(normalized signal × weight) ÷ Σ(active weights)<br />Normalized
             signal = min(measurement ÷ scale, 1)
           </p>

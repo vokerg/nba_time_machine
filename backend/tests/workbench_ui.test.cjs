@@ -68,6 +68,7 @@ async function setup() {
   };
   w.URL.revokeObjectURL = () => {};
   w.HTMLAnchorElement.prototype.click = function () {};
+  w.eval(fs.readFileSync(path.join(assets, "enrichment.js"), "utf8"));
   w.eval(fs.readFileSync(path.join(assets, "workbench.js"), "utf8"));
   await new Promise((resolve) => setImmediate(resolve));
   return { w, requests, downloads, close: () => w.close() };

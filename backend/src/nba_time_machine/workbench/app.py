@@ -18,6 +18,7 @@ from nba_time_machine.workbench.service import inspect_slate
 
 STATIC = Path(__file__).parent / "static"
 DEFAULT_CONFIG = Path(__file__).resolve().parents[4] / "config/ranking/trajectory-baseline-v1.json"
+CANDIDATE_CONFIG = DEFAULT_CONFIG.with_name("entertainment-preview-v2.json")
 
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ async def lifespan(app):
     engine = create_database_engine(DatabaseSettings())
     app.state.session_factory = create_session_factory(engine)
     app.state.baseline = TuningConfig.model_validate_json(DEFAULT_CONFIG.read_text())
+    app.state.candidate = TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
     try:
         yield
     finally:
@@ -85,13 +87,14 @@ class PreviewRequest(BaseModel):
 async def slate(request: Request, date: date = Query(), as_of: AwareDatetime | None = None,
                 session=Depends(read_session)):
     baseline = request.app.state.baseline
-    return await inspect_slate(session, date, as_of or datetime.now(timezone.utc), baseline, baseline)
+    return await inspect_slate(session, date, as_of or datetime.now(timezone.utc), baseline,
+                               request.app.state.candidate, request.app.state.candidate)
 
 
 @app.post("/api/preview")
 async def compare(payload: PreviewRequest, request: Request, session=Depends(read_session)):
     return await inspect_slate(session, payload.slate_date, payload.as_of,
-                               request.app.state.baseline, payload.config)
+                               request.app.state.baseline, payload.config, request.app.state.candidate)
 
 
 @app.get("/")

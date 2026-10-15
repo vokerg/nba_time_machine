@@ -63,7 +63,7 @@ def test_supporting_events_and_missing_inventory():
     assert sum(p['clutch_ms'] for p in events) == metrics.clutch_ms
     assert sum('lead_changes' in p['tags'] for p in events) == metrics.lead_changes
     assert all(p['source_play_id'] for p in events)
-    assert {'star_power', 'stakes', 'individual_performance', 'rarity', 'game_quality'} <= {m['signal'] for m in MISSING}
+    assert {'star_power', 'stakes', 'rarity', 'game_quality'} <= {m['signal'] for m in MISSING}
 
 
 def test_supporting_lead_change_and_comeback_use_source_events():

@@ -1,7 +1,7 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 const labels = {
-  clutch: ["Clutch time", "Scale · milliseconds"],
+  clutch: ["Clutch time", "Scale · minutes"],
   lead_changes: ["Lead changes", "Scale · changes"],
   comeback: ["Winner’s largest deficit", "Scale · points"],
   overtime: ["Overtime", "Scale · periods"],
@@ -47,7 +47,11 @@ function setBusy(value) {
 function markDirty(event) {
   if (
     !["day", "asof"].includes(event?.target?.id) &&
-    $("version").value === report?.baseline_config.version
+    [$("version").value].some(
+      (v) =>
+        v === report?.baseline_config.version ||
+        v === report?.default_candidate_config?.version,
+    )
   )
     $("version").value = "experiment-v1";
   dirty = true;
@@ -75,10 +79,19 @@ function fillConfig(value) {
       input.min = type === "weights" ? "0" : "0.000001";
       input.max = type === "weights" ? "1000" : "1000000000";
       input.step = "any";
-      input.value = value[type][key];
+      input.value =
+        type === "scales" && key === "clutch"
+          ? value[type][key] / 60000
+          : value[type][key];
       input.id = `${type}-${key}`;
       input.addEventListener("input", () => {
-        if ($("version").value === report?.baseline_config.version)
+        if (
+          [$("version").value].some(
+            (v) =>
+              v === report?.baseline_config.version ||
+              v === report?.default_candidate_config?.version,
+          )
+        )
           $("version").value = "experiment-v1";
         markDirty();
       });
@@ -88,10 +101,16 @@ function fillConfig(value) {
     block.append(fields);
     $("controls").append(block);
   }
+  if (value.schema_version === 2)
+    $("controls").append(WorkbenchEnrichment.controls(value, markDirty));
+  $("formula").textContent =
+    value.schema_version === 2
+      ? "Candidate = min(10, drama score + bounded player bonus + bounded extreme-pattern bonus). Saved scores use the original model."
+      : "Drama = 10 × Σ(normalized signal × weight) ÷ Σ(active weights). Normalized signal = min(measurement ÷ scale, 1).";
 }
 function readConfig() {
   const next = {
-    schema_version: 1,
+    schema_version: config?.schema_version || 1,
     version: $("version").value,
     weights: {},
     scales: {},
@@ -100,8 +119,11 @@ function readConfig() {
   };
   for (const key of Object.keys(labels)) {
     next.weights[key] = Number($(`weights-${key}`).value);
-    next.scales[key] = Number($(`scales-${key}`).value);
+    next.scales[key] =
+      Number($(`scales-${key}`).value) * (key === "clutch" ? 60000 : 1);
   }
+  if (next.schema_version === 2)
+    Object.assign(next, WorkbenchEnrichment.read(config));
   return next;
 }
 async function request(url, options) {
@@ -153,7 +175,7 @@ async function load() {
       `/api/slate?date=${encodeURIComponent($("day").value)}&as_of=${encodeURIComponent(stamp)}`,
     );
     acceptReport(next);
-    fillConfig(next.baseline_config);
+    fillConfig(next.experiment_config);
   } catch (error) {
     status(error.message, true);
   } finally {
@@ -288,7 +310,7 @@ function renderDetail() {
   if (game.diagnostics.length)
     target.append(el("div", game.diagnostics.join(" · "), "notice"));
   if (game.experiment) {
-    target.append(el("h3", "Every point, explained"));
+    target.append(el("h3", "Game drama · base component"));
     const wrap = el("div", undefined, "table-wrap"),
       table = el("table"),
       head = el("thead"),
@@ -313,7 +335,9 @@ function renderDetail() {
         part.signal === "clutch"
           ? `${number(part.raw / 60000)} min (${part.raw} ms)`
           : `${part.raw} ${part.unit}`,
-        part.scale,
+        part.signal === "clutch"
+          ? `${number(part.scale / 60000)} min`
+          : part.scale,
         part.normalized.toFixed(4),
         part.weight,
         number(part.effective_weight_percent) + "%",
@@ -328,11 +352,12 @@ function renderDetail() {
       wrap,
       el(
         "p",
-        `Active weight denominator: ${game.experiment.weight_denominator}. Contributions sum to ${game.experiment.score.toFixed(4)} / 10 before display rounding. Config: ${game.experiment.version}.`,
+        `Active weight denominator: ${game.experiment.weight_denominator}. Contributions sum to ${(game.experiment.drama_score ?? game.experiment.score).toFixed(4)} drama points / 10 before display rounding. Config: ${game.experiment.version}.`,
         "formula",
       ),
     );
   }
+  WorkbenchEnrichment.render(target, game);
   const review = reviews[game.game_id] || { rating: "", notes: "" };
   const fields = el("div", undefined, "review"),
     ratingLabel = el("label", "Your rating · 0–10"),
@@ -465,8 +490,8 @@ function download(name, value) {
 $("load").addEventListener("click", load);
 $("preview").addEventListener("click", () => compare());
 $("reset").addEventListener("click", () => {
-  fillConfig(report.baseline_config);
-  compare(report.baseline_config);
+  fillConfig(report.default_candidate_config || report.baseline_config);
+  compare(report.default_candidate_config || report.baseline_config);
 });
 $("export-config").addEventListener("click", () =>
   download(config.version + ".json", config),

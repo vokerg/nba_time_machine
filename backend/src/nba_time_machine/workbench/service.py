@@ -11,12 +11,14 @@ from nba_time_machine.db import (
     SourceRecord, SportsExternalIdentityRecord, TeamRecord, TemporalFactRecord,
 )
 from nba_time_machine.ranking.morning_features import FEATURE_VERSION
+from nba_time_machine.ranking.entertainment_features import entertainment_measurements
 from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
 from nba_time_machine.ranking.queries import _score_from_row
 from nba_time_machine.ranking.scoring import POSTGAME_VERSION
 from nba_time_machine.sports.morning_models import EASTERN, Evidence, assess
 from nba_time_machine.sports.morning_store import source_policy
-from nba_time_machine.workbench.calculations import MISSING, TuningConfig, preview
+from nba_time_machine.workbench.calculations import MISSING, TuningConfig, preview, candidate_preview
+from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSettings, enrichment_preview
 from nba_time_machine.workbench.evidence import supporting_plays
 
 
@@ -105,11 +107,19 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         fact, metrics, score = derived
         result["metrics"] = asdict(metrics)
         result["baseline"] = preview(metrics, baseline)
-        result["experiment"] = preview(metrics, experiment)
+        measurements = entertainment_measurements(parsed)
+        result["experiment"] = candidate_preview(metrics, measurements, experiment)
         if parsed:
             result["supporting_plays"] = supporting_plays(parsed, metrics)
     else:
         result["diagnostics"].append("ranking_withheld: latest final state, source policy, identity, timestamps or complete trajectory not established")
+    if parsed:
+        # Independent family diagnostics remain inspectable even when a complete
+        # candidate is withheld (e.g. valid boxes but a corrected PBP trace).
+        measurements = entertainment_measurements(parsed)
+        result["enrichment"] = enrichment_preview(
+            measurements, experiment.player or PlayerSettings(), experiment.pattern or PatternSettings())
+        result["enrichment"]["candidate_eligible"] = derived is not None and experiment.schema_version == 2
     row = await session.scalar(select(RecommendationScoreRecord).where(
         RecommendationScoreRecord.game_id == game_id,
         RecommendationScoreRecord.score_kind == "postgame",
@@ -125,12 +135,14 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
     return result
 
 
-async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig):
+async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig,
+                        default_candidate: TuningConfig | None = None):
     games = []
     for observation in await slate_observations(session, day, as_of):
         games.append(await inspect_game(session, observation, as_of, baseline, experiment))
     return {"schema_version": 1, "slate_date": day.isoformat(), "as_of": as_of.isoformat(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "coverage": "Stored observations only; missing games are not proof of an empty slate. No live fetch.",
-        "baseline_config": baseline.model_dump(), "experiment_config": experiment.model_dump(),
+        "baseline_config": baseline.model_dump(exclude_none=True), "experiment_config": experiment.model_dump(exclude_none=True),
+        "default_candidate_config": (default_candidate or experiment).model_dump(exclude_none=True),
         "missing_criteria": MISSING, "games": games}

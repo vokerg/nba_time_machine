@@ -432,3 +432,23 @@ select {
 .thresholds {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
+.enrichment-controls {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+.inline-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin: 12px 0;
+}
+.inline-check input {
+  width: auto;
+}
+#detail details {
+  margin: 14px 0;
+}
+#detail td {
+  vertical-align: top;
+}
