@@ -10,7 +10,7 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select
@@ -85,7 +85,7 @@ def _trusted_capture(
         or source.retention_policy not in ("full", "normalized_full", "metadata_excerpt", "metadata_only")
         or capture.content_type not in ("application/rss+xml", "application/atom+xml", "text/html")
         or not isinstance(capture.title, str) or not capture.title.strip()
-        or len(review.game_ids) != len(set(review.game_ids))
+        or review.game_ids is None or len(review.game_ids) != len(set(review.game_ids))
     ):
         return None
     try:
@@ -162,6 +162,7 @@ class MediaFeedService:
                         SourceItemEntityLinkRecord.entity_type == "game",
                         SourceItemEntityLinkRecord.link_state == "present",
                         SourceItemEntityLinkRecord.observed_at <= cursor,
+                        SourceItemEntityLinkRecord.available_at <= cursor,
                     )
                 )).all())
                 if any(value is None or value not in media.related_game_ids for value in linked):
@@ -189,7 +190,7 @@ class MediaFeedService:
                 result = MediaFeedItemResponse(
                     **safe.model_dump(),
                     source=source.name, source_id=source.id,
-                    media_type="podcast" if source.kind == "podcast" else "article",
+                    media_type="podcast" if source.kind == "podcast" else ("video" if source.kind == "video" else "article"),
                     known_at=known, url=url,
                 )
                 selected.append((result, key))

@@ -30,8 +30,8 @@ class MediaReviewRecord(Base):
     )
 
     capture_id: Mapped[UUID] = mapped_column(
-        ForeignKey("raw_captures.id", ondelete="RESTRICT"),
-        PGUUID(as_uuid=True), primary_key=True,
+        PGUUID(as_uuid=True), ForeignKey("raw_captures.id", ondelete="RESTRICT"),
+        primary_key=True,
     )
     reviewed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()"),

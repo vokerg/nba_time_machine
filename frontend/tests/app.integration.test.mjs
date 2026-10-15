@@ -29,10 +29,10 @@ async function until(condition) {
 }
 function button(text) { return [...document.querySelectorAll('button')].find((el) => el.textContent.includes(text)); }
 async function click(text) { const el = button(text); assert.ok(el, text); await act(async () => el.click()); }
-async function mount(fetcher) {
+async function mount(fetcher, mediaFetcher = async () => response({ time_cursor: cursor, items: [] })) {
   window.localStorage.clear();
   window.localStorage.setItem('nba-time-machine:profile:v1', profile);
-  globalThis.fetch = fetcher;
+  globalThis.fetch = (url, options) => url.includes("/media?") ? mediaFetcher(url, options) : fetcher(url, options);
   const root = createRoot(document.getElementById('root'));
   await act(async () => root.render(createElement(App)));
   return root;

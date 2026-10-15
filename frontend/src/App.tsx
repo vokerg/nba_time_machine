@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BackendClient, nbaDate, profileIdentity } from "./api";
 import type { ScheduleView, Timeline } from "./api";
 import { orderByPregameInterest } from "./dashboard";
-import type { FullReveal, GameCard, GameList, Reason, Verdict } from "./dashboard";
+import type { FullReveal, GameCard, GameList, MediaFeed, Reason, Verdict } from "./dashboard";
 import type { QueueState, WatchQueue } from "./watchQueue";
 
 type Disclosure = { verdict?: Verdict; reason?: Reason; full?: FullReveal };
@@ -36,6 +36,11 @@ export function App() {
   const [queueLoading, setQueueLoading] = useState(false);
   const [queueError, setQueueError] = useState<string | null>(null);
   const queueGeneration = useRef(0);
+  const [media, setMedia] = useState<MediaFeed | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [mediaExpanded, setMediaExpanded] = useState(false);
+  const mediaGeneration = useRef(0);
 
   useEffect(() => {
     setWatchPicks(null); setRankingConsent(false);
@@ -91,6 +96,42 @@ export function App() {
     });
     return () => { controller.abort(); queueGeneration.current += 1; };
   }, [client, timeline, view, queueRevision]);
+
+  useEffect(() => {
+    if (!client || !timeline) { setMedia(null); return; }
+    const controller = new AbortController();
+    const ticket = ++mediaGeneration.current;
+    setMedia(null); setMediaError(null); setMediaLoading(true); setMediaExpanded(false);
+    client.media(timeline.time_cursor, undefined, controller.signal).then((data) => {
+      if (ticket === mediaGeneration.current) setMedia(data);
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted && ticket === mediaGeneration.current)
+        setMediaError(cause instanceof Error ? cause.message : "News unavailable.");
+    }).finally(() => {
+      if (ticket === mediaGeneration.current) setMediaLoading(false);
+    });
+    return () => { controller.abort(); mediaGeneration.current += 1; };
+  }, [client, timeline]);
+
+  async function loadMoreMedia() {
+    if (!client || !timeline || !media?.next_page || mediaLoading) return;
+    const ticket = mediaGeneration.current;
+    const page = media.next_page;
+    setMediaLoading(true); setMediaError(null);
+    try {
+      const incoming = await client.media(timeline.time_cursor, page);
+      if (ticket !== mediaGeneration.current) return;
+      if (incoming.next_page === page) throw new Error("Invalid repeated media page.");
+      setMedia((current) => current?.next_page === page
+        ? { time_cursor: current.time_cursor, items: [...current.items, ...incoming.items], next_page: incoming.next_page }
+        : current);
+    } catch (cause) {
+      if (ticket === mediaGeneration.current)
+        setMediaError(cause instanceof Error ? cause.message : "Cannot load more news.");
+    } finally {
+      if (ticket === mediaGeneration.current) setMediaLoading(false);
+    }
+  }
 
   async function editQueue(gameId: string, state: QueueState | null) {
     if (!client || !timeline) return;
@@ -232,7 +273,22 @@ export function App() {
             })}</ol>
           </section>
           <section className="side-panel favorites-panel"><h2>Favorite teams</h2><p>Favorites never change the canonical list order.</p><div className="favorite-choices">{teams.map((team) => <label key={team}><input type="checkbox" checked={favorites.includes(team)} onChange={() => setFavorites((prior) => prior.includes(team) ? prior.filter((name) => name !== team) : [...prior, team])} /><span>{team}</span></label>)}</div></section></aside>
-        <section className="media-section"><h2>News &amp; buzz</h2><p>A timeline-filtered media endpoint is not connected yet. Game reveals never unlock later general media.</p></section>
+        <section className="media-section" aria-labelledby="media-heading">
+          <div className="section-header"><div><p className="eyebrow">Only reviewed items known by your cursor</p><h2 id="media-heading">News &amp; buzz</h2></div>
+            {media?.items.length ? <button type="button" onClick={() => setMediaExpanded((value) => !value)}>{mediaExpanded ? "Show fewer" : "Explore News & Buzz"}</button> : null}</div>
+          <p className="section-intro">General media follows your saved timeline, even after an individual result reveal. Unreviewed coverage stays unavailable.</p>
+          {mediaError && <p role="alert">News &amp; Buzz: {mediaError} <button onClick={() => setReload((n) => n + 1)}>Reload saved state</button></p>}
+          {mediaLoading && !media && <p role="status">Loading reviewed news…</p>}
+          {!mediaLoading && media?.items.length === 0 && <div className="empty-state">No verified, spoiler-safe news available at this cursor. Source collection and review coverage may be missing.</div>}
+          <div className="media-list">{(mediaExpanded ? media?.items : media?.items.slice(0, 3))?.map((item) =>
+            <article className="media-item" key={item.item_id}>
+              <div><p className="small-label">{item.media_type ?? "Article"} · {item.source ?? "Reviewed source"}{item.known_at ? " · Known " + formatTime(item.known_at) : ""}</p>
+                <h3>{item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer">{item.headline}</a> : item.headline}</h3>
+                {item.excerpt && <p>{item.excerpt}</p>}
+              </div>
+            </article>)}</div>
+          {mediaExpanded && media?.next_page && <button disabled={mediaLoading} onClick={() => void loadMoreMedia()}>{mediaLoading ? "Loading…" : "Load more reviewed news"}</button>}
+        </section>
       </div>}
       {!timeline && loading && <p role="status">Connecting to backend…</p>}
       <footer className="footer"><span>NBA TIME MACHINE</span><span>Partial season coverage · forward-only cursor</span></footer>
