@@ -41,10 +41,17 @@ async def read_context(session, evidence, as_of):
     for day in days(START, evidence.ref.day - timedelta(days=1)):
         key = str(day)
         row = latest.get(key)
+        code = "missing_history_day"
         try:
-            if (row is None or key in ambiguous or row.valid_from > as_of
-                    or (row.valid_to is not None and row.valid_to <= as_of)):
+            if row is None:
                 raise ValueError("unavailable_history_day")
+            code = "ambiguous_history_revision"
+            if key in ambiguous:
+                raise ValueError(code)
+            code = "history_revision_not_valid_at_cutoff"
+            if row.valid_from > as_of or (row.valid_to is not None and row.valid_to <= as_of):
+                raise ValueError(code)
+            code = "invalid_history_schema_or_coverage"
             value = DayHistory.model_validate_json(json.dumps(row.value))
             if value.day != day or value.errors:
                 raise ValueError("invalid_history_day")
@@ -55,6 +62,10 @@ async def read_context(session, evidence, as_of):
                 "results": [r.model_dump(mode="json") for r in value.results]})
         except (ValueError, TypeError):
             result["missing_days"].append(key)
+            result["provenance"].append({"day": key, "fact_id": str(row.id) if row else None,
+                "source_id": SOURCE_ID, "error": code,
+                "observed_at": row.observed_at.isoformat() if row else None,
+                "available_at": row.available_at.isoformat() if row else None})
     if result["missing_days"]:
         result["reason"] = "Incomplete or invalid history: every earlier season day is required. Missing data is not zero."
         return result

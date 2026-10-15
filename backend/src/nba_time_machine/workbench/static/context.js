@@ -6,7 +6,7 @@ window.WorkbenchContext = (() => {
     confidence_games: "Full sample confidence at (games)",
     win_pct_floor: "Strong-team credit starts above (win %)",
     win_pct_peak: "Strong-team full credit at (win %)",
-    leader_rank_limit: "Leader credit starts above conference rank (1 = best)",
+    leader_rank_limit: "No leader credit at conference rank (full credit at 1)",
     close_games: "Standings race: no proximity credit at gap (games)",
     boundary_games: "Standings race: no cutoff credit at distance (games)",
     late_games_floor: "Late-season credit starts after (games played)",
@@ -63,6 +63,7 @@ window.WorkbenchContext = (() => {
     const context = game.context;
     if (!context) return;
     target.append(node("h3", `Game importance · entering ${context.entering_day}`));
+    target.append(node("p", `${context.included_in_proposal ? "Importance bonus added" : "Inspectable importance bonus · not added"}: ${fmt(context.bonus)} game-score points.`));
     target.append(node("p", context.basis), node("p", context.reason));
     if (!context.included_in_proposal)
       target.append(node("p", "Inspection only: importance is not added to the proposed score with this legacy formula or unavailable game trajectory."));

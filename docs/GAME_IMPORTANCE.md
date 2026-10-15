@@ -114,3 +114,26 @@ uncapped sum, cap/rounding adjustments and missing families remain explicit.
 Schemas 1/2 retain their prior formulas and import/export support. Inspectable
 context on a legacy formula is labeled as excluded. Adoption into the consumer
 app requires a separate reviewed change; no existing score archive is rewritten.
+
+
+## Verification and owner-authorized operation
+
+All **430 backend tests** passed on fresh disposable PostgreSQL, including
+coverage gaps, future cutoffs, idempotent capture replay, invalid/expired/tied
+newer revisions, source revocation and in-flight policy changes, read-only
+v3 HTTP inspection, unchanged archives and legacy configs. Eight workbench DOM
+tests passed, including schema-3 settings/percentage conversion and imports that
+drop context when returning to v2. The first local suite and an isolated launcher
+rerun hit the existing macOS process-group PermissionError; the final fresh full
+suite passed. No launcher change is included.
+
+Owner-authorized collection on October 15, 2026 fetched the 20 days from October
+21 through November 9, 2025: **147 results, 20 normalized captures, zero errors**.
+The real November 10 workbench has nine context-complete games and eight complete
+proposed scores; Atlanta–Clippers remains withheld for its separate partial PBP.
+Live inspection reconciled all contribution/cap arithmetic and reproduced the
+original archived ratings. Fact/score counts did not change during inspection.
+November race terms are zero under the default late-season thresholds. Calendar
+and timestamps remain separate; nothing was backdated or activated in the
+consumer app. Sanitized [operation evidence](evidence/game-importance-2025-11-10.json)
+contains counts and checks, no full results or ratings.

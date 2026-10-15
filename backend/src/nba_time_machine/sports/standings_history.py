@@ -70,7 +70,8 @@ def parse_day(payload: dict, day: date) -> DayHistory:
         raise ValueError("unverified_scoreboard_day")
     for event in payload["events"]:
         try:
-            if type(event["season"]["year"]) is not int or event["season"]["year"] != 2026:
+            if (type(event["season"]["year"]) is not int or event["season"]["year"] != 2026
+                    or type(event["season"]["type"]) is not int or event["season"]["type"] not in (1, 2, 3)):
                 raise ValueError("wrong_season")
             tip = stamp(event["date"])
             if tip.astimezone(EASTERN).date() != day:

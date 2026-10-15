@@ -82,10 +82,10 @@ expected pregame closeness; historical rarity; and tactical/subjective game
 quality. The v2 candidate now includes measured player production and extreme
 game patterns; saved production ratings keep their original model. Favorites never enter canonical ratings.
 
-The default proposed formula is the [enriched v2 formula](SCORING_ENRICHMENT.md),
-with bounded player-performance and extreme-pattern bonuses, editable settings
-and independent family coverage. Restore default formula restores its checked-in defaults.
-The saved-model baseline and legacy schema-1 configs remain supported.
+The default proposed formula is the [schema-3 importance formula](GAME_IMPORTANCE.md),
+which retains the [v2 player/performance and pattern terms](SCORING_ENRICHMENT.md)
+and adds reconstructed regular-season context. Restore default formula restores
+its checked-in settings. The original baseline and schema-1/2 files remain supported.
 
 ## Score and contribution labels
 
@@ -117,6 +117,7 @@ compatibility; those internal names are not the main UI labels.
   weights are finite 0–1000, with a positive sum; scales are finite and positive.
 - Enriched config: `schema_version: 2`, the same drama settings plus explicit
   `player` and `pattern` settings; see the linked v2 formula contract.
+- Context config: `schema_version: 3`, the v2 settings plus explicit `context` settings; see [game importance](GAME_IMPORTANCE.md).
 - Report: `schema_version: 1`, slate/cutoff timestamps, baseline/experiment
   configurations, missing criteria, and per-game saved/derived calculations,
   provenance, diagnostics and normalized evidence.
