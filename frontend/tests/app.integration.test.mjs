@@ -21,7 +21,7 @@ const cursor = '2026-10-13T12:00:00Z';
 const timeline = { profile_id: profile, time_cursor: cursor, initialized_at: cursor, updated_at: cursor };
 const card = { game_id: game, disclosure: 'pregame', state: 'sealed', home_team: 'Home', away_team: 'Away', scheduled_tip: '2026-10-13T23:00:00Z' };
 const slate = { time_cursor: cursor, games: [card] };
-const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+const response = (body, status = 200) => new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const tick = () => act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
 async function until(condition) {
   for (let n = 0; n < 30 && !condition(); n++) await tick();
@@ -57,25 +57,30 @@ test('rendered cards fetch no passive outcomes; full reveal requires confirmatio
   let acknowledged = false;
   const root = await mount(async (url, options) => {
     calls.push({ url, options });
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
     if (url.includes('/timeline/')) return response(timeline);
     if (url.includes('/reveal')) { acknowledged = true; return response({ game_id: game, disclosure: 'full', home_score: 100, away_score: 90, result: 'Home won' }); }
     return response({ ...slate, games: [{ ...card, state: acknowledged ? 'acknowledged' : 'sealed' }] });
   });
   try {
     await until(() => document.querySelector('.game-card'));
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     assert.doesNotMatch(document.querySelector('.game-card').textContent, /100|Home won/);
     await click('Reveal result');
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     await click('Yes, reveal score');
     await until(() => document.querySelector('.result-box'));
     assert.match(document.querySelector('.result-box').textContent, /100/);
-    assert.equal(calls[2].options.method, 'POST');
-    assert.ok(calls[2].url.endsWith('/reveal'));
+    const revealedCall = calls.find((c) => c.url.endsWith('/reveal'));
+    assert.equal(revealedCall.options.method, 'POST');
     assert.equal(calls.filter((c) => c.options.method === 'PUT').length, 0);
     // A reload resumes stored acknowledgement but still keeps scores hidden.
     await unmount(root);
-    const resumed = await mount(async (url) => response(url.includes('/timeline/') ? timeline : { ...slate, games: [{ ...card, state: 'acknowledged' }] }));
+    const resumed = await mount(async (url) => response(
+      url.includes('/timeline/') ? timeline :
+      url.includes('/watch-queue') ? { time_cursor: cursor, items: [] } :
+      { ...slate, games: [{ ...card, state: 'acknowledged' }] }
+    ));
     try {
       await until(() => document.querySelector('.game-card'));
       assert.match(document.querySelector('.game-card').textContent, /Acknowledged/);
@@ -89,8 +94,9 @@ test('changing schedule view rejects an old pending slate and shows explicit mis
   const calls = [];
   const root = await mount(async (url, options) => {
     calls.push({ url, options });
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
     if (url.includes('/timeline/')) return response(timeline);
-    if (url.includes('view=replay')) return new Promise((resolve) => { old = resolve; });
+    if (url.includes('games?date=') && url.includes('view=replay')) return new Promise((resolve) => { old = resolve; });
     return response({ time_cursor: cursor, games: [] });
   });
   try {
@@ -102,7 +108,7 @@ test('changing schedule view rejects an old pending slate and shows explicit mis
     old(response(slate));
     await tick();
     assert.equal(document.querySelectorAll('.game-card').length, 0);
-    assert.equal(calls[1].options.signal.aborted, true);
+    assert.equal(calls.find((c) => c.url.includes('games?date=') && c.url.includes('view=replay')).options.signal.aborted, true);
     assert.match(document.body.textContent, /missing provider coverage/);
   } finally { await unmount(root); }
 });
@@ -113,6 +119,7 @@ test('historical profile defaults to season replay and advancement follows the N
   let saved = { ...timeline, time_cursor: '2025-11-03T12:00:00Z' };
   const root = await mount(async (url, options) => {
     calls.push({ url, options });
+    if (url.includes('/watch-queue')) return response({ time_cursor: saved.time_cursor, items: [] });
     if (url.includes('/timeline/')) {
       if (options.method === 'PUT') saved = { ...saved, time_cursor: JSON.parse(options.body).time_cursor };
       return response(saved);
@@ -121,7 +128,7 @@ test('historical profile defaults to season replay and advancement follows the N
   });
   try {
     await until(() => document.querySelector('.game-card'));
-    assert.ok(calls[1].url.endsWith('date=2025-11-03&view=replay'));
+    assert.ok(calls.some((c) => c.url.endsWith('date=2025-11-03&view=replay')));
     assert.equal(document.querySelector('select').value, 'replay');
     assert.match(document.body.textContent, /retrospective matchups/);
     assert.equal(document.querySelector('.result-box'), null);
@@ -150,6 +157,7 @@ test('mounted ranking requires fresh consent, has no time-budget controls and ex
   const calls = [];
   const root = await mount(async (url, options) => {
     calls.push({ url, options });
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
     if (url.includes('/timeline/')) return response(timeline);
     if (url.includes('/recommendations/')) return response({ game_ids: [other, game] });
     return response({ ...slate, games: cards });
@@ -190,6 +198,7 @@ test('mounted empty picks mean unavailable coverage and stale picks cannot cross
   let finish;
   let count = 0;
   const root = await mount(async (url) => {
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
     if (url.includes('/timeline/')) return response(timeline);
     if (url.includes('/recommendations/')) {
       count++;
@@ -218,6 +227,7 @@ test('mounted empty picks mean unavailable coverage and stale picks cannot cross
 
 test('missing watchability shows no dead-end why action', async () => {
   const root = await mount(async (url) => {
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
     if (url.includes('/timeline/')) return response(timeline);
     if (url.endsWith('/watchability')) return response({ game_id: game, disclosure: 'watchability' });
     return response(slate);
@@ -228,5 +238,89 @@ test('missing watchability shows no dead-end why action', async () => {
     await until(() => document.querySelector('.disclosure-box'));
     assert.match(document.querySelector('.disclosure-box').textContent, /Watchability data is unavailable/);
     assert.equal(button('Why?'), undefined);
+  } finally { await unmount(root); }
+});
+
+test('personal queue actions do not reveal results or change sealed slate state', async () => {
+  const calls = [];
+  const saved = new Map();
+  const root = await mount(async (url, options) => {
+    calls.push({ url, options });
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/watch-queue')) {
+      const id = url.match(/watch-queue\/([^?]+)/)?.[1];
+      if (options.method === 'PUT') { saved.set(id, JSON.parse(options.body).queue_state); return response(null, 204); }
+      if (options.method === 'DELETE') { saved.delete(id); return response(null, 204); }
+      return response({ time_cursor: cursor, items: [...saved].map(([game_id, queue_state]) =>
+        ({ game_id, queue_state, game: card })) });
+    }
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector('.game-card') && !button('Save to queue').disabled);
+    assert.match(document.querySelector('.game-card').textContent, /Sealed/);
+    await click('Save to queue');
+    await until(() => document.querySelector('.queue-item'));
+    assert.equal(saved.get(game), 'queued');
+    assert.match(document.querySelector('.queue-item').textContent, /Sealed/);
+    const choice = document.querySelector('.queue-panel select');
+    await act(async () => { choice.value = 'done'; choice.dispatchEvent(new window.Event('change', { bubbles: true })); });
+    await until(() => saved.get(game) === 'done' && document.querySelector('.queue-panel select')?.value === 'done');
+    assert.equal(document.querySelector('.result-box'), null);
+    assert.match(document.querySelector('.game-card').textContent, /Sealed/);
+    assert.equal(calls.filter((call) => /reveal|watchability|\/why/.test(call.url)).length, 0);
+    await click('Remove from queue');
+    await until(() => document.querySelectorAll('.queue-item').length === 0);
+    assert.equal(saved.size, 0);
+    assert.equal(calls.filter((call) => call.url.includes('/timeline/') && call.options.method === 'PUT').length, 0);
+  } finally { await unmount(root); }
+});
+
+test('queue follows schedule view and discards pending replay data after strict-mode switch', async () => {
+  const saved = [{ game_id: game, queue_state: 'queued', game: null }];
+  let releaseReplay;
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/watch-queue')) {
+      if (url.includes('view=replay')) return new Promise((resolve) => { releaseReplay = resolve; });
+      return response({ time_cursor: cursor, items: saved });
+    }
+    return response(slate);
+  });
+  try {
+    await until(() => releaseReplay && document.querySelector('.game-card'));
+    const select = document.querySelector('.schedule-controls select');
+    await act(async () => { select.value = 'pregame'; select.dispatchEvent(new window.Event('change', { bubbles: true })); });
+    await until(() => document.querySelector('.queue-item')?.textContent.includes('Game details unavailable'));
+    releaseReplay(response({ time_cursor: cursor, items: [
+      { game_id: game, queue_state: 'queued', game: { ...card, home_team: 'Retrospective team' } }
+    ] }));
+    await tick();
+    assert.match(document.querySelector('.queue-item').textContent, /Saved game/);
+    assert.doesNotMatch(document.querySelector('.queue-item').textContent, /Retrospective team/);
+  } finally { await unmount(root); }
+});
+
+test('queue reveal confirmation is shown only where requested even if game is on the slate', async () => {
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/watch-queue')) return response({
+      time_cursor: cursor, items: [{ game_id: game, queue_state: 'queued', game: card }],
+    });
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector('.queue-item') && document.querySelector('.game-card'));
+    const queueButton = document.querySelector('.queue-panel .danger-link');
+    await act(async () => queueButton.click());
+    assert.equal(document.querySelectorAll('.confirmation').length, 1);
+    assert.ok(document.querySelector('.queue-panel .confirmation'));
+    assert.equal(document.querySelector('.game-card .confirmation'), null);
+    await click('Keep result hidden');
+    const slateButton = document.querySelector('.game-card .danger-link');
+    await act(async () => slateButton.click());
+    assert.equal(document.querySelectorAll('.confirmation').length, 1);
+    assert.ok(document.querySelector('.game-card .confirmation'));
+    assert.equal(document.querySelector('.queue-panel .confirmation'), null);
   } finally { await unmount(root); }
 });
