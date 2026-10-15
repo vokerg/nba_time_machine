@@ -117,7 +117,8 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         # Independent family diagnostics remain inspectable even when a complete
         # candidate is withheld (e.g. valid boxes but a corrected PBP trace).
         measurements = entertainment_measurements(parsed)
-        result["enrichment"] = enrichment_preview(
+        candidate_details = result["experiment"].pop("enrichment", None) if result["experiment"] else None
+        result["enrichment"] = candidate_details or enrichment_preview(
             measurements, experiment.player or PlayerSettings(), experiment.pattern or PatternSettings())
         result["enrichment"]["candidate_eligible"] = derived is not None and experiment.schema_version == 2
     row = await session.scalar(select(RecommendationScoreRecord).where(

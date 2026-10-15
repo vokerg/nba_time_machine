@@ -131,7 +131,7 @@ async function request(url, options) {
   if (!response.ok)
     throw new Error(
       response.status === 422
-        ? "Invalid experiment. Check version, positive scales, active weights and ordered thresholds."
+        ? "Invalid experiment. Check version, positive scales, active weights, bonus limits and ordered floor/peak thresholds."
         : response.status === 503
           ? "Database inspection is unavailable. Check the local workbench terminal."
           : "Inspection failed. Check the request and local workbench.",
@@ -258,8 +258,15 @@ function renderGames() {
     state.append(
       el(
         "span",
-        game.baseline ? "Validated" : "Unavailable",
-        "badge" + (game.baseline ? "" : " partial"),
+        game.experiment?.coverage === "partial"
+          ? "Partial preview"
+          : game.baseline
+            ? "Validated"
+            : "Unavailable",
+        "badge" +
+          (game.baseline && game.experiment?.coverage !== "partial"
+            ? ""
+            : " partial"),
       ),
     );
     row.append(state);

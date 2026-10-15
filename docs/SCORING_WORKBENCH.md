@@ -56,7 +56,7 @@ parity with current morning feature normalization and `postgame-v1` arithmetic.
 A baseline change must use an explicit version and be reviewed separately from
 production adoption.
 
-## Current criteria
+## Saved model criteria
 
 | Active signal | Measured definition | Scale for normalized 1 | Weight | Effective share |
 | --- | --- | --- | --- | --- |
@@ -74,15 +74,22 @@ recommendation quality automatically.
 
 **Not connected:** star power/availability; team strength and leaders facing each
 other; standings, playoff and seeding stakes; rivalry/history; recent form/rest;
-expected pregame closeness; exceptional individual performance; historical rarity;
-and tactical/subjective game quality. Retained player boxes alone do not imply a
-performance feature exists. Favorites never enter canonical ratings.
+expected pregame closeness; historical rarity; and tactical/subjective game
+quality. The v2 candidate now includes measured player production and extreme
+game patterns; saved production ratings keep their original model. Favorites never enter canonical ratings.
+
+The default experiment is now the [enriched v2 candidate](SCORING_ENRICHMENT.md),
+with bounded player-performance and extreme-pattern bonuses, editable settings
+and independent family coverage. Reset experiment restores its checked-in defaults.
+The saved-model baseline and legacy schema-1 configs remain supported.
 
 ## Artifact formats
 
-- Config: `schema_version: 1`, `version`, four `weights`, four `scales`,
+- Legacy config: `schema_version: 1`, `version`, four `weights`, four `scales`,
   `medium_from`, `high_from`. Keys must match the supported signals exactly;
   weights are finite 0–1000, with a positive sum; scales are finite and positive.
+- Enriched config: `schema_version: 2`, the same drama settings plus explicit
+  `player` and `pattern` settings; see the linked v2 formula contract.
 - Report: `schema_version: 1`, slate/cutoff timestamps, baseline/experiment
   configurations, missing criteria, and per-game saved/derived calculations,
   provenance, diagnostics and normalized evidence.

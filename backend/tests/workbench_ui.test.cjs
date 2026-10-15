@@ -11,6 +11,11 @@ const baseline = JSON.parse(
     path.join(root, "config/ranking/trajectory-baseline-v1.json"),
   ),
 );
+const enrichedConfig = JSON.parse(
+  fs.readFileSync(
+    path.join(root, "config/ranking/entertainment-preview-v2.json"),
+  ),
+);
 const id = "11111111-1111-4111-8111-111111111111";
 const metric = {
   score: 3.2,
@@ -27,6 +32,7 @@ function report(config = baseline) {
     coverage: "Fixture",
     baseline_config: baseline,
     experiment_config: config,
+    default_candidate_config: enrichedConfig,
     missing_criteria: [],
     games: [
       {
@@ -45,7 +51,7 @@ function report(config = baseline) {
     ],
   };
 }
-async function setup() {
+async function setup(initial = baseline) {
   const dom = new JSDOM(
     fs.readFileSync(path.join(assets, "index.html"), "utf8"),
     {
@@ -60,7 +66,7 @@ async function setup() {
   w.fetch = async (url, options) => {
     requests.push({ url, options });
     const body = options ? JSON.parse(options.body) : null;
-    return { ok: true, json: async () => report(body?.config) };
+    return { ok: true, json: async () => report(body?.config || initial) };
   };
   w.URL.createObjectURL = (blob) => {
     downloads.push(blob);
@@ -129,6 +135,46 @@ test("review import restores notes but recomputes instead of trusting file score
       s.w.document.getElementById("detail").textContent.includes("999"),
       false,
     );
+  } finally {
+    s.close();
+  }
+});
+
+test("v2 settings and minute-based scales round-trip without dropping enrichment", async () => {
+  const s = await setup(enrichedConfig);
+  try {
+    assert.equal(s.w.document.getElementById("scales-clutch").value, "5");
+    input(s.w, "scales-clutch", "6");
+    input(s.w, "player-max_bonus", "2");
+    input(s.w, "pattern-scoring_drought_floor", "6");
+    s.w.document.getElementById("preview").click();
+    await new Promise((resolve) => setImmediate(resolve));
+    const sent = JSON.parse(s.requests.at(-1).options.body).config;
+    assert.equal(sent.schema_version, 2);
+    assert.equal(sent.scales.clutch, 360000);
+    assert.equal(sent.player.max_bonus, 2);
+    assert.equal(sent.pattern.scoring_drought_floor, 360000);
+    assert.equal(sent.player.points_peak, enrichedConfig.player.points_peak);
+  } finally {
+    s.close();
+  }
+});
+
+test("a legacy config can replace v2 without retaining hidden bonus settings", async () => {
+  const s = await setup(enrichedConfig);
+  try {
+    const field = s.w.document.getElementById("import");
+    Object.defineProperty(field, "files", {
+      value: [{ size: 100, text: async () => JSON.stringify(baseline) }],
+    });
+    field.dispatchEvent(new s.w.Event("change", { bubbles: true }));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(s.w.document.getElementById("player-max_bonus"), null);
+    assert.equal(
+      s.w.document.getElementById("version").value,
+      baseline.version,
+    );
+    assert.equal(s.w.document.getElementById("scales-clutch").value, "5");
   } finally {
     s.close();
   }

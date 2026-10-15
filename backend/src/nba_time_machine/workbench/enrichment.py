@@ -90,7 +90,8 @@ def enrichment_preview(measurements: EntertainmentMeasurements, player: PlayerSe
     player_bonus = None
     if measurements.players is not None:
         players = sorted((player_assessment(row, player) for row in measurements.players),
-                         key=lambda row: (-row["severity"], row["player_id"]))
+                         key=lambda row: (-row["severity"], -row["statistics"]["PTS"],
+                                          -row["statistics"]["AST"], -row["statistics"]["REB"], row["player_id"]))
         first = players[0]["severity"] if players else 0
         second = players[1]["severity"] if len(players) > 1 else 0
         normalized = clamp(first + player.runner_up_weight * second)

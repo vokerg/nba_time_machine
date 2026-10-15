@@ -1,0 +1,16 @@
+{
+  "verified_at": "2026-10-15T06:45:56.128068+00:00",
+  "nba_day": "2026-10-14",
+  "database": "configured owner DB; read-only",
+  "candidate_version": "entertainment-preview-v2",
+  "stored_games": 6,
+  "combined_candidates": 5,
+  "games_with_valid_player_family": 6,
+  "games_with_valid_pattern_family": 5,
+  "patterns_per_complete_game": 6,
+  "zero_bonus_config_reproduces_baseline": true,
+  "all_player_terms_reconcile": true,
+  "score_cap_and_rounding_reconcile": true,
+  "saved_score_and_fact_counts_unchanged": true,
+  "historical_percentiles_fabricated": false
+}

@@ -160,3 +160,14 @@ def test_invalid_tuning_bounds_rejected(group,key,value):
     raw[group][key] = value
     with pytest.raises(ValidationError):
         TuningConfig.model_validate(raw)
+
+
+def test_correlated_subthreshold_anomalies_do_not_add_three_times():
+    from dataclasses import replace
+    measured = entertainment_measurements(game())
+    values = {'max_lead': 32, 'first_half_lead': 20, 'quarter_margin': 22,
+              'low_quarter': 15, 'high_quarter': 35, 'scoring_drought': 240000}
+    measured = replace(measured, patterns=tuple({**p, 'raw': values[p['signal']]} for p in measured.patterns))
+    result = enrichment_preview(measured, PlayerSettings(), PatternSettings())
+    assert result['pattern_bonus']['groups']['dominance'] == pytest.approx(.3)
+    assert result['pattern_bonus']['points'] == pytest.approx(.9)
