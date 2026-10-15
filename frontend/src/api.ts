@@ -1,6 +1,6 @@
 /** Same-origin backend integration. Only allowlisted policy responses enter UI state. */
-import { forwardCursor, parseFull, parseGameList, parseVerdict } from "./dashboard.ts";
-import type { FullReveal, GameList, Reason, Verdict } from "./dashboard.ts";
+import { forwardCursor, parseFull, parseGameList, parseMediaFeed, parseVerdict } from "./dashboard.ts";
+import type { FullReveal, GameList, MediaFeed, Reason, Verdict } from "./dashboard.ts";
 import { requestWatchabilityRecommendations } from "./watchability.ts";
 import { parseWatchQueue } from "./watchQueue.ts";
 import type { QueueState, WatchQueue } from "./watchQueue.ts";
@@ -99,6 +99,20 @@ export class BackendClient {
       seen.add(gameId);
     }
     return result;
+  }
+  async media(cursor: string, page?: string, signal?: AbortSignal): Promise<MediaFeed> {
+    if (!instant(cursor) || (page !== undefined && !/^[A-Za-z0-9_-]{1,512}$/.test(page)))
+      throw new Error("Invalid media request.");
+    const query = new URLSearchParams({ time_cursor: cursor, limit: "10" });
+    if (page) query.set("page", page);
+    const data = parseMediaFeed(await this.request(
+      `/profiles/${this.profileId}/media?${query.toString()}`, "GET", undefined, signal,
+    ));
+    if (Date.parse(data.time_cursor) !== Date.parse(cursor))
+      throw new Error("Timeline changed in another tab. Reload to resume.");
+    if (data.items.some((item) => item.known_at && Date.parse(item.known_at) > Date.parse(cursor)))
+      throw new Error("Future media was rejected.");
+    return data;
   }
   async disclose(gameId: string, layer: "watchability" | "why" | "full", consent: true): Promise<Verdict | Reason | FullReveal> {
     if (consent !== true) throw new Error("Explicit disclosure consent required.");

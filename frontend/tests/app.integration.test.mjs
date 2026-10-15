@@ -29,10 +29,10 @@ async function until(condition) {
 }
 function button(text) { return [...document.querySelectorAll('button')].find((el) => el.textContent.includes(text)); }
 async function click(text) { const el = button(text); assert.ok(el, text); await act(async () => el.click()); }
-async function mount(fetcher) {
+async function mount(fetcher, mediaFetcher = async () => response({ time_cursor: cursor, items: [] })) {
   window.localStorage.clear();
   window.localStorage.setItem('nba-time-machine:profile:v1', profile);
-  globalThis.fetch = fetcher;
+  globalThis.fetch = (url, options) => url.includes("/media?") ? mediaFetcher(url, options) : fetcher(url, options);
   const root = createRoot(document.getElementById('root'));
   await act(async () => root.render(createElement(App)));
   return root;
@@ -322,5 +322,99 @@ test('queue reveal confirmation is shown only where requested even if game is on
     assert.equal(document.querySelectorAll('.confirmation').length, 1);
     assert.ok(document.querySelector('.game-card .confirmation'));
     assert.equal(document.querySelector('.queue-panel .confirmation'), null);
+  } finally { await unmount(root); }
+});
+
+
+test('reviewed news renders approved metadata, paginates and never requests results', async () => {
+  const requests = [];
+  const mediaFetcher = async (url, options) => {
+    requests.push({ url, options });
+    if (url.includes('page=page_2')) return response({
+      time_cursor: cursor, items: [{
+        item_id: 'feed-2', headline: 'Second reviewed article',
+        source: 'NBA press', media_type: 'article', known_at: cursor,
+      }],
+    });
+    return response({
+      time_cursor: cursor, items: [{
+        item_id: 'feed-1', headline: 'First reviewed article',
+        excerpt: 'Safe context', source: 'NBA press', media_type: 'article',
+        known_at: cursor, url: 'https://example.org/safe',
+      }], next_page: 'page_2',
+    });
+  };
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
+    return response(slate);
+  }, mediaFetcher);
+  try {
+    await until(() => document.querySelector('.media-item'));
+    assert.match(document.querySelector('.media-item').textContent, /First reviewed article/);
+    assert.match(document.querySelector('.media-item').textContent, /NBA press/);
+    assert.equal(document.querySelector('.media-item a').getAttribute('rel'), 'noopener noreferrer');
+    assert.equal(requests.length, 1);
+    await click('Explore News & Buzz');
+    await click('Load more reviewed news');
+    await until(() => document.querySelectorAll('.media-item').length === 2);
+    assert.equal(requests.length, 2);
+    assert.match(requests[1].url, /page=page_2/);
+    assert.equal(document.querySelectorAll('.media-item').length, 2);
+    assert.equal(requests.every((r) => r.options.method === 'GET'), true);
+    assert.equal(document.querySelector('.result-box'), null);
+  } finally { await unmount(root); }
+});
+
+test('individual result reveal cannot advance or refetch general media', async () => {
+  let count = 0;
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response(timeline);
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
+    if (url.includes('/reveal')) return response({
+      game_id: game, disclosure: 'full', home_score: 123, away_score: 100,
+    });
+    return response(slate);
+  }, async () => {
+    count += 1;
+    return response({ time_cursor: cursor, items: [{ item_id: 'early', headline: 'Safe earlier story' }] });
+  });
+  try {
+    await until(() => document.querySelector('.media-item') && document.querySelector('.game-card'));
+    await click('Reveal result');
+    await click('Yes, reveal score');
+    await until(() => document.querySelector('.result-box'));
+    assert.equal(count, 1);
+    assert.equal(document.querySelector('.media-item').textContent.includes('123'), false);
+  } finally { await unmount(root); }
+});
+
+test('stale media load is aborted when the global cursor advances', async () => {
+  let release;
+  let current = timeline;
+  const calls = [];
+  const root = await mount(async (url, options) => {
+    if (url.includes('/timeline/')) {
+      if (options.method === 'PUT') current = { ...current, time_cursor: JSON.parse(options.body).time_cursor };
+      return response(current);
+    }
+    if (url.includes('/watch-queue')) return response({ time_cursor: current.time_cursor, items: [] });
+    return response({ time_cursor: current.time_cursor, games: [card] });
+  }, (url, options) => {
+    calls.push({ url, options });
+    if (calls.length === 1) return new Promise((resolve) => { release = resolve; });
+    return Promise.resolve(response({
+      time_cursor: current.time_cursor,
+      items: [{ item_id: 'new', headline: 'Known at advanced cursor' }],
+    }));
+  });
+  try {
+    await until(() => release && document.querySelector('.game-card'));
+    await click('Advance 1 day');
+    await until(() => document.querySelector('.media-item')?.textContent.includes('advanced cursor'));
+    release(response({ time_cursor: cursor, items: [{ item_id: 'stale', headline: 'Stale old story' }] }));
+    await tick();
+    assert.equal(calls[0].options.signal.aborted, true);
+    assert.doesNotMatch(document.querySelector('.media-section').textContent, /Stale old story/);
   } finally { await unmount(root); }
 });

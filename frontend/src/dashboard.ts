@@ -19,8 +19,13 @@ export type MediaItem = {
   excerpt?: string;
   thumbnail_url?: string;
   runtime_seconds?: number;
+  source?: string;
+  source_id?: string;
+  media_type?: "article" | "podcast" | "video";
+  known_at?: string;
+  url?: string;
 };
-export type MediaFeed = { time_cursor: string; items: MediaItem[] };
+export type MediaFeed = { time_cursor: string; items: MediaItem[]; next_page?: string };
 export type Verdict = {
   game_id: string;
   disclosure: "watchability";
@@ -93,23 +98,28 @@ export function parseGameList(value: unknown): GameList {
 
 export function parseMediaFeed(value: unknown): MediaFeed {
   const data = object(value);
-  exactKeys(data, ["time_cursor", "items"]);
+  exactKeys(data, ["time_cursor", "items", "next_page"]);
+  if (data.next_page !== undefined && (typeof data.next_page !== "string" || data.next_page.length > 512 || !/^[A-Za-z0-9_-]+$/.test(data.next_page))) throw new Error("Invalid media pagination");
   if (typeof data.time_cursor !== "string" || !Number.isFinite(Date.parse(data.time_cursor)) || !Array.isArray(data.items)) {
     throw new Error("Invalid media feed");
   }
   const items: MediaItem[] = data.items.map((raw: unknown) => {
     const item = object(raw);
-    exactKeys(item, ["item_id", "headline", "excerpt", "thumbnail_url", "runtime_seconds"]);
+    exactKeys(item, ["item_id", "headline", "excerpt", "thumbnail_url", "runtime_seconds", "source", "source_id", "media_type", "known_at", "url"]);
     if (
       typeof item.item_id !== "string" || typeof item.headline !== "string" ||
       !textOrAbsent(item.excerpt) || !textOrAbsent(item.thumbnail_url) ||
-      !finiteOrAbsent(item.runtime_seconds)
+      !finiteOrAbsent(item.runtime_seconds) ||
+      !textOrAbsent(item.source) || !textOrAbsent(item.source_id) ||
+      (item.media_type !== undefined && !["article", "podcast", "video"].includes(item.media_type as string)) ||
+      (item.known_at !== undefined && (typeof item.known_at !== "string" || !/(?:Z|[+-]\d\d:\d\d)$/.test(item.known_at) || !Number.isFinite(Date.parse(item.known_at)))) ||
+      (item.url !== undefined && (typeof item.url !== "string" || !/^https:\/\/[^\s/]+\//.test(item.url)))
     ) {
       throw new Error("Invalid safe media projection");
     }
     return item as MediaItem;
   });
-  return { time_cursor: data.time_cursor, items };
+  return { time_cursor: data.time_cursor, items, ...(data.next_page === undefined ? {} : { next_page: data.next_page as string }) };
 }
 
 export function parseVerdict(value: unknown, requested: "watchability" | "why"): Verdict | Reason {

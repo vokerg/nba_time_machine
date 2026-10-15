@@ -138,3 +138,23 @@ test('queue reads and writes stay cursor-scoped without passive result disclosur
   await assert.rejects(client.queue(cursor, 'unsafe'));
   assert.equal(calls.length, 4);
 });
+
+test('media is cursor-scoped, strictly typed and uses opaque pagination without spoiler fallback', async () => {
+  const seen = { item_id: 'safe', headline: 'Safe article', source: 'NBA',
+    known_at: cursor, url: 'https://example.org/safe', media_type: 'article' };
+  const { client, calls } = fake([
+    { body: { time_cursor: cursor, items: [seen], next_page: 'another_page' } },
+    { body: { time_cursor: cursor, items: [{ ...seen, headline: 'Future', known_at: '2026-10-14T12:00:00Z' }] } },
+    { body: { time_cursor: '2026-10-14T12:00:00Z', items: [] } },
+    { body: { time_cursor: cursor, items: [{ ...seen, home_score: 99 }] } },
+  ]);
+  assert.equal((await client.media(cursor)).items[0].headline, 'Safe article');
+  assert.match(calls[0].url, /\/media\?time_cursor=/);
+  assert.match(calls[0].url, /limit=10/);
+  await assert.rejects(client.media(cursor, 'bad token'), /Invalid media request/);
+  await assert.rejects(client.media(cursor), /Future media/);
+  await assert.rejects(client.media(cursor), /another tab/);
+  await assert.rejects(client.media(cursor), /Unexpected field/);
+  assert.equal(calls.length, 4);
+  assert.ok(calls.every((call) => call.options.method === 'GET'));
+});
