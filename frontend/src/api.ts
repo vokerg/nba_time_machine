@@ -2,6 +2,8 @@
 import { forwardCursor, parseFull, parseGameList, parseVerdict } from "./dashboard.ts";
 import type { FullReveal, GameList, Reason, Verdict } from "./dashboard.ts";
 import { requestWatchabilityRecommendations } from "./watchability.ts";
+import { parseWatchQueue } from "./watchQueue.ts";
+import type { QueueState, WatchQueue } from "./watchQueue.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type Timeline = { profile_id: string; time_cursor: string; initialized_at: string; updated_at: string };
@@ -57,6 +59,7 @@ export class BackendClient {
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
     if (!response.ok) throw new ApiError(response.status);
+    if (response.status === 204) return null;
     return response.json();
   }
   async resume(signal?: AbortSignal): Promise<Timeline | null> {
@@ -105,6 +108,23 @@ export class BackendClient {
     const result = layer === "full" ? parseFull(data) : parseVerdict(data, layer);
     if (id(result.game_id) !== game) throw new Error("Disclosure game mismatch.");
     return result;
+  }
+  async queue(cursor: string, signal?: AbortSignal): Promise<WatchQueue> {
+    if (!instant(cursor)) throw new Error("Invalid timeline.");
+    const data = parseWatchQueue(await this.request(
+      `/profiles/${this.profileId}/watch-queue?time_cursor=${encodeURIComponent(cursor)}&view=replay`,
+      "GET", undefined, signal,
+    ));
+    if (Date.parse(data.time_cursor) !== Date.parse(cursor)) throw new Error("Timeline changed in another tab. Reload to resume.");
+    return data;
+  }
+  async saveQueue(gameId: string, state: QueueState, cursor: string): Promise<void> {
+    if (!instant(cursor) || !["queued", "done", "dismissed"].includes(state)) throw new Error("Invalid queue action.");
+    await this.request(`/profiles/${this.profileId}/watch-queue/${id(gameId)}`, "PUT", { time_cursor: cursor, queue_state: state });
+  }
+  async removeQueue(gameId: string, cursor: string): Promise<void> {
+    if (!instant(cursor)) throw new Error("Invalid timeline.");
+    await this.request(`/profiles/${this.profileId}/watch-queue/${id(gameId)}?time_cursor=${encodeURIComponent(cursor)}`, "DELETE");
   }
   async recommend(gameList: GameList, slateDate: string, consent: true) {
     return requestWatchabilityRecommendations({

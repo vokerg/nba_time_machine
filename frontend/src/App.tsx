@@ -3,6 +3,7 @@ import { BackendClient, nbaDate, profileIdentity } from "./api";
 import type { ScheduleView, Timeline } from "./api";
 import { orderByPregameInterest } from "./dashboard";
 import type { FullReveal, GameCard, GameList, Reason, Verdict } from "./dashboard";
+import type { QueueState, WatchQueue } from "./watchQueue";
 
 type Disclosure = { verdict?: Verdict; reason?: Reason; full?: FullReveal };
 function formatTime(iso: string): string {
@@ -30,6 +31,11 @@ export function App() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [watchPicks, setWatchPicks] = useState<GameCard[] | null>(null);
   const [rankingConsent, setRankingConsent] = useState(false);
+  const [queue, setQueue] = useState<WatchQueue | null>(null);
+  const [queueRevision, setQueueRevision] = useState(0);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [queueError, setQueueError] = useState<string | null>(null);
+  const queueGeneration = useRef(0);
 
   useEffect(() => {
     setWatchPicks(null); setRankingConsent(false);
@@ -70,6 +76,36 @@ export function App() {
     return () => { controller.abort(); generation.current += 1; };
   }, [client, timeline, day, view]);
 
+  useEffect(() => {
+    if (!client || !timeline) { setQueue(null); return; }
+    const controller = new AbortController();
+    const ticket = ++queueGeneration.current;
+    setQueue(null); setQueueError(null); setQueueLoading(true);
+    client.queue(timeline.time_cursor, controller.signal).then((data) => {
+      if (ticket === queueGeneration.current) setQueue(data);
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted && ticket === queueGeneration.current)
+        setQueueError(cause instanceof Error ? cause.message : "Cannot load Watch Queue.");
+    }).finally(() => {
+      if (ticket === queueGeneration.current) setQueueLoading(false);
+    });
+    return () => { controller.abort(); queueGeneration.current += 1; };
+  }, [client, timeline, queueRevision]);
+
+  async function editQueue(gameId: string, state: QueueState | null) {
+    if (!client || !timeline) return;
+    const ticket = queueGeneration.current;
+    setBusy(true); setQueueError(null);
+    try {
+      if (state === null) await client.removeQueue(gameId, timeline.time_cursor);
+      else await client.saveQueue(gameId, state, timeline.time_cursor);
+      if (ticket === queueGeneration.current) setQueueRevision((value) => value + 1);
+    } catch (cause) {
+      if (ticket === queueGeneration.current)
+        setQueueError(cause instanceof Error ? cause.message : "Cannot update Watch Queue.");
+    } finally { setBusy(false); }
+  }
+
   async function initialize() {
     if (!client) return;
     setBusy(true); setError(null);
@@ -98,7 +134,7 @@ export function App() {
     generation.current += 1; setSlate(null); setDisclosures({}); setConfirming(null); setView(value);
   }
   async function disclose(game: GameCard, layer: "watchability" | "why" | "full") {
-    if (!client || !slate) return;
+    if (!client) return;
     const ticket = generation.current;
     setBusy(true); setError(null);
     try {
@@ -110,6 +146,7 @@ export function App() {
       if (layer === "full") {
         setSlate((prior) => prior && ({ ...prior, games: prior.games.map((card) => card.game_id === game.game_id ? { ...card, state: "acknowledged" } : card) }));
         setConfirming(null);
+        setQueueRevision((value) => value + 1);
       }
     } catch (cause) {
       if (ticket === generation.current) setError(cause instanceof Error ? cause.message : "Disclosure unavailable.");
@@ -129,6 +166,7 @@ export function App() {
   }
 
   const teams = [...new Set((slate?.games ?? []).flatMap((game) => [game.home_team, game.away_team].filter((name): name is string => !!name)))].sort();
+  const queuedIds = new Set((queue?.items ?? []).map((item) => item.game_id));
   const recommended = useMemo(() => orderByPregameInterest((slate?.games ?? []).filter((game) => game.pregame_interest !== undefined)), [slate]);
   return <div className="app">
     <header className="topbar"><a className="brand" href="#home"><span className="brand-symbol">↶</span><span>NBA <strong>TIME MACHINE</strong></span></a><div className="topbar-right"><span className="demo-pill">Backend data</span></div></header>
@@ -156,7 +194,7 @@ export function App() {
               <div className="game-meta"><span>{game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip unavailable"}</span><span>{game.state === "sealed" ? "Sealed" : "Acknowledged"}</span></div>
               <h3>{matchup(game)}</h3><p className="pregame-label">Pregame interest · {game.pregame_interest?.toFixed(1) ?? "Not available"}</p>
               <p className="small-label">Watchability hints can reveal that something unusual happened. Why reveals more detail.</p>
-              <div className="game-actions"><button disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button><button className="danger-link" disabled={busy || loading} onClick={() => setConfirming(game.game_id)}>Reveal result ↗</button></div>
+              <div className="game-actions"><button disabled={busy || loading || queueLoading || !queue} onClick={() => void editQueue(game.game_id, queuedIds.has(game.game_id) ? null : "queued")}>{queuedIds.has(game.game_id) ? "Remove from queue" : "Save to queue"}</button><button disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button><button className="danger-link" disabled={busy || loading} onClick={() => setConfirming(game.game_id)}>Reveal result ↗</button></div>
               {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite"><strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>{shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}{!shown.reason && shown.verdict?.watchability_verdict && <button disabled={busy} onClick={() => void disclose(game, "why")}>Why? Show one more hint</button>}</div>}
               {confirming === game.game_id && <div className="confirmation"><p>Reveal this game's score and acknowledge it? Your global timeline will stay where it is.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
               {shown.full && <div className="result-box" aria-live="polite"><p className="small-label">Explicitly revealed</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
@@ -171,6 +209,28 @@ export function App() {
           </>}
           {watchPicks !== null && <div aria-live="polite">{watchPicks.length ? <ol>{watchPicks.map((game) => <li key={game.game_id}>{matchup(game)}</li>)}</ol> : <p>No eligible picks for this request. Watchability data is unavailable; this is not a poor-quality verdict.</p>}</div>}
         </section>
+          <section className="side-panel queue-panel" aria-labelledby="queue-heading">
+            <p className="eyebrow">Personal, not a reveal</p><h2 id="queue-heading">Watch Queue</h2>
+            <p>Queued / done / dismissed tracks your plans only. It never acknowledges games or moves your timeline. Cards use spoiler-safe season replay; unavailable games stay hidden.</p>
+            {queueError && <p role="alert">Watch Queue: {queueError} <button disabled={busy} onClick={() => setQueueRevision((n) => n + 1)}>Retry queue</button></p>}
+            {queueLoading && <p role="status">Loading Watch Queue…</p>}
+            {!queueLoading && queue?.items.length === 0 && <p>Your Watch Queue is empty.</p>}
+            <ol className="queue-list">{queue?.items.map((item) => {
+              const game = item.game;
+              const shown = disclosures[item.game_id] ?? {};
+              return <li key={item.game_id} className="queue-item">
+                <strong>{game ? matchup(game) : "Saved game"}</strong>
+                <p className="small-label">{game ? (game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip unavailable") + " · " + (game.state === "sealed" ? "Sealed" : "Acknowledged") : "Game details unavailable at this cursor."}</p>
+                <div className="game-actions">
+                  <label>My plan <select aria-label="My plan" value={item.queue_state} disabled={busy} onChange={(e) => void editQueue(item.game_id, e.target.value as QueueState)}><option value="queued">Queued</option><option value="done">Done</option><option value="dismissed">Dismissed</option></select></label>
+                  <button disabled={busy} onClick={() => void editQueue(item.game_id, null)}>Remove</button>
+                  {game && <button className="danger-link" disabled={busy} onClick={() => setConfirming(item.game_id)}>Reveal result ↗</button>}
+                </div>
+                {game && confirming === item.game_id && <div className="confirmation"><p>Reveal this game's result separately from your queue plan? The global cursor stays unchanged.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
+                {game && shown.full && <div className="result-box"><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong></div>}
+              </li>;
+            })}</ol>
+          </section>
           <section className="side-panel favorites-panel"><h2>Favorite teams</h2><p>Favorites never change the canonical list order.</p><div className="favorite-choices">{teams.map((team) => <label key={team}><input type="checkbox" checked={favorites.includes(team)} onChange={() => setFavorites((prior) => prior.includes(team) ? prior.filter((name) => name !== team) : [...prior, team])} /><span>{team}</span></label>)}</div></section></aside>
         <section className="media-section"><h2>News &amp; buzz</h2><p>A timeline-filtered media endpoint is not connected yet. Game reveals never unlock later general media.</p></section>
       </div>}
