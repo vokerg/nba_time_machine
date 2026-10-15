@@ -36,7 +36,9 @@ Absence of review, incomplete/contradictory game association, an unexpected
 content type, unverified source status or incomplete temporal evidence
 **means omission of the entire item**. Candidate entity links can only
 veto a reviewed association; they do not authorize media by themselves.
-Each linked game requires a tip observation already known at the cursor;\na future-only schedule never authorizes an earlier pregame headline.\nOutcome-dependent items additionally require all linked games unsealed or
+Each linked game requires a tip observation already known at the cursor;
+a future-only schedule never authorizes an earlier pregame headline.
+Outcome-dependent items additionally require all linked games unsealed or
 explicitly acknowledged, with `project_general_media` enforcing the
 global timeline *independently* of game-specific result disclosure.
 Headlines and excerpts are policy-projected; thumbnails and runtimes are
