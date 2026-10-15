@@ -121,11 +121,12 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                 entity_type="game", game_id=b, link_state="present",
                 derivation_method="rule", observed_at=OBS, available_at=OBS,
             ))
-            session.add(GameAcknowledgementRecord(profile_id=profile, game_id=a))
             await session.commit()
             t = TimelineService(SqlAlchemyTimelineRepository(session))
             await t.initialize(profile, CURSOR)
             await t.initialize(other_profile, CURSOR)
+            session.add(GameAcknowledgementRecord(profile_id=profile, game_id=a))
+            await session.commit()
 
         url = f"/profiles/{profile}/media"
         params = {"time_cursor": CURSOR.isoformat(), "limit": 1}
