@@ -51,7 +51,7 @@ function report(config = baseline) {
     ],
   };
 }
-async function setup(initial = baseline) {
+async function setup(initial = baseline, transform = (value) => value) {
   const dom = new JSDOM(
     fs.readFileSync(path.join(assets, "index.html"), "utf8"),
     {
@@ -66,7 +66,7 @@ async function setup(initial = baseline) {
   w.fetch = async (url, options) => {
     requests.push({ url, options });
     const body = options ? JSON.parse(options.body) : null;
-    return { ok: true, json: async () => report(body?.config || initial) };
+    return { ok: true, json: async () => transform(report(body?.config || initial)) };
   };
   w.URL.createObjectURL = (blob) => {
     downloads.push(blob);
@@ -178,4 +178,66 @@ test("a legacy config can replace v2 without retaining hidden bonus settings", a
   } finally {
     s.close();
   }
+});
+
+test("proposed score leads, app comparison uses the stored score and verification is collapsed", async () => {
+  const s = await setup(enrichedConfig, (value) => {
+    value.games[0].archived.score = 2;
+    value.games[0].experiment = { ...metric, score: 4.5, coverage: 'partial' };
+    return value;
+  });
+  try {
+    const d = s.w.document;
+    assert.deepEqual([...d.querySelectorAll('#games tr:first-child td')].slice(1, 4).map(e => e.textContent), ['4.50', '2.00', '+2.50']);
+    assert.deepEqual([...d.querySelectorAll('.metric strong')].map(e => e.textContent), ['4.50', '2.00']);
+    assert.match(d.querySelector('.metric').textContent, /Proposed score · out of 10/);
+    assert.match(d.querySelector('.metric').textContent, /player data missing/);
+    assert.equal(d.getElementById('calculation-check').open, false);
+    assert.match(d.getElementById('calculation-check').textContent, /Recalculated original formula: 3.20/);
+    assert.match(d.getElementById('detail').textContent, /below 4 = Lower priority/);
+    assert.doesNotMatch(d.body.textContent, /Experimental preview|Recomputed baseline|Saved rating|Δ baseline/);
+  } finally { s.close(); }
+});
+
+test("withheld archives are historical detail, never presented as the current app score", async () => {
+  const s = await setup(baseline, (value) => {
+    value.games[0].archived = { score: 9, eligible: false };
+    return value;
+  });
+  try {
+    const d = s.w.document;
+    assert.equal(d.querySelectorAll('#games td')[2].textContent, '—');
+    assert.equal(d.querySelectorAll('#games td')[3].textContent, '—');
+    assert.equal(d.querySelectorAll('.metric strong')[1].textContent, '—');
+    assert.match(d.querySelectorAll('.metric')[1].textContent, /withheld/);
+    assert.match(d.getElementById('calculation-check').textContent, /Stored rating: 9.00/);
+    assert.match(d.getElementById('formula').textContent, /drama only with this legacy formula/);
+  } finally { s.close(); }
+});
+
+test("player magnitude and game-score contributions carry different scales", async () => {
+  const s = await setup(enrichedConfig, (value) => {
+    const game = value.games[0];
+    game.experiment = { ...metric, drama_score: 3.2, player_bonus: 1, pattern_bonus: 0,
+      cap_adjustment: 0, rounding_adjustment: 0, score: 4.2, coverage: 'complete' };
+    game.enrichment = {
+      candidate_eligible: true, measurement_version: 'fixture', rarity_status: 'Fixture',
+      players: [{ name: 'Fixture Player', team: 'BOS', severity: .25,
+        statistics: {PTS:7, REB:3, AST:11, STL:0, BLK:0, TO:0}, true_shooting: .318,
+        axes: [{signal:'assists', raw:11, floor:8, peak:20, normalized:.25}],
+        terms: { strongest_axis:.25 }, before_clamp:.25, efficiency_normalized:0,
+        minutes:29, minutes_precision:'rounded_minute', box_reference:'fixture' }],
+      player_bonus: { cap:4, strongest:.25, runner_up_weight:.25, runner_up:0, points:1 },
+      patterns: null, pattern_errors: ['fixture unavailable']
+    };
+    return value;
+  });
+  try {
+    const d = s.w.document;
+    assert.match(d.getElementById('detail').textContent, /How the proposed score adds up/);
+    assert.match(d.getElementById('detail').textContent, /Performance magnitude \(0–1\)/);
+    assert.match(d.getElementById('detail').textContent, /top player magnitude 0.2500/);
+    assert.match(d.getElementById('detail').textContent, /= 1.0000 game-score points/);
+    assert.doesNotMatch(d.getElementById('detail').textContent, /Severity|Candidate total/);
+  } finally { s.close(); }
 });

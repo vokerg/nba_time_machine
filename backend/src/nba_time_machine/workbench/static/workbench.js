@@ -1,10 +1,10 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 const labels = {
-  clutch: ["Clutch time", "Scale · minutes"],
-  lead_changes: ["Lead changes", "Scale · changes"],
-  comeback: ["Winner’s largest deficit", "Scale · points"],
-  overtime: ["Overtime", "Scale · periods"],
+  clutch: ["Clutch time", "Full credit at · minutes"],
+  lead_changes: ["Lead changes", "Full credit at · changes"],
+  comeback: ["Winner’s largest deficit", "Full credit at · points"],
+  overtime: ["Overtime", "Full credit at · periods"],
 };
 let report = null,
   selected = null,
@@ -57,7 +57,7 @@ function markDirty(event) {
   dirty = true;
   $("export-config").disabled = true;
   $("export-session").disabled = true;
-  status("Unapplied changes. Compare preview before exporting.");
+  status("Settings changed. Recalculate proposed scores before exporting. Scores below still use the last calculated settings.");
 }
 function fillConfig(value) {
   config = structuredClone(value);
@@ -105,8 +105,8 @@ function fillConfig(value) {
     $("controls").append(WorkbenchEnrichment.controls(value, markDirty));
   $("formula").textContent =
     value.schema_version === 2
-      ? "Candidate = min(10, drama score + bounded player bonus + bounded extreme-pattern bonus). Saved scores use the original model."
-      : "Drama = 10 × Σ(normalized signal × weight) ÷ Σ(active weights). Normalized signal = min(measurement ÷ scale, 1).";
+      ? "Proposed score = drama + player bonus + extreme-pattern bonus, capped at 10. Includes clutch time, lead changes, comeback size and overtime."
+      : "Proposed score uses drama only with this legacy formula: clutch time, lead changes, comeback size and overtime. Player and extreme-pattern bonuses are not included.";
 }
 function readConfig() {
   const next = {
@@ -131,7 +131,7 @@ async function request(url, options) {
   if (!response.ok)
     throw new Error(
       response.status === 422
-        ? "Invalid experiment. Check version, positive scales, active weights, bonus limits and ordered floor/peak thresholds."
+        ? "Invalid formula settings. Check the version, positive full-credit values, active weights, bonus limits and ordered start/full-credit thresholds."
         : response.status === 503
           ? "Database inspection is unavailable. Check the local workbench terminal."
           : "Inspection failed. Check the request and local workbench.",
@@ -185,7 +185,7 @@ async function load() {
 async function compare(imported) {
   if (!report || busy) return;
   setBusy(true);
-  status("Comparing the experiment against the same stored evidence…");
+  status("Recalculating proposed scores from stored evidence…");
   try {
     const next = await request("/api/preview", {
       method: "POST",
@@ -212,7 +212,7 @@ function renderGames() {
       "td",
       "No stored games at this date and cutoff. Collection runs separately.",
     );
-    cell.colSpan = 6;
+    cell.colSpan = 5;
     row.append(cell);
     $("games").append(row);
   }
@@ -236,32 +236,23 @@ function renderGames() {
       renderDetail();
     });
     name.append(link);
+    const appScore = game.archived?.eligible ? game.archived.score : null;
+    const change = appScore !== null && game.experiment
+      ? game.experiment.score - appScore : null;
     row.append(
       name,
-      el(
-        "td",
-        number(game.archived?.score) +
-          (game.archived && !game.archived.eligible ? " *" : ""),
-      ),
-      el("td", number(game.baseline?.score)),
-      el("td", number(game.experiment?.score)),
-    );
-    row.append(
-      el(
-        "td",
-        game.baseline && game.experiment
-          ? number(game.experiment.score - game.baseline.score)
-          : "—",
-      ),
+      el("td", number(game.experiment?.score), "proposed-score"),
+      el("td", number(appScore)),
+      el("td", change === null ? "—" : (change > 0 ? "+" : "") + number(change)),
     );
     const state = el("td");
     state.append(
       el(
         "span",
         game.experiment?.coverage === "partial"
-          ? "Partial preview"
+          ? "Incomplete: player data missing"
           : game.baseline
-            ? "Validated"
+            ? "Complete for this formula"
             : "Unavailable",
         "badge" +
           (game.baseline && game.experiment?.coverage !== "partial"
@@ -288,36 +279,41 @@ function renderDetail() {
   );
   target.append(top, el("p", `Canonical game ${game.game_id}`, "muted"));
   const metrics = el("div", undefined, "metrics");
+  const appScore = game.archived?.eligible ? game.archived.score : null;
+  const proposal = game.experiment;
   for (const [label, value, description] of [
     [
-      "Saved rating",
-      game.archived?.score,
-      game.archived?.status || "No archived rating",
+      "Proposed score · out of 10",
+      proposal?.score,
+      proposal ? proposal.verdict + (proposal.coverage === "partial" ? " · Incomplete: player data missing" : " · For tuning") : "Unavailable: insufficient validated data",
     ],
     [
-      "Recomputed baseline",
-      game.baseline?.score,
-      game.baseline?.verdict || "Unavailable",
-    ],
-    [
-      "Experimental preview",
-      game.experiment?.score,
-      game.experiment?.verdict || "Unavailable",
+      "Current app score · out of 10",
+      appScore,
+      appScore !== null ? "Stored score used for consumer hints" : game.archived ? "Stored score withheld: evidence no longer matches" : "No stored app score at this cutoff",
     ],
   ]) {
     const tile = el("div", undefined, "metric");
-    tile.append(
-      el("span", label),
-      el("strong", number(value)),
-      el("small", description),
-    );
+    tile.append(el("span", label), el("strong", number(value)), el("small", description));
     metrics.append(tile);
   }
   target.append(metrics);
+  target.append(el("p", "Proposed score is the game score being tuned with the selected formula. Current app score remains in use until a new formula is adopted.", "muted"));
+  if (proposal) {
+    const settings = report.experiment_config;
+    target.append(el("p", `Proposed-score verdicts: below ${settings.medium_from} = Lower priority; ${settings.medium_from} to below ${settings.high_from} = Worth considering; ${settings.high_from}–10 = Worth watching.`, "muted"));
+  }
+  const verification = el("details");
+  verification.id = "calculation-check";
+  verification.append(el("summary", "Check current app calculation · technical details"));
+  verification.append(el("p", `Recalculated original formula: ${number(game.baseline?.score)} / 10. Stored rating: ${number(game.archived?.score)} / 10. ${game.archived?.eligible ? "Stored rating matches current validated evidence." : "A matching, eligible stored rating has not been established."}`));
+  verification.append(el("p", "This checks the original drama-only formula against the stored rating. It is a verification step, not an additional proposed score."));
+  target.append(verification);
+  WorkbenchEnrichment.renderTotals(target, game);
   if (game.diagnostics.length)
     target.append(el("div", game.diagnostics.join(" · "), "notice"));
   if (game.experiment) {
-    target.append(el("h3", "Game drama · base component"));
+    target.append(el("h3", "Drama contribution · clutch, lead changes, comeback & overtime"));
     const wrap = el("div", undefined, "table-wrap"),
       table = el("table"),
       head = el("thead"),
@@ -325,11 +321,11 @@ function renderDetail() {
     for (const name of [
       "Signal",
       "Measured",
-      "Scale",
-      "Normalized",
+      "Full credit at",
+      "Magnitude (0–1)",
       "Weight",
-      "Effective %",
-      "Points / 10",
+      "Share of drama",
+      "Game-score points",
     ])
       hrow.append(el("th", name));
     head.append(hrow);
@@ -359,7 +355,7 @@ function renderDetail() {
       wrap,
       el(
         "p",
-        `Active weight denominator: ${game.experiment.weight_denominator}. Contributions sum to ${(game.experiment.drama_score ?? game.experiment.score).toFixed(4)} drama points / 10 before display rounding. Config: ${game.experiment.version}.`,
+        `Magnitude = measured ÷ full-credit value, limited to 1. Drama contribution: ${(game.experiment.drama_score ?? game.experiment.score).toFixed(4)} game-score points. Weight total: ${game.experiment.weight_denominator}; each share is its weight divided by this total. Formula: ${game.experiment.version}.`,
         "formula",
       ),
     );
@@ -367,7 +363,7 @@ function renderDetail() {
   WorkbenchEnrichment.render(target, game);
   const review = reviews[game.game_id] || { rating: "", notes: "" };
   const fields = el("div", undefined, "review"),
-    ratingLabel = el("label", "Your rating · 0–10"),
+    ratingLabel = el("label", "Your target game score · 0–10"),
     rating = el("input");
   rating.type = "number";
   rating.min = "0";
@@ -376,7 +372,7 @@ function renderDetail() {
   rating.value = review.rating;
   rating.id = "review-rating";
   ratingLabel.append(rating);
-  const notesLabel = el("label", "Your assessment / what feels wrong"),
+  const notesLabel = el("label", "Why would you score this game differently?"),
     notes = el("textarea");
   notes.maxLength = 5000;
   notes.value = review.notes;
@@ -391,7 +387,7 @@ function renderDetail() {
   notes.addEventListener("input", saveReview);
   fields.append(ratingLabel, notesLabel);
   target.append(
-    el("h3", "Review this rating"),
+    el("h3", "Assess the proposed score"),
     fields,
     el(
       "p",
@@ -400,7 +396,7 @@ function renderDetail() {
     ),
   );
   const provenance = el("details");
-  provenance.append(el("summary", "Source provenance & coverage"));
+  provenance.append(el("summary", "Source evidence & data coverage"));
   const info = {
     ...game.provenance,
     archived_snapshot: game.archived?.as_of || null,
@@ -461,7 +457,7 @@ function renderDetail() {
           play.source_play_id || "No source ID",
           `${play.period} / ${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(1).padStart(4, "0")}`,
           `${play.home}–${play.away}`,
-          play.tags.join(", "),
+          play.tags.map((tag) => labels[tag]?.[0] || tag).join(", "),
           number(play.clutch_ms / 1000),
         ])
           row.append(el("td", String(value)));
@@ -477,7 +473,7 @@ function renderDetail() {
   }
   const raw = el("details");
   raw.append(
-    el("summary", "Retained normalized evidence · JSON"),
+    el("summary", "Stored source evidence · technical JSON"),
     el("pre", JSON.stringify(game.evidence, null, 2)),
   );
   target.append(raw);

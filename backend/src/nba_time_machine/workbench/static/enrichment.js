@@ -23,12 +23,19 @@ window.WorkbenchEnrichment = (() => {
     scoring_drought: "Scoring drought",
   };
   function title(key) {
+    const settingNames = {
+      efficiency_weight: "Scoring-efficiency bonus multiplier",
+      triple_double_weight: "Triple-double bonus multiplier",
+      turnover_penalty: "Maximum turnover penalty (magnitude units)",
+      turnover_scale: "Full turnover penalty at (turnovers)",
+    };
+    if (settingNames[key]) return settingNames[key];
     if (key === "low_quarter_ceiling")
       return "Low quarter: starts below (points)";
-    if (key === "max_bonus") return "Maximum bonus (score points)";
-    if (key === "secondary_weight") return "Secondary player axes multiplier";
-    if (key === "runner_up_weight") return "Second player multiplier";
-    if (key === "second_group_weight") return "Second anomaly group multiplier";
+    if (key === "max_bonus") return "Maximum bonus (game-score points)";
+    if (key === "secondary_weight") return "Other stat categories: bonus multiplier";
+    if (key === "runner_up_weight") return "Second-best player: bonus multiplier";
+    if (key === "second_group_weight") return "Second pattern group: bonus multiplier";
     for (const [prefix, label] of Object.entries(names)) {
       if (key === prefix + "_floor" || key === prefix + "_peak")
         return (
@@ -81,7 +88,7 @@ window.WorkbenchEnrichment = (() => {
     holder.append(
       node(
         "p",
-        "Heuristic magnitude, not historical percentiles. Thresholds and bonuses are provisional.",
+        "Magnitude runs from 0 (no credit under these settings) to 1 (full credit). Start and full-credit values are provisional, not historical percentiles.",
         "muted",
       ),
     );
@@ -121,41 +128,45 @@ window.WorkbenchEnrichment = (() => {
     wrap.append(t);
     return wrap;
   }
-  function render(target, game) {
-    const e = game.enrichment;
-    if (!e) return;
-    target.append(node("h3", "Player performances & unusual game patterns"));
-    if (!e.candidate_eligible)
-      target.append(
-        node(
-          "p",
-          "Measurements below are inspectable, but do not contribute to a combined candidate score for this evidence/configuration.",
-          "notice",
-        ),
-      );
+  function renderTotals(target, game) {
     if (game.experiment?.drama_score !== undefined) {
       const c = game.experiment;
+      target.append(node("h3", "How the proposed score adds up"));
       target.append(
         table(
-          ["Candidate component", "Points / 10"],
+          ["Proposed-score component", "Game-score points"],
           [
-            ["Game drama", fmt(c.drama_score)],
+            ["Drama · clutch, lead changes, comeback & overtime", fmt(c.drama_score)],
             ["Player-performance bonus", fmt(c.player_bonus)],
             ["Extreme-pattern bonus", fmt(c.pattern_bonus)],
             ["10-point cap adjustment", fmt(c.cap_adjustment)],
             ["Final rounding", fmt(c.rounding_adjustment)],
-            ["Candidate total", fmt(c.score)],
+            ["Proposed score · out of 10", fmt(c.score)],
           ],
         ),
       );
       target.append(
         node(
           "p",
-          `Candidate = min(10, drama + player bonus + pattern bonus). Coverage: ${c.coverage}. Missing families contribute no estimated value. Saved ratings remain unchanged.`,
+          `Proposed score = min(10, drama + player bonus + extreme-pattern bonus). ${c.coverage === "partial" ? "Incomplete: player data is missing; the total includes only available contributions." : "All required data is available."} Current app score stays unchanged.`,
           "formula",
         ),
       );
     }
+  }
+  function render(target, game) {
+    const e = game.enrichment;
+    if (!e) return;
+    target.append(node("h3", "Player performances & extreme game patterns"));
+    if (!e.candidate_eligible)
+      target.append(
+        node(
+          "p",
+          "These measurements are shown for inspection. They are not included in the proposed score with the selected data or legacy formula.",
+          "notice",
+        ),
+      );
+    target.append(node("p", "Performance magnitude is a 0–1 measure of a player’s stats under this formula. The top two magnitudes determine the player bonus added to the game score. Click a player to see the calculation.", "muted"));
     const players = node("details");
     players.open = true;
     players.append(node("summary", "Individual box-score performances"));
@@ -168,7 +179,7 @@ window.WorkbenchEnrichment = (() => {
       players.append(
         node(
           "p",
-          `Bonus = ${fmt(b.cap)} × min(1, strongest ${fmt(b.strongest)} + ${fmt(b.runner_up_weight)} × runner-up ${fmt(b.runner_up)}) = ${fmt(b.points)}. Players from either team qualify.`,
+          `Player bonus = ${fmt(b.cap)} game-score points × min(1, top player magnitude ${fmt(b.strongest)} + ${fmt(b.runner_up_weight)} × second player magnitude ${fmt(b.runner_up)}) = ${fmt(b.points)} game-score points. Players from either team qualify.`,
           "formula",
         ),
       );
@@ -187,19 +198,20 @@ window.WorkbenchEnrichment = (() => {
       players.append(list, detail);
       function show(p) {
         detail.replaceChildren(
-          node("h3", `${p.name} · ${p.team} · production breakdown`),
+          node("h3", `${p.name} · ${p.team} · performance calculation`),
         );
+        detail.append(node("p", "Each stat category: (measured − start value) ÷ (full-credit value − start value), limited to 0–1.", "muted"));
         detail.append(
           table(
             [
-              "Axis",
+              "Stat category",
               "Measured",
               "Starts above",
               "Full credit at",
-              "Normalized",
+              "Magnitude (0–1)",
             ],
             p.axes.map((a) => [
-              a.signal,
+              names[a.signal] || a.signal,
               a.raw,
               a.floor,
               a.peak,
@@ -209,21 +221,21 @@ window.WorkbenchEnrichment = (() => {
         );
         detail.append(
           table(
-            ["Severity calculation", "Value"],
+            ["Performance magnitude calculation", "Magnitude units"],
             [
               ...Object.entries(p.terms).map(([key, value]) => [
-                key.replaceAll("_", " "),
+                ({strongest_axis: "Strongest stat category", secondary_axes: "Other stat categories bonus", efficiency_bonus: "Scoring-efficiency bonus", triple_double_bonus: "Triple-double bonus", turnover_penalty: "Turnover penalty"})[key] || key.replaceAll("_", " "),
                 fmt(value),
               ]),
-              ["Before clamp", fmt(p.before_clamp)],
-              ["After clamp to 0–1", fmt(p.severity)],
+              ["Before 0–1 limit", fmt(p.before_clamp)],
+              ["Performance magnitude · limited to 0–1", fmt(p.severity)],
             ],
           ),
         );
         detail.append(
           node(
             "p",
-            `Strongest axis + weighted next two axes + scoring-efficiency support + triple-double credit − turnover penalty. True shooting: ${p.true_shooting === null ? "undefined (no attempts)" : (p.true_shooting * 100).toFixed(2) + "%"}; efficiency normalization: ${fmt(p.efficiency_normalized)}. Minutes: ${p.minutes} (${p.minutes_precision}); no per-minute extrapolation. Source box: ${p.box_reference}.`,
+            `Strongest stat category + weighted next two categories + scoring-efficiency bonus + triple-double bonus − turnover penalty. True shooting: ${p.true_shooting === null ? "undefined (no attempts)" : (p.true_shooting * 100).toFixed(2) + "%"}; shooting-efficiency magnitude (0–1): ${fmt(p.efficiency_normalized)}. Minutes: ${p.minutes} (${p.minutes_precision}); no per-minute extrapolation. Source box: ${p.box_reference}.`,
             "muted",
           ),
         );
@@ -239,8 +251,8 @@ window.WorkbenchEnrichment = (() => {
               "STL",
               "BLK",
               "TO",
-              "TS%",
-              "Severity",
+              "True shooting %",
+              "Performance magnitude (0–1)",
             ],
             (all.checked ? e.players : e.players.slice(0, 8)).map((p) => {
               const link = node("button", `${p.name} · ${p.team}`, "game-link");
@@ -282,7 +294,7 @@ window.WorkbenchEnrichment = (() => {
       patterns.append(
         node(
           "p",
-          `Dominance group = max(lead, first-half lead, quarter margin) = ${fmt(b.groups.dominance)}. Scoring-extremes group = max(low quarter, high quarter, drought) = ${fmt(b.groups.scoring_extremes)}. Bonus = ${fmt(b.cap)} × min(1, strongest group + ${fmt(b.second_group_weight)} × second group) = ${fmt(b.points)}.`,
+          `Large leads / margins magnitude = max(overall lead, first-half lead, quarter margin) = ${fmt(b.groups.dominance)}. Scoring-extremes magnitude = max(low quarter, high quarter, drought) = ${fmt(b.groups.scoring_extremes)}. Extreme-pattern bonus = ${fmt(b.cap)} game-score points × min(1, stronger group + ${fmt(b.second_group_weight)} × other group) = ${fmt(b.points)} game-score points. Related patterns share one group to avoid counting the same stretch repeatedly.`,
           "formula",
         ),
       );
@@ -291,9 +303,9 @@ window.WorkbenchEnrichment = (() => {
           [
             "Measurement",
             "Value / context",
-            "Starts at",
+            "Credit starts at",
             "Full credit at",
-            "Normalized",
+            "Magnitude (0–1)",
             "Group",
             "Source play IDs",
           ],
@@ -313,7 +325,7 @@ window.WorkbenchEnrichment = (() => {
               time ? p.floor / 60000 : p.floor,
               time ? p.peak / 60000 : p.peak,
               fmt(p.normalized),
-              p.group,
+              p.group === "dominance" ? "Large leads / margins" : "Scoring extremes",
               evidence,
             ];
           }),
@@ -336,5 +348,5 @@ window.WorkbenchEnrichment = (() => {
       ),
     );
   }
-  return { controls, read, render };
+  return { controls, read, render, renderTotals };
 })();
