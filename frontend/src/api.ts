@@ -1,7 +1,9 @@
 /** Same-origin backend integration. Only allowlisted policy responses enter UI state. */
-import { forwardCursor, parseFull, parseGameList, parseVerdict } from "./dashboard.ts";
-import type { FullReveal, GameList, Reason, Verdict } from "./dashboard.ts";
+import { forwardCursor, parseFull, parseGameList, parseMediaFeed, parseVerdict } from "./dashboard.ts";
+import type { FullReveal, GameList, MediaFeed, Reason, Verdict } from "./dashboard.ts";
 import { requestWatchabilityRecommendations } from "./watchability.ts";
+import { parseWatchQueue } from "./watchQueue.ts";
+import type { QueueState, WatchQueue } from "./watchQueue.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type Timeline = { profile_id: string; time_cursor: string; initialized_at: string; updated_at: string };
@@ -57,6 +59,7 @@ export class BackendClient {
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
     if (!response.ok) throw new ApiError(response.status);
+    if (response.status === 204) return null;
     return response.json();
   }
   async resume(signal?: AbortSignal): Promise<Timeline | null> {
@@ -97,6 +100,20 @@ export class BackendClient {
     }
     return result;
   }
+  async media(cursor: string, page?: string, signal?: AbortSignal): Promise<MediaFeed> {
+    if (!instant(cursor) || (page !== undefined && !/^[A-Za-z0-9_-]{1,512}$/.test(page)))
+      throw new Error("Invalid media request.");
+    const query = new URLSearchParams({ time_cursor: cursor, limit: "10" });
+    if (page) query.set("page", page);
+    const data = parseMediaFeed(await this.request(
+      `/profiles/${this.profileId}/media?${query.toString()}`, "GET", undefined, signal,
+    ));
+    if (Date.parse(data.time_cursor) !== Date.parse(cursor))
+      throw new Error("Timeline changed in another tab. Reload to resume.");
+    if (data.items.some((item) => item.known_at && Date.parse(item.known_at) > Date.parse(cursor)))
+      throw new Error("Future media was rejected.");
+    return data;
+  }
   async disclose(gameId: string, layer: "watchability" | "why" | "full", consent: true): Promise<Verdict | Reason | FullReveal> {
     if (consent !== true) throw new Error("Explicit disclosure consent required.");
     const game = id(gameId);
@@ -105,6 +122,23 @@ export class BackendClient {
     const result = layer === "full" ? parseFull(data) : parseVerdict(data, layer);
     if (id(result.game_id) !== game) throw new Error("Disclosure game mismatch.");
     return result;
+  }
+  async queue(cursor: string, view: ScheduleView, signal?: AbortSignal): Promise<WatchQueue> {
+    if (!instant(cursor) || !["pregame", "observed", "replay"].includes(view)) throw new Error("Invalid queue selection.");
+    const data = parseWatchQueue(await this.request(
+      `/profiles/${this.profileId}/watch-queue?time_cursor=${encodeURIComponent(cursor)}&view=${view}`,
+      "GET", undefined, signal,
+    ));
+    if (Date.parse(data.time_cursor) !== Date.parse(cursor)) throw new Error("Timeline changed in another tab. Reload to resume.");
+    return data;
+  }
+  async saveQueue(gameId: string, state: QueueState, cursor: string): Promise<void> {
+    if (!instant(cursor) || !["queued", "done", "dismissed"].includes(state)) throw new Error("Invalid queue action.");
+    await this.request(`/profiles/${this.profileId}/watch-queue/${id(gameId)}`, "PUT", { time_cursor: cursor, queue_state: state });
+  }
+  async removeQueue(gameId: string, cursor: string): Promise<void> {
+    if (!instant(cursor)) throw new Error("Invalid timeline.");
+    await this.request(`/profiles/${this.profileId}/watch-queue/${id(gameId)}?time_cursor=${encodeURIComponent(cursor)}`, "DELETE");
   }
   async recommend(gameList: GameList, slateDate: string, consent: true) {
     return requestWatchabilityRecommendations({

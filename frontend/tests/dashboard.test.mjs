@@ -67,3 +67,18 @@ test("demo cursor is forward only and reload cannot restore an earlier world", (
   assert.throws(() => forwardCursor(first, 0));
   assert.throws(() => forwardCursor(first, -1));
 });
+
+test('media parser rejects future affordances, invalid URLs, unknown fields and pagination', () => {
+  const safe = { time_cursor: '2026-10-15T12:00:00Z', items: [{
+    item_id: 'one', headline: 'Reviewed news', source: 'NBA', media_type: 'article',
+    known_at: '2026-10-15T11:00:00Z', url: 'https://example.org/news',
+  }], next_page: 'opaque_page' };
+  assert.equal(parseMediaFeed(safe).next_page, 'opaque_page');
+  for (const changed of [
+    { home_score: 109 }, { runtime_seconds: 'long' }, { media_type: 'unknown' },
+    { url: 'javascript:alert(1)' }, { known_at: '2026-10-15T13:00:00' },
+  ]) assert.throws(() => parseMediaFeed({
+    ...safe, items: [{ ...safe.items[0], ...changed }],
+  }));
+  assert.throws(() => parseMediaFeed({ ...safe, next_page: 'not valid' }));
+});

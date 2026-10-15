@@ -99,6 +99,11 @@ class MediaFeedItemResponse(_SafeResponse):
     excerpt: str | None = None
     thumbnail_url: str | None = None
     runtime_seconds: int | None = None
+    source: str | None = None
+    source_id: str | None = None
+    media_type: Literal["article", "podcast", "video"] | None = None
+    known_at: datetime | None = None
+    url: str | None = None
 
 
 class _TimelineResponse(_SafeResponse):
@@ -122,6 +127,7 @@ class MediaFeedResponse(_TimelineResponse):
     """General feed; never expands when a single game is acknowledged."""
 
     items: tuple[MediaFeedItemResponse, ...]
+    next_page: str | None = None
 
 
 def _game_fields(projection: GameProjection, layer: DisclosureLayer, allowed: frozenset[str]) -> dict[str, object]:
