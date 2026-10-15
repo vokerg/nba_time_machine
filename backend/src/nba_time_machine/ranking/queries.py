@@ -91,5 +91,18 @@ class SqlAlchemyPostgameScoreRepository:
             .where(latest.c.position == 1)
             .order_by(r.game_id)
         )).all()
-        scores = (_score_from_row(row) for row in rows)
-        return tuple(score for score in scores if score is not None)
+        from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline, PREFIX
+
+        scores = []
+        for row in rows:
+            score = _score_from_row(row)
+            if score is None:
+                continue
+            if any(part.source_ref.startswith(PREFIX) for part in score.components):
+                # New corrections, revoked sources and partial latest traces
+                # invalidate old derived scores without deleting their history.
+                current = await MorningRankingPipeline(self._session).derive(score.game_id, as_of=as_of)
+                if current is None or current[2].components != score.components:
+                    continue
+            scores.append(score)
+        return tuple(scores)
