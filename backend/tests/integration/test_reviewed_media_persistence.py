@@ -33,7 +33,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
         pytest.skip("DATABASE_URL is not configured")
     engine = create_database_engine(settings)
     factory = create_session_factory(engine)
-    profile, other_profile, season, home, away, a, b, run_id = (uuid4() for _ in range(8))
+    profile, other_profile, season, home, away, a, b, c, run_id = (uuid4() for _ in range(9))
     source_id = f"media-review-test-{uuid4()}"
     ids = {}
     app = FastAPI()
@@ -57,7 +57,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
             await session.flush()
             session.add_all([
                 GameRecord(id=id, season_id=season, home_team_id=home, away_team_id=away)
-                for id in (a, b)
+                for id in (a, b, c)
             ])
             await session.flush()
             for game in (a, b):
@@ -72,6 +72,13 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                     scheduled_tip_at=TIP, final_at=FINAL,
                     status="final", home_score=100, away_score=90,
                 ))
+            # This game's scheduled tip is only observed *after* the cursor.
+            session.add(GameObservationRecord(
+                id=uuid4(), game_id=c, source_id=source_id,
+                observed_at=CURSOR + timedelta(hours=1),
+                available_at=CURSOR + timedelta(hours=1),
+                scheduled_tip_at=CURSOR + timedelta(days=1), status="scheduled",
+            ))
             await session.flush()
             pending_captures = []
             pending_reviews = []
@@ -97,6 +104,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                         game_ids=list(games), rights_cleared=cleared, link_cleared=True,
                     ))
             add_item("a-result", sensitivity="outcome_dependent", games=(a,))
+            add_item("future-schedule", sensitivity="pregame", games=(c,))
             add_item("b-result", sensitivity="outcome_dependent", games=(b,))
             add_item("a-b-mixed", sensitivity="outcome_dependent", games=(a, b))
             add_item("league-preview")
