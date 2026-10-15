@@ -36,7 +36,7 @@ export function parseWatchQueue(value: unknown): WatchQueue {
       // parseGameList is deliberately sparse; the queue must additionally
       // validate tip instants before the UI formats them.
       if (game.scheduled_tip !== undefined &&
-          (!/(?:Z|[+-]\\d\\d:\\d\\d)$/.test(game.scheduled_tip) ||
+          (!/(?:Z|[+-]\d\d:\d\d)$/.test(game.scheduled_tip) ||
            !Number.isFinite(Date.parse(game.scheduled_tip)))) {
         throw new Error("Invalid queue game timestamp.");
       }
