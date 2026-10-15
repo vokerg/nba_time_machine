@@ -212,7 +212,7 @@ export function App() {
           <section className="side-panel queue-panel" aria-labelledby="queue-heading">
             <p className="eyebrow">Personal, not a reveal</p><h2 id="queue-heading">Watch Queue</h2>
             <p>Queued / done / dismissed tracks your plans only. It never acknowledges games or moves your timeline. Cards use spoiler-safe season replay; unavailable games stay hidden.</p>
-            {queueError && <p role="alert">Watch Queue: {queueError} <button disabled={busy} onClick={() => setQueueRevision((n) => n + 1)}>Retry queue</button></p>}
+            {queueError && <p role="alert">Watch Queue: {queueError} <button disabled={busy} onClick={() => setReload((n) => n + 1)}>Reload saved state</button></p>}
             {queueLoading && <p role="status">Loading Watch Queue…</p>}
             {!queueLoading && queue?.items.length === 0 && <p>Your Watch Queue is empty.</p>}
             <ol className="queue-list">{queue?.items.map((item) => {
