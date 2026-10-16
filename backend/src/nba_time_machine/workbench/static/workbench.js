@@ -28,12 +28,13 @@ function setBusy(value) {
   busy = value;
   for (const id of [
     "load",
+    "verify",
     "preview",
     "reset",
     "export-config",
     "export-session",
   ])
-    $(id).disabled = value || (!report && id !== "load");
+    $(id).disabled = value || (!report && !["load", "verify"].includes(id));
   $("import").disabled = value || !report;
   for (const id of ["day", "asof", "version", "medium", "high"])
     $(id).disabled = value;
@@ -141,7 +142,9 @@ async function request(url, options) {
         ? "Invalid formula settings. Check the version, positive full-credit values, active weights, bonus limits and ordered start/full-credit thresholds."
         : response.status === 503
           ? "Database inspection is unavailable. Check the local workbench terminal."
-          : "Inspection failed. Check the request and local workbench.",
+          : response.status === 409
+            ? "Another verification is running, the result was replaced, or the server restarted. Load stored games or try again after the run finishes."
+            : "Request failed. Check the date and local workbench.",
     );
   return response.json();
 }
@@ -189,6 +192,72 @@ async function load() {
     setBusy(false);
   }
 }
+function showVerification(result) {
+  const panel = $("verification");
+  panel.hidden = false;
+  panel.replaceChildren(el("h2", `Day verification · ${result.day || ""}`));
+  if (result.state === "running") {
+    panel.append(el("p", "Fetching and validating ESPN game evidence, with CBS fallback. One bounded run; this can take up to three minutes."));
+    return;
+  }
+  if (result.state === "failed") {
+    const message = {
+      morning_source_policy_not_ready: "Source policy is not ready. Collection requires reviewed ESPN/CBS registry policies; this button does not enable sources or grant permissions.",
+      sports_collection_already_running: "Another sports collection is running. Try again after it finishes.",
+      collection_time_limit: "Collection reached its time limit. Some evidence may have been saved; load stored games to inspect it.",
+      collection_interrupted: "Collection was interrupted. Load stored games to inspect any evidence already saved.",
+    }[result.error] || "Collection failed. Check database/source configuration. Some evidence may already have been saved.";
+    panel.append(el("p", message, "error"));
+    return;
+  }
+  panel.append(el("p", `${result.games.length} discovered games · ${result.requests} requests · ${result.captures_written} new evidence captures · Run ${result.run_id || "unknown"} · Finished ${result.finished_at}`));
+  if (!result.games.length) panel.append(el("p", result.discovery && !result.errors.length
+    ? "Provider returned an empty slate for this Eastern day."
+    : "Could not verify the slate. Zero stored games does not establish that no games occurred."));
+  for (const game of result.games) {
+    panel.append(el("p", `${game.away} at ${game.home} · ${game.status === "pending" ? "Not final — postgame verification pending (no live box fetched)" : game.status} · Play-by-play: ${game.pbp_provider || "unavailable"} · Player box: ${game.box_provider || "unavailable"}${game.errors.length ? " · " + game.errors.join(", ") : ""}`));
+  }
+  if (result.errors.length) panel.append(el("p", result.errors.join(" · "), "error"));
+  for (const attempt of result.attempts.filter((a) => a.status !== "ok"))
+    panel.append(el("p", `${attempt.provider} ${attempt.stage}: ${attempt.status}`));
+}
+async function verifyDay() {
+  if (busy) return;
+  const day = $("day").value;
+  const settings = report ? readConfig() : null;
+  setBusy(true);
+  try {
+    let result = await request("/api/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Workbench-Action": "collect-day" },
+      body: JSON.stringify({ slate_date: day }),
+    });
+    showVerification(result);
+    status("Collecting fresh evidence. Proposed scores will refresh when verification finishes…");
+    const jobId = result.job_id;
+    while (result.state === "running") {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      result = await request(`/api/verify?job_id=${encodeURIComponent(jobId)}`);
+      showVerification(result);
+    }
+    if (result.state !== "finished") {
+      status("Verification did not finish. See collection details above.", true);
+      return;
+    }
+    const stamp = new Date().toISOString();
+    $("asof").value = stamp.slice(0, 19);
+    const next = settings ? await request("/api/preview", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slate_date: day, as_of: stamp, config: settings }),
+    }) : await request(`/api/slate?date=${encodeURIComponent(day)}&as_of=${encodeURIComponent(stamp)}`);
+    acceptReport(next);
+    fillConfig(next.experiment_config);
+  } catch (error) {
+    status(error.message, true);
+  } finally {
+    setBusy(false);
+  }
+}
 async function compare(imported) {
   if (!report || busy) return;
   setBusy(true);
@@ -217,7 +286,7 @@ function renderGames() {
     const row = el("tr");
     const cell = el(
       "td",
-      "No stored games at this date and cutoff. Collection runs separately.",
+      "No stored games at this date and cutoff. Use Fetch & verify this day to collect evidence.",
     );
     cell.colSpan = 5;
     row.append(cell);
@@ -504,6 +573,7 @@ function download(name, value) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 $("load").addEventListener("click", load);
+$("verify").addEventListener("click", verifyDay);
 $("preview").addEventListener("click", () => compare());
 $("reset").addEventListener("click", () => {
   fillConfig(report.default_candidate_config || report.baseline_config);

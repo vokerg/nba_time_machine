@@ -30,6 +30,8 @@ return generic database errors without credential/source-body exception details.
    NBA observations known by that cutoff, with latest revisions selected before
    date filtering. Coverage is bounded to 32 games and can be incomplete; unfinished
    games skipped by the morning collector may have no evidence or observation.
+   **Load stored games** reads existing data. **Fetch & verify this day** explicitly
+   collects fresh evidence and refreshes proposed scores; see below.
 2. Start with **Proposed score / 10**: this is the combined score being tuned.
    **Current app score / 10** is the eligible stored score that feeds consumer
    hints when disclosure rules allow. **Change vs. app** is proposed minus current
@@ -173,3 +175,49 @@ Schema 5 exposes ranked player participation, identity/source coverage, team/gam
 magnitudes and the additive bonus. It requires an approved snapshot actually known
 before tipoff; importing a ranking now does not unlock historical games. All
 controls and missing-data rules are documented in [Star Power](STAR_POWER.md).
+
+
+## Fetch and verify a day (#100)
+
+Use **Fetch & verify this day** beside **Load stored games**. Loading and formula
+previews remain database-enforced read-only. Only the explicit fetch action writes
+fresh evidence through the existing `MorningCollector` / `MorningStore` pipeline.
+It uses reviewed ESPN/CBS registry policies and manual collection mode (which can
+use verified disabled sources without enabling scheduling); it cannot approve a
+source or change its retention policy.
+
+The action checks one Eastern day, up to 20 games / 40 requests, with a three-minute
+overall time limit. One run can execute per workbench process, with the existing
+PostgreSQL sports lock also preventing simultaneous external collectors. Progress
+is polled; the completed panel shows discovered matchups, pending/complete/incomplete
+families, providers, errors, request/capture counts and the persisted run ID.
+Partial collection can save good evidence independently of other games failing.
+Provider access failures never establish a verified empty slate.
+
+After collection finishes, the evidence cutoff moves to now and the proposed scores
+are recalculated using the current edited settings. This neither archives current
+app scores nor adopts the experimental formula. Existing drama/performance/pattern/
+importance/Star Power rules still apply. Star Power requires an authorized snapshot
+known before tipoff; collecting games does not import rankings.
+
+The reused morning collector deliberately skips unfinished games. They appear in
+the verification panel as pending, without invented zero ratings or live player
+participation. Re-run after final; this action does not provide live-game scoring.
+A repeated fetch deduplicates identical evidence through canonical capture hashes.
+
+The local job status is bounded to the latest job and lost on server restart. A
+refresh does not start another job. Durable captures, collection runs and health
+remain in PostgreSQL; use Load stored games after interruption to inspect saved
+evidence. Job IDs prevent another tab's later run from being mistaken for yours.
+The explicit POST requires JSON and `X-Workbench-Action: collect-day`, in addition
+to the existing loopback, Host and same-origin checks. No consumer routes exist.
+
+Verified October 16, 2026: the real button found 12 ESPN matchups for October 16,
+all pending, with one request, zero new evidence captures and a persisted run.
+The browser showed pending coverage and advanced the cutoff before previewing.
+Synthetic database tests separately verified complete evidence persistence,
+replay deduplication and unchanged archived-score counts. All 13 DOM tests passed.
+The full backend run had 458 passes and the existing intermittent macOS launcher
+cleanup failure; that test passed on targeted rerun. Six operator unit scenarios
+(including a later timeout/shutdown test) passed. See the
+[sanitized verification record](evidence/workbench-fetch-2026-10-16.json).

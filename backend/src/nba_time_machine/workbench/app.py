@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -15,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from nba_time_machine.db import DatabaseSettings, create_database_engine, create_session_factory
 from nba_time_machine.workbench.calculations import TuningConfig
 from nba_time_machine.workbench.service import inspect_slate
+from nba_time_machine.workbench.collection import DayVerification
 
 STATIC = Path(__file__).parent / "static"
 DEFAULT_CONFIG = Path(__file__).resolve().parents[4] / "config/ranking/trajectory-baseline-v1.json"
@@ -27,9 +29,11 @@ async def lifespan(app):
     app.state.session_factory = create_session_factory(engine)
     app.state.baseline = TuningConfig.model_validate_json(DEFAULT_CONFIG.read_text())
     app.state.candidate = TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
+    app.state.verification = DayVerification(app.state.session_factory)
     try:
         yield
     finally:
+        await app.state.verification.close()
         await engine.dispose()
 
 
@@ -81,6 +85,31 @@ class PreviewRequest(BaseModel):
     slate_date: date
     as_of: AwareDatetime
     config: TuningConfig
+
+
+class VerifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    slate_date: date
+
+
+@app.post("/api/verify", status_code=202)
+async def verify(payload: VerifyRequest, request: Request):
+    # A custom header plus JSON prevents cross-origin form submissions even when
+    # Origin is absent. The loopback middleware also checks Host/Origin.
+    if request.headers.get("x-workbench-action") != "collect-day":
+        raise HTTPException(403, "Explicit local collection action required")
+    job = request.app.state.verification
+    if not job.start(payload.slate_date):
+        raise HTTPException(409, "Day verification already running")
+    return job.result
+
+
+@app.get("/api/verify")
+async def verification_status(request: Request, job_id: UUID | None = None):
+    result = request.app.state.verification.result
+    if job_id is not None and str(job_id) != result.get("job_id"):
+        raise HTTPException(409, "Verification result replaced or server restarted; load stored games")
+    return result
 
 
 @app.get("/api/slate")

@@ -1,0 +1,25 @@
+{
+  "verified_at": "2026-10-16T07:25:39.159745+00:00",
+  "day": "2026-10-16",
+  "run_id": "bbfa7a81-cf74-480c-8042-9eb904f236c1",
+  "discovery": "espn",
+  "discovered_games": 12,
+  "pending_games": 12,
+  "requests": 1,
+  "captures_written": 0,
+  "errors": [],
+  "real_verification": [
+    "browser explicit POST, polling, disabled controls and fresh-cutoff preview",
+    "ESPN discovery and persisted collection run; all games pending"
+  ],
+  "synthetic_verification": [
+    "complete evidence persistence, replay deduplication and no score archival on disposable PostgreSQL",
+    "partial evidence, policy failure, duplicate action, error redaction, timeout, shutdown and consumer isolation",
+    "DOM current formula preservation, fresh cutoff and failed collection visibility"
+  ],
+  "limitations": [
+    "Existing morning collector skips unfinished games; no live player evidence fetched",
+    "No licensed pre-tip player ranking snapshot imported",
+    "Local status is lost on restart; canonical run and captures persist"
+  ]
+}

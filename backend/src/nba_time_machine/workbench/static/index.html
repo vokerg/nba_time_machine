@@ -21,7 +21,7 @@
       </div>
       <div class="boundary">
         Full game details · Spoilers visible<br /><strong
-          >Read-only database · Proposed scores are for tuning</strong
+          >Read-only previews · Explicit collection saves evidence</strong
         >
       </div>
     </header>
@@ -34,6 +34,7 @@
             type="datetime-local"
             step="1" /></label
         ><button id="load">Load stored games</button>
+        <button id="verify">Fetch &amp; verify this day</button>
         <div class="exports">
           <button id="export-config" class="secondary" disabled>
             Export formula settings</button
@@ -47,6 +48,8 @@
           /></label>
         </div>
       </section>
+      <p class="muted">Fetch &amp; verify saves fresh game evidence, moves the evidence cutoff to now and recalculates your proposed formula. Current app scores stay unchanged. Unfinished games remain pending; Star Power needs an approved pre-tip ranking snapshot.</p>
+      <section id="verification" class="panel" hidden aria-live="polite"></section>
       <p id="status" role="status">Connecting to your configured database…</p>
       <div class="layout">
         <aside class="panel">
@@ -128,7 +131,7 @@
     </main>
     <footer>
       Separate developer tool · No changes to timelines, acknowledgements,
-      evidence or current app scores · Formula settings are provisional
+      or current app scores · Evidence saved only by explicit collection · Formula settings are provisional
     </footer>
   </body>
 </html>
