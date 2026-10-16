@@ -63,6 +63,13 @@ def test_game_families_never_conflate_missing_partial_and_complete():
     assert pending["play_by_play"]["status"] == "not_final"
 
 
+def test_only_restricted_outcome_codes_escape():
+    o = SimpleNamespace(error_code=None, outcome_metadata={"errors": ["http_403", "Authorization: Bearer secret"]})
+    assert report.outcome_code(o) == "http_403"
+    o.outcome_metadata = {"code": "https://example.org?secret=yes"}
+    assert report.outcome_code(o) is None
+
+
 def test_export_has_only_operational_columns_and_no_spreadsheet_injection():
     assert report.code("http_403") == "http_403"
     assert report.code("Bearer secret?https://example.org?q=token") == "redacted"
