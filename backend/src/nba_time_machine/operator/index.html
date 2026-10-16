@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NBA · Ingestion coverage (local)</title>
+  <link rel="stylesheet" href="/operator.css">
+  <script src="/operator.js" defer></script>
+</head>
+<body>
+  <header>
+    <div>
+      <small>NBA TIME MACHINE · INTERNAL OPERATOR VIEW</small>
+      <h1>Ingestion &amp; coverage</h1>
+      <p>Read-only PostgreSQL inspection. Never a consumer API, scheduler, or source activator.</p>
+    </div>
+    <strong class="local">LOCAL ONLY · SPOILERS VISIBLE</strong>
+  </header>
+  <main>
+    <form id="filters">
+      <label>NBA date · Eastern <input name="day" id="day" type="date"></label>
+      <label>Season <input name="season" id="season" placeholder="2026-2027" pattern="[0-9]{4}-[0-9]{4}"></label>
+      <label>Source ID <input name="source" id="source" placeholder="all sources"></label>
+      <label>Outcome <select name="status" id="status">
+        <option value="">All</option>
+        <option>ok</option><option>idle</option><option>partial</option>
+        <option>skipped_config</option><option>blocked</option><option>auth_error</option>
+        <option>rate_limited</option><option>parse_error</option><option>network_error</option>
+      </select></label>
+      <button type="submit">Inspect</button>
+      <button id="json" type="button">Export JSON</button>
+      <button id="csv" type="button">Export CSV</button>
+    </form>
+    <p id="state" role="status">Loading operational metadata…</p>
+    <section>
+      <h2>Source registry and freshness</h2>
+      <p>Enabled does not mean working. “Recent check” is a conservative cadence-based estimate, not a guarantee of data completeness.</p>
+      <div class="scroll"><table id="sources"><thead><tr>
+        <th>Source</th><th>Verified</th><th>Enabled</th><th>Auth</th>
+        <th>Cadence</th><th>Last attempt</th><th>Last OK</th><th>Outcome</th><th>Freshness</th><th>Code</th>
+      </tr></thead><tbody></tbody></table></div>
+    </section>
+    <section>
+      <h2>Recorded NBA games · selected Eastern date</h2>
+      <p>Missing games are unknown, not a verified empty slate. Final is a provider-reported state. Team box is not captured as a separately validated family.</p>
+      <div class="scroll"><table id="games"><thead><tr>
+        <th>Game</th><th>Season</th><th>Observed state</th><th>Schedule source</th>
+        <th>Scheduled tip</th><th>Last observation</th><th>PBP</th><th>Player box</th><th>Team box</th><th>Last evidence</th>
+      </tr></thead><tbody></tbody></table></div>
+    </section>
+    <section>
+      <h2>Recent source outcomes</h2>
+      <div class="scroll"><table id="outcomes"><thead><tr>
+        <th>Run</th><th>Source</th><th>Status</th><th>Items</th><th>Captures</th><th>Finished</th><th>Error code</th>
+      </tr></thead><tbody></tbody></table></div>
+    </section>
+    <section>
+      <h2>Recent collection runs</h2>
+      <div class="scroll"><table id="runs"><thead><tr><th>Run</th><th>Collector</th><th>Started</th><th>Finished</th></tr></thead><tbody></tbody></table></div>
+    </section>
+    <section>
+      <h2>Interpretation limits</h2>
+      <ul id="notes"></ul>
+    </section>
+  </main>
+</body>
+</html>
