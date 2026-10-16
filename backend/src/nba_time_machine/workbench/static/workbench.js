@@ -196,10 +196,10 @@ async function load() {
 async function loadRingerStatus() {
   try {
     const r = await request('/api/ringer-status');
-    const result = r.latest_run?.result;
+    const coverage = r.snapshot_coverage;
     $('ringer-status').textContent = r.state === 'not_configured'
       ? 'Ringer Top 100: automatic collection is not configured.'
-      : `Ringer Top 100 · ${r.state} · ${result?.coverage ? result.coverage.matched + '/100 ESPN identities matched' : 'No validated snapshot yet'} · Last check ${r.last_attempt_at || 'never'} · Next allowed check ${r.next_check_at || 'when configured'} · ${r.latest_run?.code || ''}. Private hobby access; no publisher license claimed. New captures apply only to later tipoffs.`;
+      : `Ringer Top 100 · ${r.state} · ${coverage ? coverage.matched + '/100 ESPN identities matched' : 'No validated snapshot yet'} · Snapshot known ${r.snapshot_known_at || 'unknown'} · Last check ${r.last_attempt_at || 'never'} · Next allowed check ${r.next_check_at || 'when configured'} · ${r.latest_run?.code || ''}. Private hobby access; no publisher license claimed. New captures apply only to later tipoffs.`;
   } catch (_) {
     $('ringer-status').textContent = 'Ringer source status unavailable.';
   }

@@ -91,6 +91,8 @@ For local rating inspection and tuning against your configured database, run
 `backend/.venv/bin/python backend/scripts/run_scoring_workbench.py` and open
 <http://127.0.0.1:8765>. This separate developer tool uses read-only previews and explicit day collection. It exposes full score
 breakdowns and evidence; see [Scoring workbench](docs/SCORING_WORKBENCH.md).
+Explicitly configured private [Ringer Top 100 automation](docs/STAR_POWER.md) runs
+while this local tool is open, with a durable fourteen-day minimum between fetches.
 
 ## Agent entry
 

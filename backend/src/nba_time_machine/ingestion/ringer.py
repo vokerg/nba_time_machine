@@ -6,9 +6,10 @@ from uuid import uuid4
 
 import httpx
 from sqlalchemy import select
+from sqlalchemy import text
 
-from nba_time_machine.db import CollectionRunRecord, SourceOutcomeRecord, SourceRecord
-from nba_time_machine.ranking.player_rankings import SOURCE_ID, SOURCE_URL, RankingImport, digest
+from nba_time_machine.db import CollectionRunRecord, SourceOutcomeRecord, SourceRecord, TemporalFactRecord
+from nba_time_machine.ranking.player_rankings import SOURCE_ID, SOURCE_URL, FACT_TYPE, RankingImport, RankedPlayer, digest
 from nba_time_machine.ranking.player_ranking_store import approved, import_snapshot
 from nba_time_machine.sports.cbs import Document, Element
 
@@ -38,12 +39,20 @@ def parse_ranking(body, observed):
     if len(candidates) != 1:
         raise ValueError('ringer_top100_structure_changed')
     rows = candidates[0]
-    # No publication time is invented from HTTP headers, JS state or a page-wide
-    # date. Capture time is the sole availability boundary for this collector.
+    def visible(node):
+        return '' if node.tag in ('script', 'style') else ' '.join(
+            visible(c) if isinstance(c, Element) else c for c in node.children)
+    dates = set(re.findall(r'\bUpdated\s+([A-Z][a-z]+ \d{1,2}, \d{4})\.', visible(doc.root)))
+    if len(dates) > 1:
+        raise ValueError('ringer_publication_date_ambiguous')
+    published = datetime.strptime(next(iter(dates)), '%B %d, %Y').date() if dates else None
+    # A labeled publisher date is separate from actual availability. No timestamp
+    # is invented from HTTP headers or a date-only page label.
     year = observed.year if observed.month >= 8 else observed.year - 1
     return RankingImport.model_validate({
-        'ranking_version': 'ringer-top100-' + digest({'players': rows})[:16],
-        'season': f'{year}-{year+1}', 'publication_status': 'unknown',
+        'ranking_version': 'ringer-top100-' + (published.isoformat() + '-' if published else '') + digest({'players': rows})[:16],
+        'season': f'{year}-{year+1}', 'publication_status': 'publisher_date_only' if published else 'unknown',
+        'published_date': published, 'publication_reference': SOURCE_URL + ' · Updated label' if published else None,
         'permission_reference': ACCESS_REFERENCE, 'players': rows,
     })
 
@@ -83,7 +92,8 @@ async def refresh_if_due(factory, *, transport=None):
         settings = source.adapter_settings
         if (settings.get('access_basis') != 'owner_directed_private_hobby'
                 or not settings.get('private_only') or not settings.get('automated_access')
-                or source.locator != SOURCE_URL or source.retention_policy != 'normalized_full'):
+                or source.locator != SOURCE_URL or source.retention_policy != 'normalized_full'
+                or source.requires_auth or source.kind != 'structured'):
             return {'state': 'policy_not_ready'}
         last = source.runtime_cursor.get('attempted_at') if source.runtime_cursor else None
         if last and now < datetime.fromisoformat(last) + INTERVAL:
@@ -108,6 +118,7 @@ async def refresh_if_due(factory, *, transport=None):
                         chunks.append(chunk)
                     payload = parse_ranking(b''.join(chunks).decode('utf-8'), datetime.now(timezone.utc))
             async with factory.begin() as session:
+                await session.execute(text('SELECT pg_advisory_xact_lock(734388)'))
                 source = await session.get(SourceRecord, SOURCE_ID, with_for_update=True)
                 if source.adapter_settings != settings:
                     raise ValueError('ringer_policy_changed')
@@ -147,17 +158,59 @@ async def source_status(session):
         SourceOutcomeRecord.collection_run_id == CollectionRunRecord.id).where(
         SourceOutcomeRecord.source_id == SOURCE_ID).order_by(CollectionRunRecord.started_at.desc()).limit(1))
     last = source.runtime_cursor.get('attempted_at') if source.runtime_cursor else None
-    return {'state': source.verification_status, 'access_basis': source.adapter_settings.get('access_basis'),
+    snapshot = await session.scalar(select(TemporalFactRecord).where(
+        TemporalFactRecord.source_id == SOURCE_ID, TemporalFactRecord.fact_type == FACT_TYPE).order_by(
+        TemporalFactRecord.observed_at.desc()).limit(1))
+    attempt = await session.get(CollectionRunRecord, source.runtime_cursor.get('run_id')) if last else None
+    latest = attempt.run_metadata if attempt else run.run_metadata if run else None
+    state = 'ready' if snapshot and snapshot.value.get('validation_status') == 'complete' else 'identities_incomplete' if snapshot else 'awaiting_first_check'
+    if latest and latest.get('state') not in (None, 'ok', 'partial'):
+        state = 'checking' if latest['state'] == 'running' else 'fetch_failed'
+    try:
+        approved(source)
+    except ValueError:
+        state = 'policy_not_ready'
+    return {'state': state, 'format_verification': source.verification_status, 'access_basis': source.adapter_settings.get('access_basis'),
             'publisher_permission': source.adapter_settings.get('publisher_permission', False),
             'last_attempt_at': last,
             'next_check_at': (datetime.fromisoformat(last) + INTERVAL).isoformat() if last else None,
-            'latest_run': run.run_metadata if run else None}
+            'latest_run': latest,
+            'snapshot_coverage': snapshot.value.get('coverage') if snapshot else None,
+            'snapshot_known_at': snapshot.available_at.isoformat() if snapshot else None}
+
+
+async def complete_identities(factory, *, transport=None):
+    """Reinterpret an already captured ranking without another publisher fetch."""
+    async with factory() as session:
+        source = await session.get(SourceRecord, SOURCE_ID)
+        if source is None or source.adapter != 'ringer_top100_hobby' or not source.adapter_settings.get('auto_refresh'):
+            return {'state': 'not_configured'}
+        approved(source)
+        fact = await session.scalar(select(TemporalFactRecord).where(
+            TemporalFactRecord.source_id == SOURCE_ID, TemporalFactRecord.fact_type == FACT_TYPE).order_by(
+            TemporalFactRecord.observed_at.desc()).limit(1))
+        if fact is None or fact.value['validation_status'] == 'complete':
+            return {'state': 'no_mapping_work'}
+        data = fact.value
+        original = {k: v for k, v in data.items() if k in RankingImport.model_fields}
+        original['players'] = [{**{k: v for k, v in p.items() if k in RankedPlayer.model_fields},
+                                'espn_id': p.get('requested_espn_id')} for p in data['players']]
+        payload = RankingImport.model_validate(original)
+    from nba_time_machine.sports.player_identities import collect_identities
+    roster_result = await collect_identities(factory, transport=transport)
+    async with factory.begin() as session:
+        dry = await import_snapshot(session, payload, automated=True)
+        if dry['revision_hash'] == fact.fact_metadata['revision_hash']:
+            return {'state': 'unchanged', 'coverage': dry['coverage'], 'rosters': roster_result}
+        result = await import_snapshot(session, payload, write=True, automated=True)
+    return {'state': 'mapping_updated', 'result': result, 'rosters': roster_result}
 
 
 async def automatic_checks(factory):
     while True:
         try:
             await refresh_if_due(factory)
+            await complete_identities(factory)
         except Exception:
             pass  # persisted run stays inspectable; DB outage must not stop workbench
         await asyncio.sleep(3600)

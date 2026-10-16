@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-10-16T07:58:18.728300+00:00",
+  "publisher_requests": 1,
+  "status": {
+    "state": "ready",
+    "format_verification": "verified",
+    "access_basis": "owner_directed_private_hobby",
+    "publisher_permission": false,
+    "last_attempt_at": "2026-10-16T07:46:41.565506+00:00",
+    "next_check_at": "2026-10-30T07:46:41.565506+00:00",
+    "latest_run": {
+      "code": "ringer_snapshot_saved",
+      "state": "partial",
+      "result": {
+        "run_id": "e4e49b5a-237d-48d4-805e-046b43c6f730",
+        "written": true,
+        "coverage": {
+          "ranked": 100,
+          "matched": 82,
+          "expected": 100
+        },
+        "observed_at": "2026-10-16T07:46:44.386475+00:00",
+        "revision_hash": "25a67531a25ef3f31cdffbc1fadfa61e19aeee055f60179ace6934b3dbc7cd1e",
+        "content_version": "8cda95e5546986504c179cec5a928dd984beaa416c92f34ae961c11e5c04af02",
+        "validation_status": "unresolved_identities"
+      }
+    },
+    "snapshot_coverage": {
+      "ranked": 100,
+      "matched": 100,
+      "expected": 100
+    },
+    "snapshot_known_at": "2026-10-16T07:55:13.222320+00:00"
+  },
+  "real_future_schedule_eligibility": [
+    {
+      "tip": "2026-10-16T23:00:00+00:00",
+      "snapshot_status": "available"
+    },
+    {
+      "tip": "2026-10-16T23:00:00+00:00",
+      "snapshot_status": "available"
+    },
+    {
+      "tip": "2026-10-17T00:00:00+00:00",
+      "snapshot_status": "available"
+    },
+    {
+      "tip": "2026-10-17T00:00:00+00:00",
+      "snapshot_status": "available"
+    },
+    {
+      "tip": "2026-10-17T02:00:00+00:00",
+      "snapshot_status": "available"
+    }
+  ],
+  "real_completed_eligible_game_verified": false,
+  "publisher_license_claimed": false
+}

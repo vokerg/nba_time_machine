@@ -16,11 +16,14 @@ from nba_time_machine.sports.morning_models import Evidence
 
 def approved(source, permission=None):
     automated = source is not None and source.adapter == 'ringer_top100_hobby'
-    hobby = automated and source.adapter_settings.get('access_basis') == 'owner_directed_private_hobby'
+    hobby = (automated and source.adapter_settings.get('access_basis') == 'owner_directed_private_hobby'
+             and source.adapter_settings.get('private_only') is True
+             and source.adapter_settings.get('automated_access') is True)
     if (source is None or source.locator != SOURCE_URL or source.adapter not in ('manual_player_rankings', 'ringer_top100_hobby')
             or source.verification_status != 'verified' or source.requires_auth
             or source.retention_policy not in ('normalized_full', 'full')
             or not source.adapter_settings.get('permission_reference')
+            or (automated and not hobby)
             or (source.adapter_settings.get('automated_access', False) and not hobby)):
         raise ValueError('ranking_source_permission_or_retention_not_approved')
     if permission is not None and permission != source.adapter_settings['permission_reference']:
@@ -29,7 +32,7 @@ def approved(source, permission=None):
 
 async def identity_catalog(session, as_of):
     facts = (await session.scalars(select(TemporalFactRecord).where(
-        TemporalFactRecord.fact_type == 'provider_game_evidence',
+        TemporalFactRecord.fact_type.in_(('provider_game_evidence', 'provider_player_identities.espn-v1')),
         TemporalFactRecord.observed_at <= as_of, TemporalFactRecord.available_at <= as_of,
     ).order_by(TemporalFactRecord.observed_at.desc()).limit(5001))).all()
     if len(facts) > 5000:
@@ -37,6 +40,13 @@ async def identity_catalog(session, as_of):
     rows = []
     for fact in facts:
         try:
+            if fact.fact_type == 'provider_player_identities.espn-v1':
+                from nba_time_machine.sports.player_identities import Roster
+                from nba_time_machine.sports.morning_store import source_policy
+                source_policy(await session.get(SourceRecord, fact.source_id), 'espn', manual=True)
+                roster = Roster.model_validate(fact.value)
+                rows.extend({**p.model_dump(), 'fact_id': str(fact.id)} for p in roster.players)
+                continue
             e = Evidence.model_validate({**fact.value, 'observed_at': fact.observed_at})
             if e.provider != 'espn': continue
             from nba_time_machine.sports.morning_store import source_policy

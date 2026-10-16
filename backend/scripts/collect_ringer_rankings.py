@@ -4,7 +4,7 @@ import asyncio
 import json
 
 from nba_time_machine.db import DatabaseSettings, create_database_engine, create_session_factory
-from nba_time_machine.ingestion.ringer import configure_hobby_source, refresh_if_due
+from nba_time_machine.ingestion.ringer import configure_hobby_source, refresh_if_due, complete_identities
 
 
 async def run(configure):
@@ -14,6 +14,7 @@ async def run(configure):
         if configure:
             await configure_hobby_source(factory)
         print(json.dumps(await refresh_if_due(factory)))
+        print(json.dumps(await complete_identities(factory)))
     finally:
         await engine.dispose()
 

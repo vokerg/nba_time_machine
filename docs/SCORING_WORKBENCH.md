@@ -221,3 +221,14 @@ The full backend run had 458 passes and the existing intermittent macOS launcher
 cleanup failure; that test passed on targeted rerun. Six operator unit scenarios
 (including a later timeout/shutdown test) passed. See the
 [sanitized verification record](evidence/workbench-fetch-2026-10-16.json).
+
+
+The owner-directed private [Ringer automation](STAR_POWER.md#current-private-hobby-operation-october-16-2026)
+now runs at workbench startup and hourly **only after explicit CLI configuration**.
+A durable fourteen-day minimum bounds publisher requests, including failures.
+The top status line shows 100-row identity readiness and the next allowed check.
+These background ranking/identity writes use separate transactions; score preview
+and source-status reads remain database-enforced read-only. The day-fetch action
+still collects game evidence, not another Ringer copy. Keep the local workbench
+running for automatic checks; startup catches up once if due. No consumer scoring
+formula or archive changes.

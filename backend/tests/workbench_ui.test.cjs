@@ -384,3 +384,21 @@ test("failed collection stays visible without claiming a fresh score", async () 
     assert.match(s.w.document.getElementById("status").textContent, /did not finish/);
   } finally { s.close(); }
 });
+
+test("Ringer readiness shows real coverage, cutoff and next allowed check safely", async () => {
+  const s = await setup();
+  try {
+    s.w.fetch = async (url) => ({ ok: true, json: async () => url === '/api/ringer-status' ? {
+      state:'verified', snapshot_coverage:{matched:100}, snapshot_known_at:'2026-10-16T08:00:00Z',
+      last_attempt_at:'2026-10-16T07:46:41Z',next_check_at:'2026-10-30T07:46:41Z',
+      latest_run:{code:'<script>unsafe()</script>'},
+    } : report() });
+    s.w.document.getElementById('load').click();
+    for(let i=0;i<4;i++) await new Promise(setImmediate);
+    const text=s.w.document.getElementById('ringer-status').textContent;
+    assert.match(text,/100\/100 ESPN identities matched/);
+    assert.match(text,/2026-10-30/);
+    assert.match(text,/no publisher license claimed/);
+    assert.equal(s.w.document.getElementById('ringer-status').querySelector('script'),null);
+  } finally { s.close(); }
+});

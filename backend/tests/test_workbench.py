@@ -94,3 +94,4 @@ async def test_loopback_host_origin_and_consumer_route_boundaries():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=consumer_app), base_url='http://test') as client:
         assert (await client.get('/api/slate?date=2026-10-14')).status_code == 404
         assert (await client.get('/static/workbench.js')).status_code == 404
+        assert (await client.get('/api/ringer-status')).status_code == 404

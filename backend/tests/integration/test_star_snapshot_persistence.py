@@ -43,6 +43,7 @@ async def test_manual_import_versions_temporal_selection_and_revocation(monkeypa
                     verification_status='unverified', cadence_minutes=10080, requires_auth=False,
                     retention_policy='metadata_only', adapter_settings={})
                 session.add(source)
+            source.adapter='manual_player_rankings'
             source.verification_status="unverified"
             source.retention_policy="metadata_only"
             await session.flush()
