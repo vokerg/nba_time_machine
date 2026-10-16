@@ -92,6 +92,10 @@ For local rating inspection and tuning against your configured database, run
 <http://127.0.0.1:8765>. This separate developer tool uses read-only previews and explicit day collection. It exposes full score
 breakdowns and evidence; see [Scoring workbench](docs/SCORING_WORKBENCH.md).
 
+For separate local read-only ingestion health and Eastern-day game evidence, run
+`backend/.venv/bin/python backend/scripts/run_operator_dashboard.py` and open
+<http://127.0.0.1:8766>. See [Operator dashboard](docs/OPERATOR_DASHBOARD.md).
+
 ## Agent entry
 
 When a coding agent is told only **`Go`**, it must follow the recovery-first factory protocol in `AGENTS.md`: finish/recover unfinished PR work first, otherwise select the next unblocked issue, and leave all partial work resumable from GitHub-visible state.
