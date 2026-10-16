@@ -78,6 +78,11 @@ async def script():
     return FileResponse(ROOT / "operator.js", media_type="text/javascript")
 
 
+@app.get("/operator.css")
+async def styles():
+    return FileResponse(ROOT / "operator.css", media_type="text/css")
+
+
 async def report(day, season, source, status, session):
     try:
         return await build_report(session, day=day, season=season, source=source, status=status)
