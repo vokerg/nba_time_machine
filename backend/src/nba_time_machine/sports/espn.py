@@ -160,6 +160,9 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
         box_errors.append("invalid_box_schema")
     seen_teams = set()
     for team in teams:
+        if not isinstance(team, dict):
+            box_errors.append("invalid_box_schema")
+            continue
         team_id = str(team.get("team", {}).get("id", "unknown"))
         errors = []
         if team_id in seen_teams:
@@ -188,7 +191,7 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
                     name=player["athlete"]["displayName"], starter=player.get("starter"),
                     did_not_play=dnp, minutes=minute, minutes_precision=precision,
                     statistics=statistics))
-        except (ValueError, KeyError, TypeError, IndexError):
+        except (ValueError, KeyError, TypeError, IndexError, AttributeError):
             errors.append("invalid_team_box_schema")
         if errors:
             team_errors[team_id] = tuple(sorted(set(errors)))

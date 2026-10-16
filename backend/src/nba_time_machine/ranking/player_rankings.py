@@ -6,7 +6,7 @@ import unicodedata
 from datetime import date
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SOURCE_ID = 'ringer-nba-top100-manual'
 SOURCE_URL = 'https://www.theringer.com/nba-ranked/top-100'
@@ -90,12 +90,12 @@ def map_players(snapshot: RankingImport, catalog: list[dict]) -> list[dict]:
             method = 'validated_explicit_id'
         else:
             candidates = [key for key, row in identities.items() if name in row['names']]
-            if len(candidates) > 1 and player.team:
+            if player.team:
                 candidates = [key for key in candidates if player.team in identities[key]['teams']]
             method = 'unique_name_team' if player.team else 'unique_name'
         status = 'matched' if len(candidates) == 1 else 'ambiguous' if candidates else 'unmatched'
         key = candidates[0] if status == 'matched' else None
-        result.append({**player.model_dump(mode='json'), 'espn_id': key, 'mapping_status': status,
+        result.append({**player.model_dump(mode='json'), 'requested_espn_id': player.espn_id, 'espn_id': key, 'mapping_status': status,
                        'mapping_method': method, 'mapping_fact_ids': sorted(identities[key]['facts']) if key else [],
                        'mapping_candidates': sorted(candidates)})
     # Two differently spelled source rows must never resolve to one person.

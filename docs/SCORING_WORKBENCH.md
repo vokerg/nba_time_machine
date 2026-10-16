@@ -82,10 +82,11 @@ expected pregame closeness; historical rarity; and tactical/subjective game
 quality. The v2 candidate now includes measured player production and extreme
 game patterns; saved production ratings keep their original model. Favorites never enter canonical ratings.
 
-The default proposed formula is the [schema-4 game-record formula](GAME_RECORD_IMPORTANCE.md),
+The default proposed formula is the [schema-5 Star Power formula](STAR_POWER.md),
+which adds permission-gated pre-tip ranking snapshots and actual participation to the [schema-4 game-record formula](GAME_RECORD_IMPORTANCE.md),
 which retains the [v2 player/performance and pattern terms](SCORING_ENRICHMENT.md)
 and adds the two game-supplied entering records. Restore default formula restores
-its checked-in settings. The original baseline and schema-1/2/3 files remain supported.
+its checked-in settings. The original baseline and schema-1/2/3/4 files remain supported.
 
 ## Score and contribution labels
 
@@ -119,6 +120,7 @@ compatibility; those internal names are not the main UI labels.
   `player` and `pattern` settings; see the linked v2 formula contract.
 - Context config: `schema_version: 3`, the v2 settings plus explicit `context` settings; see [game importance](GAME_IMPORTANCE.md).
 - Game-record config: `schema_version: 4`, v2 settings plus `importance`; it requires no season reconstruction.
+- Star Power config: `schema_version: 5`, v4 settings plus explicit `star`; see [Star Power](STAR_POWER.md).
 - Report: `schema_version: 1`, slate/cutoff timestamps, baseline/experiment
   configurations, missing criteria, and per-game saved/derived calculations,
   provenance, diagnostics and normalized evidence.
@@ -166,3 +168,8 @@ Schemas 1/2 remain readable; current app scoring and spoiler gates are unchanged
 The default v4 now uses the two game-supplied records, shows the postgame-total
 subtraction and omits ranks/race terms. See [game-record importance](GAME_RECORD_IMPORTANCE.md).
 The v3 history mode is only selected by explicit old-config imports.
+
+Schema 5 exposes ranked player participation, identity/source coverage, team/game
+magnitudes and the additive bonus. It requires an approved snapshot actually known
+before tipoff; importing a ranking now does not unlock historical games. All
+controls and missing-data rules are documented in [Star Power](STAR_POWER.md).

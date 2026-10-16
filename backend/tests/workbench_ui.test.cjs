@@ -77,6 +77,7 @@ async function setup(initial = baseline, transform = (value) => value) {
   w.HTMLAnchorElement.prototype.click = function () {};
   w.eval(fs.readFileSync(path.join(assets, "enrichment.js"), "utf8"));
   w.eval(fs.readFileSync(path.join(assets, "context.js"), "utf8"));
+  w.eval(fs.readFileSync(path.join(assets, "stars.js"), "utf8"));
   w.eval(fs.readFileSync(path.join(assets, "workbench.js"), "utf8"));
   await new Promise((resolve) => setImmediate(resolve));
   return { w, requests, downloads, close: () => w.close() };
@@ -299,4 +300,43 @@ test("v4 uses game records, shows the subtraction and sends no history settings"
     const sent=JSON.parse(s.requests.at(-1).options.body).config;
     assert.equal(sent.schema_version,4);assert.equal(sent.importance.max_bonus,1.5);assert.equal(sent.context,undefined);
   } finally{s.close();}
+});
+
+test("v5 star settings round trip, missing coverage, and provenance are readable", async () => {
+  const starConfig = JSON.parse(fs.readFileSync(path.join(root, "config/ranking/entertainment-stars-v5.json")));
+  const s = await setup(starConfig, value => {
+    value.games[0].star_power = {status:"unavailable", reason:"No pre-tip snapshot", metric:null, bonus:null,
+      included_in_proposal:true, snapshot:{status:"unavailable",reason:"Missing"}, teams:[], settings:starConfig.star,
+      unranked_note:"Injury exclusions are possible.", unresolved_identities:[]};
+    value.games[0].experiment.star_bonus=null;
+    value.games[0].experiment.coverage="partial";
+    value.games[0].experiment.missing_families=["star power"];
+    return value;
+  });
+  try {
+    assert.match(s.w.document.getElementById("detail").textContent, /Star Power.*established status/);
+    assert.match(s.w.document.getElementById("games").textContent, /Incomplete: star power/);
+    input(s.w,"star-max_bonus","1.2");input(s.w,"star-top20_end","22");
+    s.w.document.getElementById("preview").click();
+    await new Promise(resolve => setImmediate(resolve));
+    const payload=JSON.parse(s.requests.at(-1).options.body);
+    assert.equal(payload.config.star.max_bonus,1.2);
+    assert.equal(payload.config.star.top20_end,22);
+    assert.deepEqual(payload.config.importance,starConfig.importance);
+    assert.equal(payload.config.schema_version,5);
+  } finally { s.close(); }
+});
+
+test("star details render ranked participation, team contributions and untrusted names safely", async () => {
+  const s=await setup();
+  try {
+    const target=s.w.document.createElement("div");
+    s.w.WorkbenchStars.render(target,{star_power:{status:"available",reason:"Fixture",metric:.5,bonus:.75,included_in_proposal:true,
+      unranked_note:"Not a quality judgment",settings:{},snapshot:{fact_id:"fixture",provider:"The Ringer",ranking_version:"fixture",published_date:null,available_at:"2026-01-01",coverage:{matched:100}},
+      teams:[{team:"BOS",coverage:"complete",errors:[],raw_total:1,normalized:.5,observed_team_minutes:240,expected_team_minutes:240,
+        players:[{espn_id:"1",name:"<img src=x onerror=bad()>",rank:1,participation:"played",minutes:30,minutes_precision:"second",rank_value:1,minutes_factor:1,raw_contribution:1,slot_weight:1,contribution:1}]}]}});
+    assert.equal(target.querySelector("img"),null);
+    assert.match(target.textContent,/Published rank/);assert.match(target.textContent,/Team total: 1.0000/);
+    assert.match(target.textContent,/0.7500 game-score points/);
+  } finally { s.close(); }
 });

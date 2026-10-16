@@ -113,3 +113,8 @@ PHX–SAS trajectory stayed unscored; its CBS fallback returned 301. DEN–LAC w
 unfinished and had no stored evidence. [Sanitized run evidence](evidence/morning-ranking-2026-10-14.json)
 contains counts and health, no numeric ratings or original response bodies. No
 owner Neon writes or scheduling activation were performed.
+
+
+The [Star Power workbench proposal](STAR_POWER.md) reads separate permission-gated
+ranking snapshots, known before tipoff, and ESPN participation from these same box
+facts. It does not change this production pipeline or archived scores.

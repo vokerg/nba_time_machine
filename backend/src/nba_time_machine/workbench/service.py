@@ -117,7 +117,7 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             context.update(status="missing", reason="Game source policy is not approved.", home=None, away=None)
     star = star_preview(parsed, await read_snapshot(session, parsed, as_of), experiment.star) if experiment.schema_version == 5 else None
     if star is not None:
-        result["star_power"] = {**star, "included_in_proposal": derived is not None}
+        result["star_power"] = {**star, "included_in_proposal": derived is not None and star["bonus"] is not None}
     if derived:
         fact, metrics, score = derived
         result["metrics"] = asdict(metrics)

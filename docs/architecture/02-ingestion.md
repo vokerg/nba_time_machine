@@ -286,3 +286,12 @@ same source policy, retention boundary, capture revisions, sports lock and
 season-linked temporal facts. Captures/availability retain actual observation
 time. The local workbench may reconstruct opening-day records for tuning;
 these facts do not become strict pregame knowledge or authorize consumer reads.
+
+
+## Permission-gated player ranking imports (#98)
+
+[Star Power](../STAR_POWER.md) adds a bounded explicit manual import through the
+same source registry, normalized captures, run health and season temporal facts.
+No publisher scraper or scheduler is enabled; the seed stays disabled/unverified
+and metadata-only pending reuse authorization. Published dates never backdate
+actual observation/import availability or grant historical pre-tip eligibility.

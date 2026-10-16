@@ -34,13 +34,14 @@ window.WorkbenchStars = (() => {
     const s = game.star_power; if (!s) return;
     target.append(node("h3", "Star Power · established status × actual participation"));
     target.append(node("p", `${s.status === "available" ? "Available" : "Unavailable"}: ${s.reason}`));
-    target.append(node("p", `Star Power (0–1): ${fmt(s.metric)}. ${s.included_in_proposal ? "Bonus added" : "Inspectable bonus · not added"}: ${fmt(s.bonus)} game-score points.`));
+    target.append(node("p", `Star Power (0–1): ${fmt(s.metric)}. ${s.bonus === null ? "Bonus unavailable; no Star Power points included." : `${s.included_in_proposal ? "Bonus added" : "Inspectable bonus · not added"}: ${fmt(s.bonus)} game-score points.`}`));
     target.append(node("p", s.unranked_note));
     const snap = s.snapshot;
     if (snap?.fact_id) target.append(node("p", `${snap.provider} · ${snap.ranking_version} · published ${snap.published_date || "unknown"} (date only) · known ${snap.available_at} · ${snap.coverage.matched}/100 identities matched.`));
     for (const team of s.teams) {
       target.append(node("h4", `${team.team} · ${team.coverage} participation coverage`));
       if (team.errors.length) target.append(node("p", team.errors.join(" · ")));
+      if (!team.players.length) target.append(node("p", s.status === "available" ? "No ranked participants in the complete snapshot." : "Ranked participants cannot be established without a complete eligible snapshot."));
       target.append(table(["Player · ESPN ID", "Published rank", "Participation", "Actual minutes", "Rank value", "Minutes factor", "Raw contribution", "Top-three multiplier", "Team contribution"], team.players.map(p => [
         `${p.name} · ${p.espn_id}`, p.rank, p.participation, p.minutes === null ? "Unknown" : `${p.minutes} (${p.minutes_precision})`,
         fmt(p.rank_value), fmt(p.minutes_factor), fmt(p.raw_contribution), fmt(p.slot_weight), fmt(p.contribution),

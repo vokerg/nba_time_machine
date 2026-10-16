@@ -51,14 +51,32 @@ def star_preview(evidence, snapshot, settings):
     if evidence is None or evidence.provider != 'espn' or evidence.status != 'final':
         result['reason'] = 'Final ESPN player evidence is required.'
         return result
+    # Pure extraction also guards against an accidentally supplied future snapshot.
+    if snapshot and snapshot.get('status') == 'available':
+        from nba_time_machine.sports.morning_models import stamp
+        try:
+            if (snapshot['season'] != evidence.season or evidence.ref.scheduled_at is None
+                    or max(stamp(snapshot['observed_at']), stamp(snapshot['available_at'])) >= evidence.ref.scheduled_at):
+                raise ValueError('ranking_not_pre_tip')
+        except (ValueError, KeyError, TypeError):
+            snapshot = {**snapshot, 'status': 'unavailable', 'reason': 'Ranking was not genuinely known before tipoff.'}
+            result['snapshot'] = snapshot
     ranking = {r['espn_id']: r for r in (snapshot or {}).get('players', []) if r['mapping_status'] == 'matched'}
     unresolved = [r for r in (snapshot or {}).get('players', []) if r['mapping_status'] != 'matched']
     result['unresolved_identities'] = unresolved
+    if snapshot and snapshot.get('status') == 'available':
+        rows = snapshot.get('players', [])
+        if (len(rows) != 100 or {r['rank'] for r in rows} != set(range(1, 101))
+                or len(ranking) != 100 or unresolved):
+            snapshot = {**snapshot, 'status': 'unavailable', 'reason': 'Ranking coverage or identities are incomplete.'}
+            result['snapshot'] = snapshot
     ids = [p.external_id for p in evidence.players]
     duplicate = len(ids) != len(set(ids))
     for team in (evidence.home, evidence.away):
         rows = [p for p in evidence.players if p.team_id == team.external_id]
         errors = []
+        if any(p.team_id not in (evidence.home.external_id, evidence.away.external_id) for p in evidence.players):
+            errors.append('wrong_player_team')
         if not rows: errors.append('missing_team_box')
         if duplicate: errors.append('duplicate_player_ids')
         errors.extend(evidence.box_team_errors.get(team.external_id, ()))
@@ -85,7 +103,7 @@ def star_preview(evidence, snapshot, settings):
                     'minutes': p.minutes, 'minutes_precision': p.minutes_precision,
                     'participation': status, 'rank_value': value, 'minutes_factor': factor,
                     'raw_contribution': None if factor is None else value * factor,
-                    'slot_weight': 0., 'contribution': 0.})
+                    'slot_weight': 0., 'contribution': None if unknown else 0.})
         # Established rank chooses slots; DNP/zero/unknown never consumes a slot.
         active = sorted((p for p in players if p['participation'] == 'played'), key=lambda p: p['rank'])[:3]
         for p, weight in zip(active, (1., s.second_weight, s.third_weight)):
@@ -94,7 +112,7 @@ def star_preview(evidence, snapshot, settings):
         result['teams'].append({'team': team.abbreviation, 'coverage': 'incomplete' if errors else 'complete',
             'errors': sorted(set(errors)), 'players': sorted(players, key=lambda p: p['rank']),
             'observed_team_minutes': total_minutes, 'expected_team_minutes': 5 * period_minutes,
-            'raw_total': total, 'normalized': None if errors else min(1., total / s.team_normalizer)})
+            'raw_total': total if ranking and not errors else None, 'normalized': None if errors or not snapshot or snapshot.get('status') != 'available' else min(1., total / s.team_normalizer)})
     if not snapshot or snapshot.get('status') != 'available':
         result['reason'] = (snapshot or {}).get('reason', result['reason'])
         return result

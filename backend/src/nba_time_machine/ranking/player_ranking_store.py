@@ -10,7 +10,7 @@ from nba_time_machine.db import (CollectionRunRecord, SeasonRecord, SourceOutcom
 from nba_time_machine.ingestion.contracts import RawCapture
 from nba_time_machine.ingestion.runtime import _save_capture
 from nba_time_machine.ranking.player_rankings import (SOURCE_ID, SOURCE_URL, FACT_TYPE,
-                                                      RankingImport, digest, map_players)
+                                                      RankingImport, RankedPlayer, digest, map_players)
 from nba_time_machine.sports.morning_models import Evidence
 
 
@@ -60,7 +60,9 @@ async def import_snapshot(session, payload: RankingImport, *, write=False):
     players = map_players(payload, await identity_catalog(session, now))
     data = payload.model_dump(mode='json')
     data['players'] = players
-    data['content_version'] = digest({**payload.model_dump(mode='json'), 'players': [p.model_dump(mode='json') for p in sorted(payload.players, key=lambda p: p.rank)]})
+    data['content_version'] = digest({k: v for k, v in data.items() if k not in ('players', 'permission_reference')} | {
+        'players': [{k: getattr(p, k) for k in ('rank', 'name', 'team', 'source_player_id')}
+                    for p in sorted(payload.players, key=lambda p: p.rank)]})
     data['mapping_version'] = 'espn-name-team-v1'
     data['coverage'] = {'expected': 100, 'ranked': len(players),
                         'matched': sum(p['mapping_status'] == 'matched' for p in players)}
@@ -77,6 +79,8 @@ async def import_snapshot(session, payload: RankingImport, *, write=False):
         season = SeasonRecord(league='NBA', label=payload.season)
         session.add(season)
         await session.flush()
+    # Validation/lock waits cannot manufacture an earlier capture timestamp.
+    now = datetime.now(timezone.utc)
     run = CollectionRunRecord(id=uuid4(), started_at=now, finished_at=now,
                               collector_version='manual-player-rankings-v1', run_metadata={'manual': True})
     session.add(run)
@@ -115,15 +119,25 @@ async def read_snapshot(session, evidence, as_of):
     ).order_by(TemporalFactRecord.observed_at.desc(), TemporalFactRecord.available_at.desc()).limit(2))).all()
     if not rows: return missing
     fact = rows[0]
-    if (fact.valid_from > as_of or (fact.valid_to is not None and fact.valid_to <= as_of)
+    if (fact.valid_from >= tip or fact.valid_from > as_of or (fact.valid_to is not None and fact.valid_to <= as_of)
             or len(rows) > 1 and (rows[1].observed_at, rows[1].available_at) == (fact.observed_at, fact.available_at)):
         return {**missing, 'reason': 'Latest pre-tip ranking is invalid or ambiguous; older versions are not substituted.'}
     data = fact.value
     try:
         # Validate the normalized source contract again on reads.
         original = {k: v for k, v in data.items() if k in RankingImport.model_fields}
-        original['players'] = [{k: v for k, v in p.items() if k in __import__('nba_time_machine.ranking.player_rankings', fromlist=['RankedPlayer']).RankedPlayer.model_fields} for p in data['players']]
+        original['players'] = [{**{k: v for k, v in p.items() if k in RankedPlayer.model_fields},
+                                'espn_id': p.get('requested_espn_id')} for p in data['players']]
         RankingImport.model_validate(original)
+        approved(await session.get(SourceRecord, SOURCE_ID), data['permission_reference'])
+        signature = digest({**data, 'players': [{k: v for k, v in p.items() if k != 'mapping_fact_ids'} for p in data['players']]})
+        matched = [p for p in data['players'] if p['mapping_status'] == 'matched']
+        if (signature != fact.fact_metadata.get('revision_hash')
+                or data['season'] != evidence.season
+                or any(not p['espn_id'] or not p['mapping_fact_ids'] for p in matched)
+                or data['coverage'] != {'expected': 100, 'ranked': 100, 'matched': len(matched)}
+                or data['validation_status'] != ('complete' if len(matched) == 100 else 'unresolved_identities')):
+            raise ValueError('invalid ranking integrity or mapping coverage')
         if (len(data['players']) != 100 or len({p['espn_id'] for p in data['players'] if p['espn_id']}) != data['coverage']['matched']):
             raise ValueError('invalid mapping')
     except (ValueError, KeyError, TypeError):
