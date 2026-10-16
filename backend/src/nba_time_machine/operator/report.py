@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta, timezone
 import re
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import aliased
 
 from nba_time_machine.db import (
@@ -143,12 +143,22 @@ async def build_report(session, *, day=None, season=None, source=None, status=No
     start = datetime.combine(day, time.min, EASTERN).astimezone(timezone.utc)
     end = datetime.combine(day + timedelta(days=1), time.min, EASTERN).astimezone(timezone.utc)
     home, away = aliased(TeamRecord), aliased(TeamRecord)
+    newer = aliased(GameObservationRecord)
+    # Select the latest observation before applying the day predicate. Otherwise
+    # a game moved to another day still appears on its superseded old date.
+    superseded = select(newer.id).where(
+        newer.game_id == GameObservationRecord.game_id,
+        or_(newer.observed_at > GameObservationRecord.observed_at,
+            and_(newer.observed_at == GameObservationRecord.observed_at,
+                 newer.id > GameObservationRecord.id)),
+        *([newer.source_id == source] if source else []),
+    ).exists()
     query = (select(GameObservationRecord, SeasonRecord.label, home.name, away.name)
         .join(GameRecord, GameRecord.id == GameObservationRecord.game_id)
         .join(SeasonRecord, SeasonRecord.id == GameRecord.season_id)
         .join(home, home.id == GameRecord.home_team_id)
         .join(away, away.id == GameRecord.away_team_id)
-        .where(SeasonRecord.league == "NBA",
+        .where(SeasonRecord.league == "NBA", ~superseded,
             GameObservationRecord.scheduled_tip_at >= start,
             GameObservationRecord.scheduled_tip_at < end)
         .order_by(GameObservationRecord.observed_at.desc()).limit(1001))
