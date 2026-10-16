@@ -339,7 +339,7 @@ contains counts/health/eligibility, not the publisher list.
 
 Retrospective-policy verification: the fresh full backend run passed 477 tests,
 with the existing intermittent macOS launcher descendant-cleanup PermissionError;
-its targeted rerun passed. All 15 DOM tests passed. New synthetic checks cover
+its targeted rerun also failed with the same platform PermissionError. All 15 DOM tests passed. New synthetic checks cover
 explicit opt-in, first versus latest selection, cross-season use, report cutoff,
 expired/corrupt first snapshots, strict legacy configurations, and no database
 writes during fallback reads. Browser verification selected Cleveland–Orlando and
