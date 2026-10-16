@@ -115,7 +115,9 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             source_policy(await session.get(SourceRecord, fact.source_id), parsed.provider, manual=True)
         except ValueError:
             context.update(status="missing", reason="Game source policy is not approved.", home=None, away=None)
-    star = star_preview(parsed, await read_snapshot(session, parsed, as_of), experiment.star) if experiment.schema_version == 5 else None
+    backfill = experiment.star_snapshot_policy == 'first_snapshot_backfill'
+    star = star_preview(parsed, await read_snapshot(session, parsed, as_of, fallback_to_first=backfill),
+                        experiment.star, allow_first_snapshot=backfill) if experiment.schema_version >= 5 else None
     if star is not None:
         result["star_power"] = {**star, "included_in_proposal": derived is not None and star["bonus"] is not None}
     if derived:
@@ -161,7 +163,7 @@ async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningCon
     games = []
     for observation in await slate_observations(session, day, as_of):
         games.append(await inspect_game(session, observation, as_of, baseline, experiment))
-    missing = [m for m in MISSING if not (experiment.schema_version == 5 and m["signal"] == "star_power")]
+    missing = [m for m in MISSING if not (experiment.schema_version >= 5 and m["signal"] == "star_power")]
     return {"schema_version": 1, "slate_date": day.isoformat(), "as_of": as_of.isoformat(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "coverage": "Stored observations only; missing games are not proof of an empty slate. No live fetch.",

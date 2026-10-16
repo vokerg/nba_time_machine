@@ -13,7 +13,7 @@ def main():
     if not 1024 <= args.port <= 65535:
         parser.error("port must be between 1024 and 65535")
     os.chdir(Path(__file__).resolve().parents[1])
-    print(f"Scoring workbench: http://127.0.0.1:{args.port} (read-only previews, explicit evidence collection, full game details)")
+    print(f"Scoring workbench: http://127.0.0.1:{args.port} (read-only previews, explicit game collection, configured Ringer auto-checks)")
     uvicorn.run("nba_time_machine.workbench.app:app", host="127.0.0.1", port=args.port,
                 proxy_headers=False, access_log=False)
 

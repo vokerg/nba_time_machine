@@ -6,7 +6,116 @@ Performance. This schema-5 workbench proposal preserves drama, player production
 extreme patterns, record-based importance and the overall ten-point cap. No
 production score, archive, consumer endpoint, spoiler gate or scheduler changes.
 
-## Source review and limits (October 16, 2026)
+## Default tuning policy: first snapshot for earlier games (schema 6)
+
+The owner explicitly changed the historical tuning policy: games before the first
+usable complete snapshot use that **first** snapshot as a retrospective assumption.
+The default `entertainment-stars-backfill-v6.json` sets
+`star_snapshot_policy: first_snapshot_backfill`. Schema 6 can also select
+`strict_pre_tip`; schemas 1–5 and their saved exports keep their original behavior.
+
+The reader first tries the normal latest eligible same-season pre-tip snapshot.
+Only when none exists may this policy select the earliest complete snapshot known
+by the report cutoff, provided the game tipped before that snapshot. Initial
+incomplete identity captures are not usable; the first fully resolved revision
+is selected. Later updates do not replace the first snapshot for older games.
+Expiry, invalid signatures/schema, ambiguous timestamps and revoked source policy
+still fail closed. The fallback can cross seasons, as explicitly requested for
+all earlier games, and that cross-season assumption is displayed separately.
+
+No timestamp, publication date, season, source fact or archived score is changed.
+Reports add `selection_mode`, `retrospective`, `first_snapshot_at`, `game_season`
+and `cross_season_assumption` metadata. The slate and selected-game details label
+retrospective use; configuration and review exports preserve the explicit policy.
+The pure extractor requires both the explicit policy and the reader's retrospective
+selection metadata before accepting a post-tip/cross-season ranking. This is a
+workbench-only approximation of reputation, not genuine historical availability.
+Consumer/production scoring and spoiler access remain unchanged.
+
+Real read-only verification on October 13, 2026: Cleveland at Orlando now has a
+Star Power bonus of 0.8334 and proposed score 2.0934; only preseason game importance
+is unavailable. November 10, 2025 WAS–DET uses the same first snapshot with an
+explicit cross-season flag: Star Power bonus 0.4046, overall score still capped at
+10. These are retrospective real-data tuning checks, not pre-tip historical
+validation. The old strict v5 configuration still withholds both historical bonuses.
+
+## Current private hobby operation (October 16, 2026)
+
+The owner explicitly directed automated Ringer fetching for this private hobby
+project, at most once per fourteen days. That supersedes the earlier manual-only
+fallback. This is recorded as `access_basis: owner_directed_private_hobby`,
+`publisher_permission: false`, and a legacy `permission_reference` whose value
+explicitly says it is **not a publisher license**. Technical verification means
+format/access validation; it does not certify legal rights. The linked terms
+restriction found below remains acknowledged. No production or redistribution
+permission is claimed.
+
+Explicit one-time setup, from `backend/`:
+
+```bash
+.venv/bin/python scripts/collect_ringer_rankings.py --configure-private-hobby
+```
+
+After setup, the separately launched local scoring workbench checks whether the
+source is due at startup and hourly while running. Its database reservation
+allows only **one Ringer request per fourteen days**, including failures, crashes,
+restarts and concurrent processes. It performs one fixed HTTPS GET, no redirects,
+no retries, no cookies/login/proxies or access-control bypass; limits are 30-second
+HTTP timeout, 45-second total collection limit and 4 MiB decoded response size.
+403/429, challenges, changed layout and incomplete lists remain visible failures.
+An identical captured list deduplicates; changes append versions in the canonical
+capture/fact pipeline. There is no force-refresh flag. The checked-in source seed
+remains unapproved/manual; the explicit setup changes only the runtime hobby source
+and preserves its attempt cursor. Re-syncing the old seed can disable this runtime
+mode and will require explicit setup again, without bypassing cadence.
+
+`ingestion/ringer.py` parses one ordered list with exactly 100 player cards and
+unique profile slugs. It retains only names, ranks, source slugs and provenance.
+The page's labeled Updated date is date-only publication evidence; it never
+backdates capture/availability. Season is inferred from the capture NBA year
+(August turnover); this is documented applicability, not verified publisher season
+metadata. Publisher prose/images and raw HTML are discarded. No full publisher
+list is committed as a fixture or document.
+
+Missing ESPN identities trigger a bounded current-roster identity pass through
+`sports/player_identities.py`, under the existing reviewed ESPN source policy.
+It fetches the NBA team index plus at most 30 roster endpoints (31 requests,
+one second spacing, 20-second per-request timeout, 4 MiB per response). Team
+abbreviations normalize through existing aliases; canonical teams resolve through
+the existing sports store/lock. Independent teams commit normalized ID/name/team
+captures and `provider_player_identities.espn-v1` team facts at actual observation
+time. Roster membership never proves game participation, DNP or historic team
+membership. Actual Star Power still uses the game's box rows. A roster check is
+also bounded to fourteen days per collector version. The initial setup uncovered
+and corrected team-alias/canonical-team integration errors; those failed runs
+remain in health history. The successful v3 pass saved 30 rosters / 630 identities.
+
+Stored incomplete rankings can be remapped from newly available identity evidence
+without another Ringer request. Mapping revisions retain source content hashes and
+get actual new observation timestamps; they never manufacture historical
+eligibility. All 100 identities must resolve before the combined bonus is enabled.
+
+The read-only `/api/ringer-status` endpoint and workbench status line expose
+current readiness, matched count, snapshot-known timestamp, last network attempt,
+next allowed request and latest collection error. There is no consumer route.
+Failures retain the last valid snapshot as historical evidence; policy revocation
+still withholds it. The worker runs only while the local workbench process runs;
+a stopped/asleep computer does not collect missed historical snapshots. Restart
+performs at most one due check. No system daemon/cloud deployment is installed.
+
+Real verification: one Ringer request on October 16 at 07:46:41 UTC, 100 parsed
+rows, 100 validated ESPN mappings after roster enrichment, publisher update label
+October 14, 2026, complete snapshot known at 07:55:13 UTC. Next publisher request
+is October 30 at 07:46:41 UTC. Parsing/publication metadata was refined from the
+same in-memory initial response, without a second Ringer request. Initial partial
+and mapping/publication revisions remain traceable. No archived scores changed.
+October 13 games remain unavailable; October 16 scheduled games can use this
+snapshot after final participation evidence is collected. Five actual future scheduled-game observations were checked against the snapshot
+reader and all selected this complete pre-tip snapshot. A completed genuinely
+eligible real-game scoring smoke must wait for such a game to finish; it has not
+been fabricated. Tests cover scoring/participation with synthetic eligible games.
+
+## Initial source review and manual-only fallback (historical context)
 
 The [Ringer Top 100](https://www.theringer.com/nba-ranked/top-100) is readable as
 an ordered list of 100 linked player cards. The page observed during this review
@@ -22,7 +131,7 @@ The site's footer links to [Spotify terms](https://www.spotify.com/us/legal/end-
 which limit access and content use and restrict redistribution. Public readability
 does not establish permission to retain/reuse a whole ranking. The source seed
 therefore remains **disabled, unverified, metadata-only**, without a permission
-reference. There is no network collector. Manual import is an input mechanism,
+reference in the seed. The initial release had no network collector; the owner-directed hobby collector above now provides one. Manual import is an input mechanism,
 not a way around these restrictions: obtain authorization covering private
 normalized retention and use before reviewing the registry policy. Do not commit
 or redistribute a publisher's full list or private permission records.
@@ -216,3 +325,24 @@ found nine games/eighteen complete team participation families and 363 distinct
 ESPN IDs in the stored mapping catalog. Eight existing proposed values were
 preserved, all nine Star Power results were unavailable and canonical fact,
 capture and score counts were unchanged.
+
+
+Automation verification: 474 backend tests passed in the full suite on fresh
+local PostgreSQL; the additional mapping-completion-without-refetch regression
+passed separately. All 14 workbench DOM tests passed. Parser and blocked/redirect
+responses, concurrent attempts, durable cadence, deduplication, roster identities,
+normalized-only retention and existing read-only previews were exercised with
+synthetic fixtures. Browser verification shows ready / 100 of 100, actual capture
+and next-check dates. [Sanitized real evidence](evidence/ringer-automatic-2026-10-16.json)
+contains counts/health/eligibility, not the publisher list.
+
+
+Retrospective-policy verification: the fresh full backend run passed 477 tests,
+with the existing intermittent macOS launcher descendant-cleanup PermissionError;
+its targeted rerun also failed with the same platform PermissionError. All 15 DOM tests passed. New synthetic checks cover
+explicit opt-in, first versus latest selection, cross-season use, report cutoff,
+expired/corrupt first snapshots, strict legacy configurations, and no database
+writes during fallback reads. Browser verification selected Cleveland–Orlando and
+showed the 2.09 proposal, 0.8334 bonus and retrospective slate/detail labels.
+[Real comparison evidence](evidence/star-power-backfill-2026-10-16.json) includes
+v6 versus strict-v5 previews from the same cutoff and unchanged source timestamps.

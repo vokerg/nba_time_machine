@@ -381,3 +381,13 @@ linked game's unsealed status; one game's explicit acknowledgement never
 advances the global media clock or exposes a different sealed game. Link
 candidates are not authorizations. See [Media feed](../MEDIA_FEED.md) for
 cursor-bound paging and operational source/rights review.
+
+
+### Explicit retrospective scoring-workbench assumption
+
+The owner-directed schema-6 experimental formula may apply the first complete
+Ringer snapshot to earlier games. It preserves actual observation/availability,
+labels retrospective and cross-season use, and never changes strict consumer
+projections, production scores or old schema-5 tuning configurations. This is a
+separate tuning assumption, not evidence of pre-tip knowledge. See
+[Star Power](../STAR_POWER.md) for the exact selection and failure rules.

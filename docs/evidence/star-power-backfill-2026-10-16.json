@@ -1,0 +1,33 @@
+{
+  "policy": "first_snapshot_backfill",
+  "formula": "entertainment-stars-backfill-v6",
+  "verification": "real owner-database read-only previews; source timestamps unchanged",
+  "games": [
+    {
+      "day": "2026-10-13",
+      "game": "Cleveland Cavaliers at Orlando Magic",
+      "proposed_score": 2.0934,
+      "star_bonus": 0.8334,
+      "strict_v5_score": 1.26,
+      "strict_v5_star_bonus": null,
+      "retrospective": true,
+      "cross_season": false,
+      "actual_snapshot_known_at": "2026-10-16T07:53:39.548749+00:00",
+      "missing_components": [
+        "game importance"
+      ]
+    },
+    {
+      "day": "2025-11-10",
+      "game": "Washington Wizards at Detroit Pistons",
+      "proposed_score": 10,
+      "star_bonus": 0.4046,
+      "strict_v5_score": 10,
+      "strict_v5_star_bonus": null,
+      "retrospective": true,
+      "cross_season": true,
+      "actual_snapshot_known_at": "2026-10-16T07:53:39.548749+00:00",
+      "missing_components": []
+    }
+  ]
+}

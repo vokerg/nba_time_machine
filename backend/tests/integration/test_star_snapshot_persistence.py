@@ -43,6 +43,7 @@ async def test_manual_import_versions_temporal_selection_and_revocation(monkeypa
                     verification_status='unverified', cadence_minutes=10080, requires_auth=False,
                     retention_policy='metadata_only', adapter_settings={})
                 session.add(source)
+            source.adapter='manual_player_rankings'
             source.verification_status="unverified"
             source.retention_policy="metadata_only"
             await session.flush()
@@ -75,7 +76,8 @@ async def test_manual_import_versions_temporal_selection_and_revocation(monkeypa
             assert datetime.fromisoformat(historical_a['observed_at'])==datetime.fromisoformat(a['observed_at'])
         async with factory() as session:
             e=star_evidence()
-            e=e.model_copy(update={'ref':e.ref.model_copy(update={'scheduled_at':datetime.now(timezone.utc)-timedelta(days=1)})})
+            earliest=await session.scalar(select(func.min(TemporalFactRecord.observed_at)).where(TemporalFactRecord.fact_type==FACT_TYPE))
+            e=e.model_copy(update={'ref':e.ref.model_copy(update={'scheduled_at':earliest-timedelta(days=1)})})
             historical=await read_snapshot(session,e,datetime.now(timezone.utc))
             assert historical['status']=='unavailable' # Imported today after fixture's tip.
             later=datetime.now(timezone.utc)+timedelta(days=1)

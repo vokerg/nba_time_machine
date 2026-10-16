@@ -84,11 +84,11 @@ expected pregame closeness; historical rarity; and tactical/subjective game
 quality. The v2 candidate now includes measured player production and extreme
 game patterns; saved production ratings keep their original model. Favorites never enter canonical ratings.
 
-The default proposed formula is the [schema-5 Star Power formula](STAR_POWER.md),
+The default proposed formula is the [schema-6 retrospective Star Power formula](STAR_POWER.md), which explicitly applies the first snapshot to earlier games. It extends schema 5,
 which adds permission-gated pre-tip ranking snapshots and actual participation to the [schema-4 game-record formula](GAME_RECORD_IMPORTANCE.md),
 which retains the [v2 player/performance and pattern terms](SCORING_ENRICHMENT.md)
 and adds the two game-supplied entering records. Restore default formula restores
-its checked-in settings. The original baseline and schema-1/2/3/4 files remain supported.
+its checked-in settings. The original baseline and schema-1/2/3/4/5 files remain supported with their original policies.
 
 ## Score and contribution labels
 
@@ -123,6 +123,7 @@ compatibility; those internal names are not the main UI labels.
 - Context config: `schema_version: 3`, the v2 settings plus explicit `context` settings; see [game importance](GAME_IMPORTANCE.md).
 - Game-record config: `schema_version: 4`, v2 settings plus `importance`; it requires no season reconstruction.
 - Star Power config: `schema_version: 5`, v4 settings plus explicit `star`; see [Star Power](STAR_POWER.md).
+- Retrospective Star Power config: `schema_version: 6`, v5 settings plus explicit `star_snapshot_policy` (`first_snapshot_backfill` or `strict_pre_tip`).
 - Report: `schema_version: 1`, slate/cutoff timestamps, baseline/experiment
   configurations, missing criteria, and per-game saved/derived calculations,
   provenance, diagnostics and normalized evidence.
@@ -221,3 +222,22 @@ The full backend run had 458 passes and the existing intermittent macOS launcher
 cleanup failure; that test passed on targeted rerun. Six operator unit scenarios
 (including a later timeout/shutdown test) passed. See the
 [sanitized verification record](evidence/workbench-fetch-2026-10-16.json).
+
+
+The owner-directed private [Ringer automation](STAR_POWER.md#current-private-hobby-operation-october-16-2026)
+now runs at workbench startup and hourly **only after explicit CLI configuration**.
+A durable fourteen-day minimum bounds publisher requests, including failures.
+The top status line shows 100-row identity readiness and the next allowed check.
+These background ranking/identity writes use separate transactions; score preview
+and source-status reads remain database-enforced read-only. The day-fetch action
+still collects game evidence, not another Ringer copy. Keep the local workbench
+running for automatic checks; startup catches up once if due. No consumer scoring
+formula or archive changes.
+
+
+Owner policy update: the default v6 now uses the first complete ranking for games
+before capture began. The game list and detail explicitly label this retrospective
+assumption and any cross-season use. Source dates remain real; the report cutoff
+still must include the selected snapshot. Strict v5 review files remain strict.
+Change Ranking snapshot policy in the Star Power controls to compare v6 strict
+versus retrospective results. This does not change production or archived scores.

@@ -31,7 +31,7 @@ MISSING = [
 
 class TuningConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False, strict=True)
-    schema_version: Literal[1, 2, 3, 4, 5] = 1
+    schema_version: Literal[1, 2, 3, 4, 5, 6] = 1
     version: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
     weights: dict[str, float]
     scales: dict[str, float]
@@ -43,6 +43,7 @@ class TuningConfig(BaseModel):
     importance: RecordSettings | None = None
 
     star: StarSettings | None = None
+    star_snapshot_policy: Literal['strict_pre_tip', 'first_snapshot_backfill'] | None = None
 
     @model_validator(mode="after")
     def valid_config(self):
@@ -52,8 +53,10 @@ class TuningConfig(BaseModel):
             raise ValueError("only v3 requires explicit context settings")
         if (self.schema_version >= 4) != (self.importance is not None):
             raise ValueError("v4 and v5 require explicit game-record importance settings")
-        if (self.schema_version == 5) != (self.star is not None):
-            raise ValueError("only v5 requires explicit star settings")
+        if (self.schema_version >= 5) != (self.star is not None):
+            raise ValueError("v5 and later require explicit star settings")
+        if (self.schema_version == 6) != (self.star_snapshot_policy is not None):
+            raise ValueError("only v6 requires an explicit Star Power snapshot policy")
         if self.schema_version == 1 and (self.player is not None or self.pattern is not None):
             raise ValueError("v1 cannot carry enrichment settings")
         if set(self.weights) != set(SIGNALS) or set(self.scales) != set(SIGNALS):
@@ -104,7 +107,7 @@ def candidate_preview(metrics: TrajectoryFeatures, measurements: EntertainmentMe
     if config.schema_version >= 4 and context is not None:
         importance = record_preview(context, config.importance)
     context_bonus = importance["bonus"] if importance is not None else None
-    star_bonus = star["bonus"] if config.schema_version == 5 and star is not None else None
+    star_bonus = star["bonus"] if config.schema_version >= 5 and star is not None else None
     uncapped = base["score"] + sum(v for v in (player, pattern, context_bonus, star_bonus) if v is not None)
     capped = min(10, uncapped)
     value = round(capped, 4)
@@ -113,12 +116,12 @@ def candidate_preview(metrics: TrajectoryFeatures, measurements: EntertainmentMe
     missing = ([] if player is not None else ["player performance"]) + ([] if pattern is not None else ["extreme patterns"])
     if config.schema_version >= 3 and context_bonus is None:
         missing.append("game importance")
-    if config.schema_version == 5 and star_bonus is None:
+    if config.schema_version >= 5 and star_bonus is None:
         missing.append("star power")
     return {**base, "score": value, "verdict": verdict, "drama_score": base["score"],
         "player_bonus": player, "pattern_bonus": pattern, "before_cap": uncapped,
         "cap_adjustment": capped - uncapped, "rounding_adjustment": value - capped,
         **({"context_bonus": context_bonus, "context": importance} if config.schema_version >= 3 else {}),
-        **({"star_bonus": star_bonus} if config.schema_version == 5 else {}),
+        **({"star_bonus": star_bonus} if config.schema_version >= 5 else {}),
         "coverage": "partial" if missing else "complete", "missing_families": missing,
         "enrichment": details}

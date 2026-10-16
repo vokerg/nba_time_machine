@@ -42,7 +42,7 @@ def rank_value(rank, s):
     raise ValueError('rank out of range')
 
 
-def star_preview(evidence, snapshot, settings):
+def star_preview(evidence, snapshot, settings, *, allow_first_snapshot=False):
     s = settings
     result = {'measurement_version': 'star-power-v1', 'status': 'unavailable', 'metric': None,
               'bonus': None, 'snapshot': snapshot, 'teams': [], 'settings': s.model_dump(),
@@ -55,7 +55,11 @@ def star_preview(evidence, snapshot, settings):
     if snapshot and snapshot.get('status') == 'available':
         from nba_time_machine.sports.morning_models import stamp
         try:
-            if (snapshot['season'] != evidence.season or evidence.ref.scheduled_at is None
+            retrospective = (allow_first_snapshot and snapshot.get('selection_mode') == 'first_snapshot_backfill'
+                and snapshot.get('retrospective') is True and evidence.ref.scheduled_at is not None
+                and evidence.ref.scheduled_at < stamp(snapshot['first_snapshot_at'])
+                and stamp(snapshot['first_snapshot_at']) == max(stamp(snapshot['observed_at']), stamp(snapshot['available_at'])))
+            if not retrospective and (snapshot['season'] != evidence.season or evidence.ref.scheduled_at is None
                     or max(stamp(snapshot['observed_at']), stamp(snapshot['available_at'])) >= evidence.ref.scheduled_at):
                 raise ValueError('ranking_not_pre_tip')
         except (ValueError, KeyError, TypeError):
@@ -128,4 +132,6 @@ def star_preview(evidence, snapshot, settings):
     metric = (1 - s.both_teams_weight) * max(h, a) + s.both_teams_weight * sqrt(h * a)
     result.update(status='available', reason='Top three participating ranked players per team; reputation is independent of game statistics.',
                   metric=metric, bonus=round(s.max_bonus * metric, 4))
+    if snapshot.get('retrospective'):
+        result['reason'] += ' Retrospective first-snapshot assumption; ranking was captured after this game.'
     return result

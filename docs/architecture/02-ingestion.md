@@ -295,3 +295,15 @@ same source registry, normalized captures, run health and season temporal facts.
 No publisher scraper or scheduler is enabled; the seed stays disabled/unverified
 and metadata-only pending reuse authorization. Published dates never backdate
 actual observation/import availability or grant historical pre-tip eligibility.
+
+
+### Owner-directed private Ringer automation (#98 follow-up)
+
+The explicit hobby-only setup now provides a bounded fixed-URL collector and a
+local-workbench background due check, with a persistent fourteen-day attempt
+reservation and normalized-only retention. Access basis records owner direction,
+not a publisher grant; the terms restriction remains acknowledged. ESPN current
+rosters provide separate identity-only team facts through the same canonical
+capture/fact/source-health pipeline, never participation or historical availability.
+See [Star Power](../STAR_POWER.md) for exact bounds, setup, timing and verification.
+The generic ingestion scheduler and consumer app do not activate this collector.

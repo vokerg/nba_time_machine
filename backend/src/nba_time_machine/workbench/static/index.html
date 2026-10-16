@@ -21,7 +21,7 @@
       </div>
       <div class="boundary">
         Full game details · Spoilers visible<br /><strong
-          >Read-only previews · Explicit collection saves evidence</strong
+          >Read-only score previews · Automatic Ringer checks</strong
         >
       </div>
     </header>
@@ -48,8 +48,9 @@
           /></label>
         </div>
       </section>
-      <p class="muted">Fetch &amp; verify saves fresh game evidence, moves the evidence cutoff to now and recalculates your proposed formula. Current app scores stay unchanged. Unfinished games remain pending; Star Power needs an approved pre-tip ranking snapshot.</p>
+      <p class="muted">Fetch &amp; verify saves fresh game evidence, moves the evidence cutoff to now and recalculates your proposed formula. Current app scores stay unchanged. Unfinished games remain pending; Star Power uses an eligible pre-tip ranking, or the first snapshot as a labeled retrospective assumption under the new default formula.</p>
       <section id="verification" class="panel" hidden aria-live="polite"></section>
+      <p id="ringer-status" class="muted" role="status">Checking Ringer source status…</p>
       <p id="status" role="status">Connecting to your configured database…</p>
       <div class="layout">
         <aside class="panel">
@@ -131,7 +132,7 @@
     </main>
     <footer>
       Separate developer tool · No changes to timelines, acknowledgements,
-      or current app scores · Evidence saved only by explicit collection · Formula settings are provisional
+      or current app scores · Game evidence saved by explicit collection · Ringer auto-checks every 14 days · Formula settings are provisional
     </footer>
   </body>
 </html>
