@@ -1,5 +1,6 @@
 """Separate loopback-only workbench. NEVER import routes into the consumer app."""
 import ipaddress
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -17,6 +18,7 @@ from nba_time_machine.db import DatabaseSettings, create_database_engine, create
 from nba_time_machine.workbench.calculations import TuningConfig
 from nba_time_machine.workbench.service import inspect_slate
 from nba_time_machine.workbench.collection import DayVerification
+from nba_time_machine.ingestion.ringer import automatic_checks, source_status
 
 STATIC = Path(__file__).parent / "static"
 DEFAULT_CONFIG = Path(__file__).resolve().parents[4] / "config/ranking/trajectory-baseline-v1.json"
@@ -30,9 +32,12 @@ async def lifespan(app):
     app.state.baseline = TuningConfig.model_validate_json(DEFAULT_CONFIG.read_text())
     app.state.candidate = TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
     app.state.verification = DayVerification(app.state.session_factory)
+    rankings_task = asyncio.create_task(automatic_checks(app.state.session_factory))
     try:
         yield
     finally:
+        rankings_task.cancel()
+        await asyncio.gather(rankings_task, return_exceptions=True)
         await app.state.verification.close()
         await engine.dispose()
 
@@ -90,6 +95,11 @@ class PreviewRequest(BaseModel):
 class VerifyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     slate_date: date
+
+
+@app.get('/api/ringer-status')
+async def ringer_status(session=Depends(read_session)):
+    return await source_status(session)
 
 
 @app.post("/api/verify", status_code=202)

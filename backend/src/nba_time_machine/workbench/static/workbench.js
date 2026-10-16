@@ -186,10 +186,22 @@ async function load() {
     );
     acceptReport(next);
     fillConfig(next.experiment_config);
+    await loadRingerStatus();
   } catch (error) {
     status(error.message, true);
   } finally {
     setBusy(false);
+  }
+}
+async function loadRingerStatus() {
+  try {
+    const r = await request('/api/ringer-status');
+    const result = r.latest_run?.result;
+    $('ringer-status').textContent = r.state === 'not_configured'
+      ? 'Ringer Top 100: automatic collection is not configured.'
+      : `Ringer Top 100 · ${r.state} · ${result?.coverage ? result.coverage.matched + '/100 ESPN identities matched' : 'No validated snapshot yet'} · Last check ${r.last_attempt_at || 'never'} · Next allowed check ${r.next_check_at || 'when configured'} · ${r.latest_run?.code || ''}. Private hobby access; no publisher license claimed. New captures apply only to later tipoffs.`;
+  } catch (_) {
+    $('ringer-status').textContent = 'Ringer source status unavailable.';
   }
 }
 function showVerification(result) {

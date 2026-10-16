@@ -15,11 +15,13 @@ from nba_time_machine.sports.morning_models import Evidence
 
 
 def approved(source, permission=None):
-    if (source is None or source.locator != SOURCE_URL or source.adapter != 'manual_player_rankings'
+    automated = source is not None and source.adapter == 'ringer_top100_hobby'
+    hobby = automated and source.adapter_settings.get('access_basis') == 'owner_directed_private_hobby'
+    if (source is None or source.locator != SOURCE_URL or source.adapter not in ('manual_player_rankings', 'ringer_top100_hobby')
             or source.verification_status != 'verified' or source.requires_auth
             or source.retention_policy not in ('normalized_full', 'full')
             or not source.adapter_settings.get('permission_reference')
-            or source.adapter_settings.get('automated_access', False)):
+            or (source.adapter_settings.get('automated_access', False) and not hobby)):
         raise ValueError('ranking_source_permission_or_retention_not_approved')
     if permission is not None and permission != source.adapter_settings['permission_reference']:
         raise ValueError('ranking_permission_reference_mismatch')
@@ -48,7 +50,7 @@ async def identity_catalog(session, as_of):
     return rows
 
 
-async def import_snapshot(session, payload: RankingImport, *, write=False):
+async def import_snapshot(session, payload: RankingImport, *, write=False, automated=False):
     """Caller owns transaction; all writes atomic. Import never accepts timestamps."""
     now = datetime.now(timezone.utc)
     if payload.published_date and payload.published_date > now.date():
@@ -57,6 +59,8 @@ async def import_snapshot(session, payload: RankingImport, *, write=False):
         await session.execute(text('SELECT pg_advisory_xact_lock(734388)'))
     source = await session.scalar(select(SourceRecord).where(SourceRecord.id == SOURCE_ID).with_for_update()) if write else await session.get(SourceRecord, SOURCE_ID)
     approved(source, payload.permission_reference)
+    if automated and source.adapter != 'ringer_top100_hobby':
+        raise ValueError('automated_ranking_source_not_configured')
     players = map_players(payload, await identity_catalog(session, now))
     data = payload.model_dump(mode='json')
     data['players'] = players
@@ -82,7 +86,7 @@ async def import_snapshot(session, payload: RankingImport, *, write=False):
     # Validation/lock waits cannot manufacture an earlier capture timestamp.
     now = datetime.now(timezone.utc)
     run = CollectionRunRecord(id=uuid4(), started_at=now, finished_at=now,
-                              collector_version='manual-player-rankings-v1', run_metadata={'manual': True})
+                              collector_version='ringer-top100-v1' if automated else 'manual-player-rankings-v1', run_metadata={'manual': not automated})
     session.add(run)
     await session.flush()
     capture = RawCapture(source_id=SOURCE_ID, external_id='top100:' + payload.season,
@@ -93,7 +97,8 @@ async def import_snapshot(session, payload: RankingImport, *, write=False):
         session.add(TemporalFactRecord(subject_type='season', season_id=season.id, source_id=SOURCE_ID,
             fact_type=FACT_TYPE, value=data, valid_from=now, observed_at=now, available_at=now,
             fact_metadata={'revision_hash': signature, 'source_url': SOURCE_URL,
-                'publication_precision': payload.publication_status, 'manual': True}))
+                'publication_precision': payload.publication_status, 'manual': not automated,
+                'access_basis': source.adapter_settings.get('access_basis', 'reviewed_manual_import')}))
     session.add(SourceOutcomeRecord(collection_run_id=run.id, source_id=SOURCE_ID,
         status='partial' if data['validation_status'] != 'complete' else 'ok' if written else 'idle',
         items_seen=100, captures_written=int(written), finished_at=now,
@@ -143,6 +148,6 @@ async def read_snapshot(session, evidence, as_of):
     except (ValueError, KeyError, TypeError):
         return {**missing, 'reason': 'Latest pre-tip ranking failed schema validation.'}
     return {**data, 'status': 'available' if data['validation_status'] == 'complete' else 'unavailable',
-        'reason': 'Validated manual snapshot; availability is import time, not claimed publication date.',
+        'reason': 'Validated snapshot; availability is actual capture time, not claimed publication date.',
         'fact_id': str(fact.id), 'observed_at': fact.observed_at.isoformat(),
         'captured_at': fact.observed_at.isoformat(), 'available_at': fact.available_at.isoformat()}
