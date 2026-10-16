@@ -45,7 +45,11 @@ jobs:
       - run: alembic upgrade head
       - run: alembic check
       - run: python scripts/smoke_thesportsdb.py
+        id: provider_smoke
+      # A live upstream outage must not hide deterministic test failures.
+      # Keep the provider step failing; report both outcomes in the same job.
       - run: pytest -q
+        if: success() || steps.provider_smoke.outcome == 'failure'
 
   frontend:
     runs-on: ubuntu-latest
