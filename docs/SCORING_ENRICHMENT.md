@@ -1,6 +1,8 @@
 # Inspectable entertainment candidate v2 (#87 / PR #88)
 
-The workbench now defaults to `config/ranking/entertainment-preview-v2.json`.
+The v2 formula is defined in `config/ranking/entertainment-preview-v2.json`.
+The workbench now defaults to [v4](GAME_RECORD_IMPORTANCE.md), which retains these terms
+and adds game-record importance; v2 imports still calculate their original formula.
 This is a read-only experiment against real stored evidence, compared with the
 saved `postgame-v1` rating and its four-signal baseline. No production rating,
 source evidence, source policy, profile cursor or acknowledgement is changed.
@@ -86,7 +88,7 @@ settings and source provenance. Schema-2 configs require explicit `player` and
 `pattern` settings as well as the existing drama weights/scales/thresholds. Finite
 bounds and ordered floor/peak values are validated. Schema-1 configs and review
 sessions remain readable and reproduce the original four-signal preview without
-silently enabling bonuses. Reset experiment restores the checked-in v2 defaults.
+silently enabling bonuses. Restore default formula restores the current checked-in default (now v4). Import the v2 file explicitly to compare its original formula.
 
 Clutch and drought controls display minutes and convert back to stored
 milliseconds. Exports include all compared settings and optional reviewer notes.

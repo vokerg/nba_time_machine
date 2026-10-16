@@ -2,11 +2,23 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import re
 
 from nba_time_machine.sports.morning_models import (
     EASTERN, TEAM_NAMES, Evidence, GameRef, Play, PlayerBox, Team, abbreviation,
-    assess, clock_ms, stamp,
+    assess, clock_ms, stamp, SeasonRecord, MatchupRecords,
 )
+
+
+def total_record(row: dict, field: str) -> SeasonRecord:
+    values = [r for r in row[field] if r.get("type") == "total"]
+    if len(values) != 1 or not isinstance(values[0].get("summary"), str):
+        raise ValueError("missing_or_ambiguous_total_record")
+    text = values[0]["summary"]
+    if re.fullmatch(r"\d{1,2}-\d{1,2}", text) is None or values[0].get("displayValue", text) != text:
+        raise ValueError("invalid_total_record")
+    wins, losses = map(int, text.split("-"))
+    return SeasonRecord(wins=wins, losses=losses)
 
 
 def competitors(competition: dict) -> dict:
@@ -26,10 +38,19 @@ def scoreboard(payload: dict, day: date) -> list[GameRef]:
         tip = stamp(event["date"])
         if tip.astimezone(EASTERN).date() != day:
             raise ValueError("scoreboard_wrong_day")
+        records, record_errors = {}, []
+        for side in ("home", "away"):
+            try:
+                records[side + "_record"] = total_record(teams[side], "records")
+            except (ValueError, KeyError, TypeError, AttributeError):
+                record_errors.append("invalid_or_missing_scoreboard_" + side + "_record")
         result.append(GameRef(provider="espn", external_id=str(event["id"]), day=day,
             home=abbreviation(teams["home"]["team"]["abbreviation"]),
             away=abbreviation(teams["away"]["team"]["abbreviation"]),
-            scheduled_at=tip, final=event["status"]["type"]["completed"]))
+            scheduled_at=tip, final=event["status"]["type"]["completed"],
+            season_type=event.get("season", {}).get("type"),
+            competition_type=str(comp["type"]["id"]) if comp.get("type", {}).get("id") is not None else None,
+            record_errors=tuple(record_errors), **records))
     if len({r.key for r in result}) != len(result):
         raise ValueError("duplicate_matchups")
     return result
@@ -89,6 +110,28 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
     if year != ref.day.year + (ref.day.month >= 7):
         raise ValueError("wrong_espn_season")
     game_type = {1: "preseason", 2: "regular_season", 3: "playoffs"}[season["type"]]
+    records, record_errors = None, list(ref.record_errors)
+    if (game_type == "regular_season" and ref.season_type == 2
+            and ref.competition_type is not None and ref.competition_type != "39"
+            and ref.final is True and comp["status"]["type"]["completed"] is True):
+        try:
+            totals = {side: total_record(teams[side], "record") for side in ("home", "away")}
+            if (totals["home"] != ref.home_record or totals["away"] != ref.away_record or record_errors):
+                raise ValueError("scoreboard_summary_record_mismatch")
+            if normalized["home"].score == normalized["away"].score:
+                raise ValueError("tied_final_record")
+            for side in ("home", "away"):
+                won = normalized[side].score > normalized["away" if side == "home" else "home"].score
+                if type(teams[side].get("winner")) is not bool or teams[side]["winner"] != won:
+                    raise ValueError("record_winner_mismatch")
+                total = totals[side]
+                if (won and total.wins == 0) or (not won and total.losses == 0):
+                    raise ValueError("record_result_cannot_be_removed")
+            records = MatchupRecords(home_after=totals["home"], away_after=totals["away"])
+        except (ValueError, KeyError, TypeError, AttributeError):
+            record_errors.append("invalid_or_inconsistent_completed_game_records")
+    else:
+        record_errors.append("record_scope_not_verified_regular_season_final")
     pbp_errors, box_errors = [], []
     plays, players = [], []
     try:
@@ -136,4 +179,5 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
         home=normalized["home"], away=normalized["away"], plays=tuple(plays), players=tuple(players),
         pbp_errors=tuple(pbp_errors), box_errors=tuple(box_errors),
         notes=("source_timestamps_are_not_publication_or_trusted_final",),
+        records=records, record_errors=tuple(sorted(set(record_errors))),
         source_end_at=optional_stamp("lastPlayWallClock"), source_updated_at=optional_stamp("lastUpdatedAt")))

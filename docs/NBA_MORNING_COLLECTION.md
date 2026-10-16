@@ -151,3 +151,16 @@ Verified on 2026-10-14:
 - [Sanitized live run evidence](evidence/issue-84-morning-smoke.json) contains the
   write/replay/day reports. No raw provider bodies were retained, no owner Neon
   database was used, no scheduler was installed, and no PR was created.
+
+
+### Game-supplied record extension (#96)
+
+The ESPN scoreboard/summary parsers now retain optional matching overall W–L
+claims, season/competition scope and independent record diagnostics, using the
+same normalized retention boundary. Missing records do not invalidate otherwise
+usable play-by-play or boxes. Morning diagnostics expose `has_game_records` and
+`record_errors`; exit success still refers to the existing PBP/box contract.
+The local [v4 importance formula](GAME_RECORD_IMPORTANCE.md) removes the completed
+game's win/loss from these totals, without a season-history dependency. Historical
+captures lacking this optional metadata remain readable and need explicit
+re-collection to obtain it. Observation/availability timestamps are never backdated.

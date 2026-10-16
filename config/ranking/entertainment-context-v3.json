@@ -1,0 +1,65 @@
+{
+  "schema_version": 3,
+  "version": "entertainment-context-v3",
+  "weights": {
+    "clutch": 25,
+    "lead_changes": 15,
+    "comeback": 20,
+    "overtime": 10
+  },
+  "scales": {
+    "clutch": 300000,
+    "lead_changes": 20,
+    "comeback": 25,
+    "overtime": 3
+  },
+  "medium_from": 4,
+  "high_from": 7,
+  "player": {
+    "points_floor": 25,
+    "points_peak": 60,
+    "assists_floor": 8,
+    "assists_peak": 20,
+    "rebounds_floor": 12,
+    "rebounds_peak": 30,
+    "stocks_floor": 4,
+    "stocks_peak": 12,
+    "efficiency_floor": 0.5,
+    "efficiency_peak": 0.75,
+    "secondary_weight": 0.15,
+    "efficiency_weight": 0.1,
+    "triple_double_weight": 0.1,
+    "turnover_penalty": 0.1,
+    "turnover_scale": 10,
+    "runner_up_weight": 0.25,
+    "max_bonus": 4
+  },
+  "pattern": {
+    "max_lead_floor": 20,
+    "max_lead_peak": 60,
+    "first_half_lead_floor": 15,
+    "first_half_lead_peak": 40,
+    "quarter_margin_floor": 20,
+    "quarter_margin_peak": 40,
+    "low_quarter_ceiling": 15,
+    "high_quarter_floor": 35,
+    "high_quarter_peak": 55,
+    "scoring_drought_floor": 240000,
+    "scoring_drought_peak": 720000,
+    "second_group_weight": 0.2,
+    "max_bonus": 3
+  },
+  "context": {
+    "prior_games": 10.0,
+    "minimum_games": 3,
+    "confidence_games": 20.0,
+    "win_pct_floor": 0.5,
+    "win_pct_peak": 0.75,
+    "leader_rank_limit": 6.0,
+    "close_games": 3.0,
+    "boundary_games": 3.0,
+    "late_games_floor": 50.0,
+    "late_games_peak": 78.0,
+    "max_bonus": 2.0
+  }
+}

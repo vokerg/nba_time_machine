@@ -1,0 +1,28 @@
+{
+  "checked_at": "2026-10-15T20:07:26.717315+00:00",
+  "date": "2025-11-10",
+  "schema": 4,
+  "stored_games": 9,
+  "usable_game_record_contexts": 9,
+  "complete_proposals": 8,
+  "all_contexts_from_game_records": true,
+  "matches_prior_independent_history_audit": true,
+  "new_archive_numeric_values_unchanged": true,
+  "no_invented_ranks_or_race_terms": true,
+  "inspection_did_not_write": true,
+  "arithmetic_reconciles": true,
+  "collection": {
+    "run_id": "32d50578-54ce-4480-a727-90a8c97190a5",
+    "captures_written": 9,
+    "games_with_records": 9,
+    "persistence_errors": 0
+  },
+  "processing": {
+    "games": 9,
+    "eligible": 8,
+    "unavailable": 1,
+    "failed": 0,
+    "write": true,
+    "scores_archived": 8
+  }
+}

@@ -60,6 +60,23 @@ class Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+class SeasonRecord(Model):
+    wins: int = Field(ge=0, le=82, strict=True)
+    losses: int = Field(ge=0, le=82, strict=True)
+
+    @model_validator(mode="after")
+    def valid_total(self):
+        if self.wins + self.losses > 82:
+            raise ValueError("invalid_season_record")
+        return self
+
+
+class MatchupRecords(Model):
+    home_after: SeasonRecord
+    away_after: SeasonRecord
+    basis: Literal["espn_completed_game_total"] = "espn_completed_game_total"
+
+
 class GameRef(Model):
     provider: Literal["espn", "cbs"]
     external_id: str = Field(min_length=1, max_length=64)
@@ -68,6 +85,11 @@ class GameRef(Model):
     away: str
     scheduled_at: AwareDatetime | None = None
     final: bool | None = None
+    season_type: int | None = Field(default=None, strict=True)
+    competition_type: str | None = Field(default=None, max_length=32)
+    home_record: SeasonRecord | None = None
+    away_record: SeasonRecord | None = None
+    record_errors: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def matchup(self):
@@ -140,6 +162,8 @@ class Evidence(Model):
     notes: tuple[str, ...] = ()
     source_end_at: AwareDatetime | None = None
     source_updated_at: AwareDatetime | None = None
+    records: MatchupRecords | None = None
+    record_errors: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def matchup(self):

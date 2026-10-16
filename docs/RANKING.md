@@ -234,3 +234,15 @@ The local workbench also offers a [v2 entertainment candidate](SCORING_ENRICHMEN
 with measured player production and extreme-game-pattern bonuses. These
 read-only experiments preserve `postgame-v1` and public disclosure contracts;
 no historical rarity percentile or pregame context is inferred.
+
+
+The schema-3 [game-importance proposal](GAME_IMPORTANCE.md) adds reconstructed
+2025–26 opening-day records, shared standings ranks and transparent matchup/race
+heuristics. These are retrospective inputs collected now, not pre-tip observations.
+Schemas 1/2 remain readable; current app scoring and spoiler gates are unchanged.
+
+
+The default [v4 matchup importance](GAME_RECORD_IMPORTANCE.md) uses the records
+already supplied with one game's scoreboard and summary, with the completed
+result removed. It has no season-reconstruction dependency and cannot infer
+standings ranks or playoff stakes. Schema 3 remains an explicit legacy comparison.

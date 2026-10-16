@@ -124,6 +124,8 @@ class MorningReport:
                 "evidence": [{"provider": e.provider, "game_id": e.external_id,
                     "observed_at": e.observed_at.isoformat(), "status": e.status,
                     "plays": len(e.plays), "players": len(e.players),
+                    "has_game_records": e.records is not None,
+                    "record_errors": list(e.record_errors),
                     "pbp_errors": list(e.pbp_errors), "box_errors": list(e.box_errors)} for e in g.evidence]
             } for g in self.games],
             "attempts": [asdict(a) for a in self.attempts],

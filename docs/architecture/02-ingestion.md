@@ -276,3 +276,13 @@ The separate [morning ranking pipeline](../MORNING_RANKING_PIPELINE.md) revalida
 stored evidence and derives versioned trajectory features into existing temporal
 facts and the hidden score archive. Collection remains separate from feature
 production and spoiler disclosure.
+
+
+## Retrospective season context (#96)
+
+The bounded [regular-season history collector](../GAME_IMPORTANCE.md) extends the
+reviewed ESPN scoreboard access with selected earlier daily results. It uses the
+same source policy, retention boundary, capture revisions, sports lock and
+season-linked temporal facts. Captures/availability retain actual observation
+time. The local workbench may reconstruct opening-day records for tuning;
+these facts do not become strict pregame knowledge or authorize consumer reads.

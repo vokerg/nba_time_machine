@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-10-15T19:52:09.667371+00:00",
+  "date": "2025-11-10",
+  "config_schema": 3,
+  "games": 9,
+  "proposals": 8,
+  "history_available": 9,
+  "complete_candidates": 8,
+  "prior_results": [
+    147
+  ],
+  "unchanged_score_and_fact_counts": true,
+  "arithmetic_reconciles": true,
+  "no_late_race_credit_in_november": true,
+  "archive_matches_baseline": true,
+  "collection": {
+    "run_id": "83ec9a28-90ea-4f4f-ae50-ddefb1dc0df3",
+    "days": 20,
+    "usable_days": 20,
+    "results": 147,
+    "captures_written": 20,
+    "persistence_errors": 0,
+    "errors": []
+  }
+}

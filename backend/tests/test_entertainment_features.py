@@ -12,7 +12,7 @@ from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSetting
 
 
 def candidate():
-    return TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
+    return TuningConfig.model_validate_json(CANDIDATE_CONFIG.with_name('entertainment-preview-v2.json').read_text())
 
 
 def game(home=(30, 30, 20, 20), away=(10, 10, 20, 20)):
