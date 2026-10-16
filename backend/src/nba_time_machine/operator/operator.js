@@ -31,7 +31,7 @@ function show(data) {
   active = data;
   byId("day").value = data.day;
   replace(byId("sources"), data.sources, (s) => [
-    s.name + " (" + s.id + ")", s.verified, s.enabled, s.requires_auth, s.cadence_minutes + " min",
+    s.name + " (" + s.id + ")", s.configured, s.verified, s.enabled, s.requires_auth, s.cadence_minutes + " min",
     s.last_attempt_at, s.last_success_at, s.last_outcome, s.freshness, s.last_error_code
   ]);
   replace(byId("games"), data.games, (g) => [
