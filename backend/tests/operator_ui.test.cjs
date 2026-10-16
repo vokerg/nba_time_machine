@@ -87,7 +87,8 @@ test("operator UI renders only text, unknown data, independent evidence families
   assert.match(nodes.state.textContent, /1 stored games/);
   const firstSource = nodes.sources.body.children[0].children[0].textContent;
   assert.equal(firstSource, "<img src=x onerror=alert(1)> (source-1)");
-  assert.equal(nodes.sources.body.children[0].children[9].textContent, "http_403");
+  assert.equal(nodes.sources.body.children[0].children[9].textContent, "disabled");
+  assert.equal(nodes.sources.body.children[0].children[10].textContent, "http_403");
   const game = nodes.games.body.children[0];
   assert.equal(game.children[6].textContent, "partial · source-1");
   assert.equal(game.children[7].textContent, "not_collected");
