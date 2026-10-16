@@ -101,16 +101,22 @@ async def test_manual_import_versions_temporal_selection_and_revocation(monkeypa
 async def test_v5_preview_is_read_only_and_catalog_uses_stored_espn(monkeypatch):
     engine,factory=await setup()
     try:
-        e=evidence_with_records(str(uuid4().int)[:12]).model_copy(update={'observed_at':NOW+timedelta(minutes=30)})
+        async with factory() as session:
+            latest=await session.scalar(select(func.max(TemporalFactRecord.observed_at)).where(
+                TemporalFactRecord.fact_type=='provider_game_evidence',
+                TemporalFactRecord.value['ref']['day'].astext==str(RECORD_DAY)))
+        observed=max(NOW+timedelta(minutes=30), latest+timedelta(seconds=1) if latest else NOW)
+        cutoff=observed+timedelta(hours=1)
+        e=evidence_with_records(str(uuid4().int)[:12]).model_copy(update={'observed_at':observed})
         await MorningStore(factory,manual=True).collect(FixtureCollector([e]),RECORD_DAY)
         async with factory() as session:
-            mapped=await identity_catalog(session,NOW+timedelta(hours=1))
+            mapped=await identity_catalog(session,cutoff)
             assert any(row['espn_id']==e.players[0].external_id and row['name']==e.players[0].name for row in mapped)
         app.state.session_factory=factory;app.state.baseline=baseline()
         app.state.candidate=TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
         before=await counts(factory)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app,client=('127.0.0.1',1)),base_url='http://127.0.0.1:8765') as client:
-            response=await client.post('/api/preview',json={'slate_date':str(RECORD_DAY),'as_of':(NOW+timedelta(hours=1)).isoformat(),'config':app.state.candidate.model_dump(exclude_none=True)})
+            response=await client.post('/api/preview',json={'slate_date':str(RECORD_DAY),'as_of':(cutoff).isoformat(),'config':app.state.candidate.model_dump(exclude_none=True)})
             assert response.status_code==200
             item=next(g for g in response.json()['games'] if g['evidence'] and g['evidence']['external_id']==e.external_id)
             assert item['star_power']['status']=='unavailable' and item['experiment']['star_bonus'] is None

@@ -134,9 +134,11 @@ when one team is malformed. Unknown participation is retained as unknown; it is
 not DNP. Existing old captures with global structural box errors fail closed.
 Star Power requires final ESPN evidence. It checks each team independently:
 unique IDs, valid team affiliation, explicit participation, nonconflicting DNP,
-minutes within game length and full team-minute coverage. The minute sum tolerance
-is one minute per supplied player to accommodate provider rounding; no missing
-minutes are extrapolated. A zero-minute appearance earns no participation credit.
+minutes within game length and full team-minute coverage. Minute reconciliation allows half a minute per participating row with rounded
+minutes, or half a second per row with second precision. Unknown precision is
+unavailable. This detects missing minutes beyond source rounding, not an
+independently audited roster; tiny omissions within rounding tolerance cannot be
+ruled out. No missing minutes are extrapolated. A zero-minute appearance earns no participation credit.
 Statistical production is not an input to reputation.
 
 All following settings are explicit/editable in
@@ -207,3 +209,10 @@ so end-to-end live ranked scoring is blocked on obtaining one and observing it
 before an eligible game. Public page access does not satisfy that requirement.
 Exact validation results and sanitized real-data checks accompany the PR and
 `docs/evidence/star-power-2026-10-16.json`.
+
+Verified locally: **453 backend tests**, **11 workbench DOM tests**, **38 frontend
+tests**, frontend build and Alembic schema check passed. Real November 10 reads
+found nine games/eighteen complete team participation families and 363 distinct
+ESPN IDs in the stored mapping catalog. Eight existing proposed values were
+preserved, all nine Star Power results were unavailable and canonical fact,
+capture and score counts were unchanged.

@@ -172,5 +172,20 @@ def test_conflicting_dnp_missing_minutes_unknown_ids_and_invalid_snapshots():
     assert star_preview(dup,snap,s)['bonus'] is None
     snap['players']=snap['players'][:99]
     assert star_preview(e,snap,s)['bonus'] is None
+    # Missing minutes cannot hide inside a tolerance based on DNP/bench count.
+    assert star_preview(replace_player(e,1,minutes=47),snapshot(),s)['bonus'] is None
+    assert star_preview(replace_player(e,1,minutes_precision='unknown'),snapshot(),s)['bonus'] is None
     with pytest.raises(ValidationError):
         RankingImport.model_validate({**ranking().model_dump(),'observed_at':NOW})
+
+
+def test_duplicate_resolved_identities_and_unreviewed_aliases_fail_closed():
+    r=ranking(); rows=list(r.players)
+    rows[1]=rows[1].model_copy(update={'name':rows[0].name})
+    values=map_players(r.model_copy(update={'players':tuple(rows)}),catalog())
+    assert values[0]['mapping_status']==values[1]['mapping_status']=='ambiguous_duplicate_identity'
+    assert values[0]['espn_id'] is None and values[1]['espn_id'] is None
+    raw=r.model_dump(); raw['players'][0].update(espn_name_alias='Some Alias')
+    with pytest.raises(ValidationError): RankingImport.model_validate(raw)
+    raw=r.model_dump();raw['publication_status']='publisher_date_only'
+    with pytest.raises(ValidationError): RankingImport.model_validate(raw)

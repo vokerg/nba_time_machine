@@ -85,7 +85,11 @@ def star_preview(evidence, snapshot, settings):
         # Independently establish each team's participation and total minutes.
         period_minutes = 48 + max(0, len(team.periods) - 4) * 5
         total_minutes = sum(p.minutes or 0 for p in rows if p.did_not_play is False)
-        if not 5 * period_minutes - len(rows) <= total_minutes <= 5 * period_minutes + len(rows):
+        played_rows = [p for p in rows if p.did_not_play is False]
+        if any(p.minutes_precision == 'unknown' for p in played_rows):
+            errors.append('unknown_minutes_precision')
+        tolerance = sum(.5 if p.minutes_precision == 'rounded_minute' else 1 / 120 for p in played_rows)
+        if abs(total_minutes - 5 * period_minutes) > tolerance + 1e-8:
             errors.append('incomplete_team_minutes')
         players = []
         for p in rows:
@@ -112,6 +116,7 @@ def star_preview(evidence, snapshot, settings):
         result['teams'].append({'team': team.abbreviation, 'coverage': 'incomplete' if errors else 'complete',
             'errors': sorted(set(errors)), 'players': sorted(players, key=lambda p: p['rank']),
             'observed_team_minutes': total_minutes, 'expected_team_minutes': 5 * period_minutes,
+            'minutes_rounding_tolerance': tolerance,
             'raw_total': total if ranking and not errors else None, 'normalized': None if errors or not snapshot or snapshot.get('status') != 'available' else min(1., total / s.team_normalizer)})
     if not snapshot or snapshot.get('status') != 'available':
         result['reason'] = (snapshot or {}).get('reason', result['reason'])

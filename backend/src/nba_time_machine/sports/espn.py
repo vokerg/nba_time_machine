@@ -163,7 +163,11 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
         if not isinstance(team, dict):
             box_errors.append("invalid_box_schema")
             continue
-        team_id = str(team.get("team", {}).get("id", "unknown"))
+        try:
+            team_id = str(team["team"]["id"])
+        except (KeyError, TypeError):
+            box_errors.append("invalid_box_schema")
+            continue
         errors = []
         if team_id in seen_teams:
             errors.append("duplicate_team_box")
