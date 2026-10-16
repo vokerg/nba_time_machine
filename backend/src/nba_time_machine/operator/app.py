@@ -43,7 +43,10 @@ async def local_only(request: Request, call_next):
     except (AttributeError, ValueError):
         local_client = False
     origin = request.headers.get("origin")
-    parts = urlsplit(origin) if origin else None
+    try:
+        parts = urlsplit(origin) if origin else None
+    except ValueError:
+        return JSONResponse({"detail": "Local operator view only"}, status_code=403)
     same_origin = parts is None or (parts.scheme in ("http", "https")
                                    and parts.netloc == request.headers.get("host"))
     if not local_client or request.url.hostname not in ("127.0.0.1", "localhost", "::1") or not same_origin:
