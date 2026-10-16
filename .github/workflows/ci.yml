@@ -64,4 +64,5 @@ jobs:
       - run: npm install
       - run: npm run test
       - run: node --test ../backend/tests/workbench_ui.test.cjs
+      - run: node --test ../backend/tests/operator_ui.test.cjs
       - run: npm run build
