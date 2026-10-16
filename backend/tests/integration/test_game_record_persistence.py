@@ -36,7 +36,7 @@ async def test_record_only_inspection_never_requires_history_and_preserves_archi
             assert await MorningRankingPipeline(session).process(game,as_of=cursor,write=True)
         app.state.session_factory=factory
         app.state.baseline=baseline()
-        app.state.candidate=TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
+        app.state.candidate=TuningConfig.model_validate_json(CANDIDATE_CONFIG.with_name("entertainment-records-v4.json").read_text())
         async with factory() as session:
             before=[await session.scalar(select(func.count()).select_from(model)) for model in (TemporalFactRecord,RecommendationScoreRecord)]
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app,client=('127.0.0.1',1)),base_url='http://127.0.0.1:8765') as client:

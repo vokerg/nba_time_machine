@@ -150,23 +150,56 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
     except (ValueError, KeyError, TypeError):
         pbp_errors.append("invalid_play_schema")
         plays = []
+    team_errors = {}
     try:
-        for team in payload["boxscore"]["players"]:
+        teams = payload["boxscore"]["players"]
+        if not isinstance(teams, list):
+            raise ValueError("invalid_box_teams")
+    except (KeyError, TypeError, ValueError):
+        teams = []
+        box_errors.append("invalid_box_schema")
+    seen_teams = set()
+    for team in teams:
+        if not isinstance(team, dict):
+            box_errors.append("invalid_box_schema")
+            continue
+        try:
             team_id = str(team["team"]["id"])
+        except (KeyError, TypeError):
+            box_errors.append("invalid_box_schema")
+            continue
+        errors = []
+        if team_id in seen_teams:
+            errors.append("duplicate_team_box")
+        seen_teams.add(team_id)
+        try:
             stats = team["statistics"][0]
             for player in stats["athletes"]:
                 dnp = player.get("didNotPlay")
                 if type(dnp) is not bool:
-                    raise ValueError("missing_participation")
-                values = dict(zip(stats["names"], player["stats"], strict=True)) if not dnp else {}
-                minute, precision = minutes(values["MIN"]) if not dnp else (None, "unknown")
+                    dnp = None
+                    errors.append("unknown_participation")
+                minute, precision, values = None, "unknown", {}
+                if dnp is False:
+                    try:
+                        values = dict(zip(stats["names"], player["stats"], strict=True))
+                        minute, precision = minutes(values["MIN"])
+                    except (KeyError, ValueError, TypeError):
+                        errors.append("missing_player_minutes")
+                try:
+                    statistics = parse_statistics(values)
+                except (ValueError, KeyError, TypeError):
+                    statistics = {}
+                    box_errors.append("invalid_player_statistics")
                 players.append(PlayerBox(external_id=str(player["athlete"]["id"]), team_id=team_id,
                     name=player["athlete"]["displayName"], starter=player.get("starter"),
                     did_not_play=dnp, minutes=minute, minutes_precision=precision,
-                    statistics=parse_statistics(values)))
-    except (ValueError, KeyError, TypeError, IndexError):
-        box_errors.append("invalid_box_schema")
-        players = []
+                    statistics=statistics))
+        except (ValueError, KeyError, TypeError, IndexError, AttributeError):
+            errors.append("invalid_team_box_schema")
+        if errors:
+            team_errors[team_id] = tuple(sorted(set(errors)))
+            box_errors.append("partial_team_box")
     meta = payload.get("meta", {})
     def optional_stamp(key):
         try:
@@ -177,7 +210,7 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
         observed_at=observed_at, season=f"{year - 1}-{year}", game_type=game_type,
         status="final" if comp["status"]["type"]["completed"] is True else "pending",
         home=normalized["home"], away=normalized["away"], plays=tuple(plays), players=tuple(players),
-        pbp_errors=tuple(pbp_errors), box_errors=tuple(box_errors),
+        pbp_errors=tuple(pbp_errors), box_errors=tuple(box_errors), box_team_errors=team_errors,
         notes=("source_timestamps_are_not_publication_or_trusted_final",),
         records=records, record_errors=tuple(sorted(set(record_errors))),
         source_end_at=optional_stamp("lastPlayWallClock"), source_updated_at=optional_stamp("lastUpdatedAt")))

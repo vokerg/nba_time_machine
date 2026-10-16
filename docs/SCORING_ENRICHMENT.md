@@ -1,8 +1,8 @@
 # Inspectable entertainment candidate v2 (#87 / PR #88)
 
 The v2 formula is defined in `config/ranking/entertainment-preview-v2.json`.
-The workbench now defaults to [v4](GAME_RECORD_IMPORTANCE.md), which retains these terms
-and adds game-record importance; v2 imports still calculate their original formula.
+The workbench now defaults to [v5](STAR_POWER.md), which retains these terms
+and adds game-record importance and optional eligible Star Power; v2 imports still calculate their original formula.
 This is a read-only experiment against real stored evidence, compared with the
 saved `postgame-v1` rating and its four-signal baseline. No production rating,
 source evidence, source policy, profile cursor or acknowledgement is changed.
@@ -113,3 +113,7 @@ zero reproduces the saved-model baseline; player terms and score adjustments
 reconcile, and owner fact/score counts remain unchanged. Sanitized checks are in
 [evidence](evidence/entertainment-candidate-2026-10-15.json). No new production
 ratings, historical percentiles or AI annotations were generated.
+
+[Star Power v5](STAR_POWER.md) measures published reputation and actual participation
+separately from the statistical Player Performance terms described above. A huge
+individual performance never changes that player's published rank.

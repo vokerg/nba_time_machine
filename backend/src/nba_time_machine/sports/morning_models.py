@@ -159,6 +159,7 @@ class Evidence(Model):
     players: tuple[PlayerBox, ...] = ()
     pbp_errors: tuple[str, ...] = ()
     box_errors: tuple[str, ...] = ()
+    box_team_errors: dict[str, tuple[str, ...]] = Field(default_factory=dict)
     notes: tuple[str, ...] = ()
     source_end_at: AwareDatetime | None = None
     source_updated_at: AwareDatetime | None = None

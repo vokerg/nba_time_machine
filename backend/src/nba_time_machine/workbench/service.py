@@ -23,6 +23,8 @@ from nba_time_machine.workbench.calculations import MISSING, TuningConfig, previ
 from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSettings, enrichment_preview
 from nba_time_machine.workbench.context import ContextSettings, context_preview, record_preview
 from nba_time_machine.workbench.evidence import supporting_plays
+from nba_time_machine.ranking.player_ranking_store import read_snapshot
+from nba_time_machine.ranking.star_power import star_preview
 
 
 async def slate_observations(session, day: date, as_of: datetime):
@@ -106,19 +108,22 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             result["diagnostics"].append("invalid_evidence_schema")
     else:
         result["diagnostics"].append("no_stored_provider_game_evidence_at_this_as_of")
-    context = (game_record_context(parsed, result.get("provenance")) if experiment.schema_version == 4
+    context = (game_record_context(parsed, result.get("provenance")) if experiment.schema_version >= 4
                else await read_context(session, parsed, as_of)) if parsed else None
-    if context is not None and experiment.schema_version == 4:
+    if context is not None and experiment.schema_version >= 4:
         try:
             source_policy(await session.get(SourceRecord, fact.source_id), parsed.provider, manual=True)
         except ValueError:
             context.update(status="missing", reason="Game source policy is not approved.", home=None, away=None)
+    star = star_preview(parsed, await read_snapshot(session, parsed, as_of), experiment.star) if experiment.schema_version == 5 else None
+    if star is not None:
+        result["star_power"] = {**star, "included_in_proposal": derived is not None and star["bonus"] is not None}
     if derived:
         fact, metrics, score = derived
         result["metrics"] = asdict(metrics)
         result["baseline"] = preview(metrics, baseline)
         measurements = entertainment_measurements(parsed)
-        result["experiment"] = candidate_preview(metrics, measurements, experiment, context)
+        result["experiment"] = candidate_preview(metrics, measurements, experiment, context, star)
         if parsed:
             result["supporting_plays"] = supporting_plays(parsed, metrics)
     else:
@@ -133,7 +138,7 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         result["enrichment"]["candidate_eligible"] = derived is not None and experiment.schema_version >= 2
     if context is not None:
         result["context"] = result["experiment"].pop("context", None) if result["experiment"] else None
-        result["context"] = result["context"] or (record_preview(context, experiment.importance) if experiment.schema_version == 4
+        result["context"] = result["context"] or (record_preview(context, experiment.importance) if experiment.schema_version >= 4
             else context_preview(context, experiment.context or ContextSettings()))
         result["context"]["included_in_proposal"] = derived is not None and experiment.schema_version >= 3
     row = await session.scalar(select(RecommendationScoreRecord).where(
@@ -156,15 +161,16 @@ async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningCon
     games = []
     for observation in await slate_observations(session, day, as_of):
         games.append(await inspect_game(session, observation, as_of, baseline, experiment))
+    missing = [m for m in MISSING if not (experiment.schema_version == 5 and m["signal"] == "star_power")]
     return {"schema_version": 1, "slate_date": day.isoformat(), "as_of": as_of.isoformat(),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "coverage": "Stored observations only; missing games are not proof of an empty slate. No live fetch.",
         "baseline_config": baseline.model_dump(exclude_none=True), "experiment_config": experiment.model_dump(exclude_none=True),
         "default_candidate_config": (default_candidate or experiment).model_dump(exclude_none=True),
-        "missing_criteria": ([m for m in MISSING if m["signal"] != "stakes"] + [{
+        "missing_criteria": ([m for m in missing if m["signal"] != "stakes"] + [{
             "signal": "exact_stakes", "label": "Exact playoff leverage / clinching / elimination",
             "reason": "The v3 formula includes reconstructed records, leader matchups and a standings-race proxy; exact playoff consequences remain unimplemented."
-        }] if experiment.schema_version == 3 else [m for m in MISSING if m["signal"] != "stakes"] + [{
+        }] if experiment.schema_version == 3 else [m for m in missing if m["signal"] != "stakes"] + [{
             "signal":"standings_stakes", "label":"Standings leaders / playoff stakes",
             "reason":"The v4 formula uses the two game records for win-rate strength. Full historical standings, ranks and exact playoff/seeding consequences are unavailable."
-        }] if experiment.schema_version == 4 else MISSING), "games": games}
+        }] if experiment.schema_version >= 4 else missing), "games": games}

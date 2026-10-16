@@ -1,0 +1,23 @@
+{
+  "verified_at": "2026-10-16T06:58:49.035589+00:00",
+  "real_source": "stored reviewed ESPN game evidence; read-only owner database",
+  "slate_date": "2025-11-10",
+  "stored_games": 9,
+  "scorable_games": 8,
+  "star_power_unavailable_games": 9,
+  "independent_complete_team_participation": 18,
+  "unique_espn_catalog_ids": 363,
+  "canonical_counts_unchanged": true,
+  "v4_numeric_scores_preserved": true,
+  "no_invented_star_bonus": true,
+  "real_licensed_ranking_snapshot_verified": false,
+  "ranking_blocker": "No reuse-authorized full Top 100 snapshot available; no pre-tip historical observations. Real ranked scoring not verified.",
+  "synthetic_only": [
+    "full100 import/versioning",
+    "ranked formula/scoring",
+    "pre-tip ranking revisions",
+    "identity ambiguity and trades",
+    "limited/DNP/unknown participation",
+    "both-team matchup bonus"
+  ]
+}
