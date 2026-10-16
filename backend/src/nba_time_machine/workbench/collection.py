@@ -1,6 +1,7 @@
 """Explicit local operator action; previews keep their separate read-only sessions."""
 import asyncio
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import httpx
 
@@ -42,6 +43,7 @@ class DayVerification:
         if self.task and not self.task.done():
             return False
         self.result = {"state": "running", "day": day.isoformat(),
+                       "job_id": str(uuid4()),
                        "started_at": datetime.now(timezone.utc).isoformat()}
         self.task = asyncio.create_task(self._run(day))
         return True

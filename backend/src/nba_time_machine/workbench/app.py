@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -104,8 +105,11 @@ async def verify(payload: VerifyRequest, request: Request):
 
 
 @app.get("/api/verify")
-async def verification_status(request: Request):
-    return request.app.state.verification.result
+async def verification_status(request: Request, job_id: UUID | None = None):
+    result = request.app.state.verification.result
+    if job_id is not None and str(job_id) != result.get("job_id"):
+        raise HTTPException(409, "Verification result replaced or server restarted; load stored games")
+    return result
 
 
 @app.get("/api/slate")

@@ -143,7 +143,7 @@ async function request(url, options) {
         : response.status === 503
           ? "Database inspection is unavailable. Check the local workbench terminal."
           : response.status === 409
-            ? "A day verification is already running. Wait for it to finish before fetching again."
+            ? "Another verification is running, the result was replaced, or the server restarted. Load stored games or try again after the run finishes."
             : "Request failed. Check the date and local workbench.",
     );
   return response.json();
@@ -210,7 +210,7 @@ function showVerification(result) {
     panel.append(el("p", message, "error"));
     return;
   }
-  panel.append(el("p", `${result.requests} requests · ${result.captures_written} new evidence captures · Run ${result.run_id || "unknown"} · Finished ${result.finished_at}`));
+  panel.append(el("p", `${result.games.length} discovered games · ${result.requests} requests · ${result.captures_written} new evidence captures · Run ${result.run_id || "unknown"} · Finished ${result.finished_at}`));
   if (!result.games.length) panel.append(el("p", result.discovery && !result.errors.length
     ? "Provider returned an empty slate for this Eastern day."
     : "Could not verify the slate. Zero stored games does not establish that no games occurred."));
@@ -234,9 +234,10 @@ async function verifyDay() {
     });
     showVerification(result);
     status("Collecting fresh evidence. Proposed scores will refresh when verification finishes…");
+    const jobId = result.job_id;
     while (result.state === "running") {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      result = await request("/api/verify");
+      result = await request(`/api/verify?job_id=${encodeURIComponent(jobId)}`);
       showVerification(result);
     }
     if (result.state !== "finished") {

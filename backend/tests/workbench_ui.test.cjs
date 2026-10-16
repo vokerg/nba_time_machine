@@ -340,3 +340,47 @@ test("star details render ranked participation, team contributions and untrusted
     assert.match(target.textContent,/0.7500 game-score points/);
   } finally { s.close(); }
 });
+
+test("fetch action saves evidence explicitly then previews current edits with a fresh cutoff", async () => {
+  const s = await setup();
+  try {
+    input(s.w, "weights-clutch", "48");
+    const calls = [];
+    s.w.setTimeout = (fn) => { setImmediate(fn); return 1; };
+    s.w.fetch = async (url, options) => {
+      calls.push({ url, options });
+      let result;
+      if (url === "/api/verify" && options) result = { state: "running", day: "2026-10-14", job_id: "fixture" };
+      else if (url === "/api/verify?job_id=fixture") result = {
+        state: "finished", day: "2026-10-14", requests: 1, captures_written: 0,
+        run_id: "fixture", finished_at: "now", discovery: "espn", errors: [], attempts: [],
+        games: [{ home: "BOS", away: "NYK", status: "pending", errors: [], pbp_provider: null, box_provider: null }],
+      };
+      else result = report(JSON.parse(options.body).config);
+      return { ok: true, json: async () => result };
+    };
+    s.w.document.getElementById("verify").click();
+    assert.equal(s.w.document.getElementById("verify").disabled, true);
+    for (let i = 0; i < 8; i++) await new Promise(setImmediate);
+    assert.equal(calls[0].options.headers["X-Workbench-Action"], "collect-day");
+    const preview = JSON.parse(calls.at(-1).options.body);
+    assert.equal(preview.config.weights.clutch, 48);
+    assert.equal(calls.at(-1).url, "/api/preview");
+    assert.ok(new Date(preview.as_of) > new Date("2026-10-15T04:00:00Z"));
+    assert.match(s.w.document.getElementById("verification").textContent, /postgame verification pending/);
+    assert.equal(s.w.document.getElementById("verify").disabled, false);
+  } finally { s.close(); }
+});
+
+test("failed collection stays visible without claiming a fresh score", async () => {
+  const s = await setup();
+  try {
+    let calls = 0;
+    s.w.fetch = async () => { calls++; return { ok: true, json: async () => ({ state: "failed", error: "morning_source_policy_not_ready" }) }; };
+    s.w.document.getElementById("verify").click();
+    await new Promise(setImmediate);
+    assert.equal(calls, 1);
+    assert.match(s.w.document.getElementById("verification").textContent, /does not enable sources/);
+    assert.match(s.w.document.getElementById("status").textContent, /did not finish/);
+  } finally { s.close(); }
+});
