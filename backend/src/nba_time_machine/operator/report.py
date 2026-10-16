@@ -142,6 +142,8 @@ async def build_report(session, *, day=None, season=None, source=None, status=No
         .order_by(GameObservationRecord.observed_at.desc()).limit(1001))
     if season:
         query = query.where(SeasonRecord.label == season)
+    if source:
+        query = query.where(GameObservationRecord.source_id == source)
     observations = (await session.execute(query)).all()
     if len(observations) > 1000:
         raise ValueError("operational_query_limit_exceeded")
@@ -154,12 +156,12 @@ async def build_report(session, *, day=None, season=None, source=None, status=No
     facts = list((await session.scalars(select(TemporalFactRecord).where(
         TemporalFactRecord.game_id.in_(ids),
         TemporalFactRecord.fact_type == "provider_game_evidence",
+        *( [TemporalFactRecord.source_id == source] if source else [] ),
     ).order_by(TemporalFactRecord.observed_at.desc()).limit(2501))).all()) if ids else []
     if len(facts) > 2500:
         raise ValueError("operational_query_limit_exceeded")
     by_game = {}
     for fact in facts:
-        key = (fact.game_id, fact.source_id)
         if not any(f.source_id == fact.source_id for f in by_game.get(fact.game_id, [])):
             by_game.setdefault(fact.game_id, []).append(fact)
 
