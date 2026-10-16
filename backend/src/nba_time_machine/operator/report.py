@@ -23,6 +23,18 @@ def code(value):
     return value if isinstance(value, str) and SAFE_CODE.fullmatch(value) else ("redacted" if value else None)
 
 
+def outcome_code(outcome):
+    """Prefer dedicated diagnostic fields; accept only fixed-format metadata codes."""
+    direct = code(outcome.error_code)
+    if direct:
+        return direct
+    metadata = outcome.outcome_metadata if isinstance(outcome.outcome_metadata, dict) else {}
+    candidates = [metadata.get("code")]
+    if isinstance(metadata.get("errors"), list):
+        candidates.extend(metadata["errors"][:5])
+    return next((clean for value in candidates if (clean := code(value)) not in (None, "redacted")), None)
+
+
 def stamp(value):
     return value.isoformat() if value is not None else None
 
@@ -110,7 +122,7 @@ async def build_report(session, *, day=None, season=None, source=None, status=No
         "last_success_at": stamp(good.get(s.id)),
         "last_outcome": last[s.id].status if s.id in last else None,
         "freshness": freshness(s, last.get(s.id), now),
-        "last_error_code": code(last[s.id].error_code) if s.id in last else None,
+        "last_error_code": outcome_code(last[s.id]) if s.id in last else None,
     } for s in sources if source is None or s.id == source]
     filtered_outcomes = [o for o in outcomes if (not source or o.source_id == source)
                          and (not status or o.status == status)]
@@ -118,13 +130,13 @@ async def build_report(session, *, day=None, season=None, source=None, status=No
         "run_id": str(o.collection_run_id), "source_id": o.source_id,
         "status": o.status, "items_seen": o.items_seen,
         "captures_written": o.captures_written,
-        "finished_at": stamp(o.finished_at), "error_code": code(o.error_code),
+        "finished_at": stamp(o.finished_at), "error_code": outcome_code(o),
     } for o in filtered_outcomes[:80]]
     matched_ids = {o.collection_run_id for o in filtered_outcomes}
     recent_runs = [{
         "id": str(r.id), "started_at": stamp(r.started_at),
         "finished_at": stamp(r.finished_at), "collector": r.collector_version,
-    } for r in runs if not status or r.id in matched_ids][:50]
+    } for r in runs if (not source and not status) or r.id in matched_ids][:50]
 
     # Find the NBA day by the observation's recorded scheduled tip. A missing
     # scheduled tip cannot be assigned a date without inventing one.
@@ -184,4 +196,5 @@ async def build_report(session, *, day=None, season=None, source=None, status=No
             "notes": ["Read-only operator view. Source configuration is not proof of collection.",
                       "A recorded final status is a provider claim, not a trusted final timestamp.",
                       "Team box is unsupported in this normalized family; absence of games is not a verified empty slate.",
-                      "Observation/capture times reflect collection, not event or publisher publication times."]}
+                      "Observation/capture times reflect collection, not event or publisher publication times.",
+                      "Last attempt is approximated by a finished source outcome. A request start without a persisted outcome is unknown."]}
