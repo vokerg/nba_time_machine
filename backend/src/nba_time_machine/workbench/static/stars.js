@@ -14,13 +14,22 @@ window.WorkbenchStars = (() => {
   function controls(config, changed) {
     const section = node("details"), grid = node("div"); grid.className = "enrichment-controls";
     section.append(node("summary", "Star Power settings · experimental"));
+    if (config.schema_version === 6) {
+      const label = node("label", "Ranking snapshot policy"), select = node("select");
+      select.id = "star-snapshot-policy";
+      for (const [value, text] of [["first_snapshot_backfill", "Use first snapshot for earlier games · retrospective"], ["strict_pre_tip", "Strict: snapshot must be known before tipoff"]]) {
+        const option = node("option", text); option.value = value; select.append(option);
+      }
+      select.value = config.star_snapshot_policy; select.addEventListener("change", changed);
+      label.append(select); section.append(label);
+    }
     for (const [key, value] of Object.entries(config.star)) {
       const label = node("label", names[key]), input = node("input");
       input.id = "star-" + key; input.type = "number"; input.min = "0";
       input.step = key.endsWith("_end") ? "1" : "any"; input.value = value;
       input.addEventListener("input", changed); label.append(input); grid.append(label);
     }
-    section.append(grid, node("p", "Rank values interpolate between band endpoints. These initial values are experimental, not calibrated. Source availability and identity checks cannot be loosened by formula settings."));
+    section.append(grid, node("p", "Rank values interpolate between band endpoints. These initial values are experimental, not calibrated. The snapshot policy is an explicit tuning assumption; source timestamps and identity checks remain intact."));
     return section;
   }
   function read(config) { return Object.fromEntries(Object.keys(config.star).map(k => [k, Number(document.getElementById("star-" + k).value)])); }
@@ -37,6 +46,7 @@ window.WorkbenchStars = (() => {
     target.append(node("p", `Star Power (0–1): ${fmt(s.metric)}. ${s.bonus === null ? "Bonus unavailable; no Star Power points included." : `${s.included_in_proposal ? "Bonus added" : "Inspectable bonus · not added"}: ${fmt(s.bonus)} game-score points.`}`));
     target.append(node("p", s.unranked_note));
     const snap = s.snapshot;
+    if (snap?.retrospective) target.append(node("p", `RETROSPECTIVE RANKING · First snapshot applied to this earlier game. Captured ${snap.available_at}; it was not known at tipoff.${snap.cross_season_assumption ? ` Cross-season assumption: ${snap.season} ranking used for ${snap.game_season}.` : ""}`));
     if (snap?.fact_id) target.append(node("p", `${snap.provider} · ${snap.ranking_version} · published ${snap.published_date || "unknown"} (date only) · known ${snap.available_at} · ${snap.coverage.matched}/100 identities matched.`));
     for (const team of s.teams) {
       target.append(node("h4", `${team.team} · ${team.coverage} participation coverage`));

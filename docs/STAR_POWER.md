@@ -6,6 +6,39 @@ Performance. This schema-5 workbench proposal preserves drama, player production
 extreme patterns, record-based importance and the overall ten-point cap. No
 production score, archive, consumer endpoint, spoiler gate or scheduler changes.
 
+## Default tuning policy: first snapshot for earlier games (schema 6)
+
+The owner explicitly changed the historical tuning policy: games before the first
+usable complete snapshot use that **first** snapshot as a retrospective assumption.
+The default `entertainment-stars-backfill-v6.json` sets
+`star_snapshot_policy: first_snapshot_backfill`. Schema 6 can also select
+`strict_pre_tip`; schemas 1–5 and their saved exports keep their original behavior.
+
+The reader first tries the normal latest eligible same-season pre-tip snapshot.
+Only when none exists may this policy select the earliest complete snapshot known
+by the report cutoff, provided the game tipped before that snapshot. Initial
+incomplete identity captures are not usable; the first fully resolved revision
+is selected. Later updates do not replace the first snapshot for older games.
+Expiry, invalid signatures/schema, ambiguous timestamps and revoked source policy
+still fail closed. The fallback can cross seasons, as explicitly requested for
+all earlier games, and that cross-season assumption is displayed separately.
+
+No timestamp, publication date, season, source fact or archived score is changed.
+Reports add `selection_mode`, `retrospective`, `first_snapshot_at`, `game_season`
+and `cross_season_assumption` metadata. The slate and selected-game details label
+retrospective use; configuration and review exports preserve the explicit policy.
+The pure extractor requires both the explicit policy and the reader's retrospective
+selection metadata before accepting a post-tip/cross-season ranking. This is a
+workbench-only approximation of reputation, not genuine historical availability.
+Consumer/production scoring and spoiler access remain unchanged.
+
+Real read-only verification on October 13, 2026: Cleveland at Orlando now has a
+Star Power bonus of 0.8334 and proposed score 2.0934; only preseason game importance
+is unavailable. November 10, 2025 WAS–DET uses the same first snapshot with an
+explicit cross-season flag: Star Power bonus 0.4046, overall score still capped at
+10. These are retrospective real-data tuning checks, not pre-tip historical
+validation. The old strict v5 configuration still withholds both historical bonuses.
+
 ## Current private hobby operation (October 16, 2026)
 
 The owner explicitly directed automated Ringer fetching for this private hobby
@@ -302,3 +335,14 @@ normalized-only retention and existing read-only previews were exercised with
 synthetic fixtures. Browser verification shows ready / 100 of 100, actual capture
 and next-check dates. [Sanitized real evidence](evidence/ringer-automatic-2026-10-16.json)
 contains counts/health/eligibility, not the publisher list.
+
+
+Retrospective-policy verification: the fresh full backend run passed 477 tests,
+with the existing intermittent macOS launcher descendant-cleanup PermissionError;
+its targeted rerun passed. All 15 DOM tests passed. New synthetic checks cover
+explicit opt-in, first versus latest selection, cross-season use, report cutoff,
+expired/corrupt first snapshots, strict legacy configurations, and no database
+writes during fallback reads. Browser verification selected Cleveland–Orlando and
+showed the 2.09 proposal, 0.8334 bonus and retrospective slate/detail labels.
+[Real comparison evidence](evidence/star-power-backfill-2026-10-16.json) includes
+v6 versus strict-v5 previews from the same cutoff and unchanged source timestamps.

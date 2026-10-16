@@ -189,3 +189,27 @@ def test_duplicate_resolved_identities_and_unreviewed_aliases_fail_closed():
     with pytest.raises(ValidationError): RankingImport.model_validate(raw)
     raw=r.model_dump();raw['publication_status']='publisher_date_only'
     with pytest.raises(ValidationError): RankingImport.model_validate(raw)
+
+
+def test_retrospective_snapshot_requires_explicit_policy_and_provenance():
+    e=evidence()
+    future={**snapshot(),'observed_at':(NOW+timedelta(days=1)).isoformat(),
+            'available_at':(NOW+timedelta(days=1)).isoformat()}
+    assert star_preview(e,future,StarSettings(),allow_first_snapshot=True)['bonus'] is None
+    future.update(selection_mode='first_snapshot_backfill',retrospective=True,
+                  first_snapshot_at=future['available_at'])
+    assert star_preview(e,future,StarSettings())['bonus'] is None
+    result=star_preview(e,future,StarSettings(),allow_first_snapshot=True)
+    assert result['bonus']>0 and 'Retrospective' in result['reason']
+    old=e.model_copy(update={'season':'2025-2026'})
+    assert star_preview(old,future,StarSettings(),allow_first_snapshot=True)['bonus']>0
+    assert star_preview(old,future,StarSettings())['bonus'] is None
+
+
+def test_v6_requires_explicit_policy_and_v5_stays_strict():
+    c=TuningConfig.model_validate_json((ROOT/'config/ranking/entertainment-stars-backfill-v6.json').read_text())
+    assert c.star_snapshot_policy=='first_snapshot_backfill'
+    old=TuningConfig.model_validate_json((ROOT/'config/ranking/entertainment-stars-v5.json').read_text())
+    assert old.star_snapshot_policy is None
+    with pytest.raises(ValidationError): TuningConfig.model_validate({**old.model_dump(),'star_snapshot_policy':'first_snapshot_backfill'})
+    with pytest.raises(ValidationError): TuningConfig.model_validate({**c.model_dump(),'star_snapshot_policy':None})

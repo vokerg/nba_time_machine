@@ -402,3 +402,26 @@ test("Ringer readiness shows real coverage, cutoff and next allowed check safely
     assert.equal(s.w.document.getElementById('ringer-status').querySelector('script'),null);
   } finally { s.close(); }
 });
+
+test("v6 retrospective policy round-trips and labels every assumed ranking", async () => {
+  const v6=JSON.parse(fs.readFileSync(path.join(root,'config/ranking/entertainment-stars-backfill-v6.json')));
+  const s=await setup(v6,r => {
+    r.games[0].star_power={status:'available',reason:'Synthetic retrospectively applied ranking',metric:.5,bonus:.75,included_in_proposal:true,
+      teams:[],settings:v6.star,unranked_note:'Absent does not mean low quality.',
+      snapshot:{retrospective:true,selection_mode:'first_snapshot_backfill',available_at:'2026-10-16T07:55:13Z',season:'2026-2027',game_season:'2025-2026',cross_season_assumption:true}};
+    return r;
+  });
+  try {
+    const policy=s.w.document.getElementById('star-snapshot-policy');
+    assert.equal(policy.value,'first_snapshot_backfill');
+    assert.match(s.w.document.getElementById('games').textContent,/Retrospective first-snapshot assumption/);
+    assert.match(s.w.document.getElementById('detail').textContent,/RETROSPECTIVE RANKING/);
+    assert.match(s.w.document.getElementById('detail').textContent,/Cross-season assumption: 2026-2027 ranking used for 2025-2026/);
+    policy.value='strict_pre_tip';policy.dispatchEvent(new s.w.Event('change',{bubbles:true}));
+    s.w.document.getElementById('preview').click();await new Promise(setImmediate);
+    const request=JSON.parse(s.requests.at(-1).options.body);
+    assert.equal(request.config.schema_version,6);
+    assert.equal(request.config.star_snapshot_policy,'strict_pre_tip');
+    assert.deepEqual(request.config.star,v6.star);
+  } finally {s.close();}
+});

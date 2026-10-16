@@ -38,7 +38,7 @@ function setBusy(value) {
   $("import").disabled = value || !report;
   for (const id of ["day", "asof", "version", "medium", "high"])
     $(id).disabled = value;
-  for (const input of $("controls").querySelectorAll("input"))
+  for (const input of $("controls").querySelectorAll("input, select"))
     input.disabled = value;
   if (dirty) {
     $("export-config").disabled = true;
@@ -106,11 +106,11 @@ function fillConfig(value) {
     $("controls").append(WorkbenchEnrichment.controls(value, markDirty));
   if (value.schema_version >= 3)
     $("controls").append(WorkbenchContext.controls(value, markDirty));
-  if (value.schema_version === 5)
+  if (value.schema_version >= 5)
     $("controls").append(WorkbenchStars.controls(value, markDirty));
   $("formula").textContent =
     value.schema_version >= 2
-      ? "Proposed score = drama + player bonus + extreme-pattern bonus" + (value.schema_version >= 3 ? " + game-importance bonus" : "") + (value.schema_version === 5 ? " + Star Power bonus" : "") + ", capped at 10. Includes clutch time, lead changes, comeback size and overtime."
+      ? "Proposed score = drama + player bonus + extreme-pattern bonus" + (value.schema_version >= 3 ? " + game-importance bonus" : "") + (value.schema_version >= 5 ? " + Star Power bonus" : "") + ", capped at 10. Includes clutch time, lead changes, comeback size and overtime."
       : "Proposed score uses drama only with this legacy formula: clutch time, lead changes, comeback size and overtime. Player and extreme-pattern bonuses are not included.";
 }
 function readConfig() {
@@ -131,7 +131,8 @@ function readConfig() {
     Object.assign(next, WorkbenchEnrichment.read(config));
   if (next.schema_version === 3) next.context = WorkbenchContext.read(config);
   if (next.schema_version >= 4) next.importance = WorkbenchContext.read(config);
-  if (next.schema_version === 5) next.star = WorkbenchStars.read(config);
+  if (next.schema_version >= 5) next.star = WorkbenchStars.read(config);
+  if (next.schema_version === 6) next.star_snapshot_policy = $("star-snapshot-policy").value;
   return next;
 }
 async function request(url, options) {
@@ -199,7 +200,7 @@ async function loadRingerStatus() {
     const coverage = r.snapshot_coverage;
     $('ringer-status').textContent = r.state === 'not_configured'
       ? 'Ringer Top 100: automatic collection is not configured.'
-      : `Ringer Top 100 · ${r.state} · ${coverage ? coverage.matched + '/100 ESPN identities matched' : 'No validated snapshot yet'} · Snapshot known ${r.snapshot_known_at || 'unknown'} · Last check ${r.last_attempt_at || 'never'} · Next allowed check ${r.next_check_at || 'when configured'} · ${r.latest_run?.code || ''}. Private hobby access; no publisher license claimed. New captures apply only to later tipoffs.`;
+      : `Ringer Top 100 · ${r.state} · ${coverage ? coverage.matched + '/100 ESPN identities matched' : 'No validated snapshot yet'} · Snapshot known ${r.snapshot_known_at || 'unknown'} · Last check ${r.last_attempt_at || 'never'} · Next allowed check ${r.next_check_at || 'when configured'} · ${r.latest_run?.code || ''}. Private hobby access; no publisher license claimed. Earlier games can use the first snapshot only under the explicit retrospective policy.`;
   } catch (_) {
     $('ringer-status').textContent = 'Ringer source status unavailable.';
   }
@@ -352,6 +353,8 @@ function renderGames() {
             : " partial"),
       ),
     );
+    if (game.star_power?.snapshot?.retrospective)
+      state.append(el("span", "Retrospective first-snapshot assumption", "badge partial"));
     row.append(state);
     $("games").append(row);
   }

@@ -22,7 +22,7 @@ from nba_time_machine.ingestion.ringer import automatic_checks, source_status
 
 STATIC = Path(__file__).parent / "static"
 DEFAULT_CONFIG = Path(__file__).resolve().parents[4] / "config/ranking/trajectory-baseline-v1.json"
-CANDIDATE_CONFIG = DEFAULT_CONFIG.with_name("entertainment-stars-v5.json")
+CANDIDATE_CONFIG = DEFAULT_CONFIG.with_name("entertainment-stars-backfill-v6.json")
 
 
 @asynccontextmanager
