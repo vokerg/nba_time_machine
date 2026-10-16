@@ -105,9 +105,11 @@ function fillConfig(value) {
     $("controls").append(WorkbenchEnrichment.controls(value, markDirty));
   if (value.schema_version >= 3)
     $("controls").append(WorkbenchContext.controls(value, markDirty));
+  if (value.schema_version === 5)
+    $("controls").append(WorkbenchStars.controls(value, markDirty));
   $("formula").textContent =
     value.schema_version >= 2
-      ? "Proposed score = drama + player bonus + extreme-pattern bonus" + (value.schema_version >= 3 ? " + game-importance bonus" : "") + ", capped at 10. Includes clutch time, lead changes, comeback size and overtime."
+      ? "Proposed score = drama + player bonus + extreme-pattern bonus" + (value.schema_version >= 3 ? " + game-importance bonus" : "") + (value.schema_version === 5 ? " + Star Power bonus" : "") + ", capped at 10. Includes clutch time, lead changes, comeback size and overtime."
       : "Proposed score uses drama only with this legacy formula: clutch time, lead changes, comeback size and overtime. Player and extreme-pattern bonuses are not included.";
 }
 function readConfig() {
@@ -127,7 +129,8 @@ function readConfig() {
   if (next.schema_version >= 2)
     Object.assign(next, WorkbenchEnrichment.read(config));
   if (next.schema_version === 3) next.context = WorkbenchContext.read(config);
-  if (next.schema_version === 4) next.importance = WorkbenchContext.read(config);
+  if (next.schema_version >= 4) next.importance = WorkbenchContext.read(config);
+  if (next.schema_version === 5) next.star = WorkbenchStars.read(config);
   return next;
 }
 async function request(url, options) {
@@ -369,6 +372,7 @@ function renderDetail() {
     );
   }
   WorkbenchContext.render(target, game);
+  if (game.star_power) WorkbenchStars.render(target, game);
   WorkbenchEnrichment.render(target, game);
   const review = reviews[game.game_id] || { rating: "", notes: "" };
   const fields = el("div", undefined, "review"),

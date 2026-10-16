@@ -18,6 +18,20 @@
   ],
   "sources": [
     {
+      "id": "ringer-nba-top100-manual",
+      "name": "The Ringer NBA Top 100 (permission-gated manual import)",
+      "kind": "structured",
+      "adapter": "manual_player_rankings",
+      "category": ["player_rankings"],
+      "locator": "https://www.theringer.com/nba-ranked/top-100",
+      "enabled": false,
+      "verification_status": "unverified",
+      "cadence_minutes": 10080,
+      "requires_auth": false,
+      "retention_policy": "metadata_only",
+      "adapter_settings": {"automated_access": false, "permission_reference": null}
+    },
+    {
       "id": "espn-nba-games",
       "name": "ESPN NBA morning game evidence",
       "kind": "structured",

@@ -10,6 +10,8 @@ from nba_time_machine.ranking.entertainment_features import EntertainmentMeasure
 from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSettings, enrichment_preview
 from nba_time_machine.workbench.context import ContextSettings, RecordSettings, context_preview, record_preview
 
+from nba_time_machine.ranking.star_power import StarSettings
+
 SIGNALS = {
     "clutch": ("Clutch time", "clutch_ms", "milliseconds"),
     "lead_changes": ("Lead changes", "lead_changes", "changes"),
@@ -29,7 +31,7 @@ MISSING = [
 
 class TuningConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False, strict=True)
-    schema_version: Literal[1, 2, 3, 4] = 1
+    schema_version: Literal[1, 2, 3, 4, 5] = 1
     version: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
     weights: dict[str, float]
     scales: dict[str, float]
@@ -40,14 +42,18 @@ class TuningConfig(BaseModel):
     context: ContextSettings | None = None
     importance: RecordSettings | None = None
 
+    star: StarSettings | None = None
+
     @model_validator(mode="after")
     def valid_config(self):
         if self.schema_version >= 2 and (self.player is None or self.pattern is None):
             raise ValueError("enriched formulas require explicit player and pattern settings")
         if (self.schema_version == 3) != (self.context is not None):
             raise ValueError("only v3 requires explicit context settings")
-        if (self.schema_version == 4) != (self.importance is not None):
-            raise ValueError("only v4 requires explicit game-record importance settings")
+        if (self.schema_version >= 4) != (self.importance is not None):
+            raise ValueError("v4 and v5 require explicit game-record importance settings")
+        if (self.schema_version == 5) != (self.star is not None):
+            raise ValueError("only v5 requires explicit star settings")
         if self.schema_version == 1 and (self.player is not None or self.pattern is not None):
             raise ValueError("v1 cannot carry enrichment settings")
         if set(self.weights) != set(SIGNALS) or set(self.scales) != set(SIGNALS):
@@ -84,7 +90,7 @@ def preview(metrics: TrajectoryFeatures, config: TuningConfig) -> dict:
 
 
 def candidate_preview(metrics: TrajectoryFeatures, measurements: EntertainmentMeasurements,
-                      config: TuningConfig, context: dict | None = None) -> dict:
+                      config: TuningConfig, context: dict | None = None, star: dict | None = None) -> dict:
     base = preview(metrics, config)
     if config.schema_version == 1:
         return base
@@ -95,10 +101,11 @@ def candidate_preview(metrics: TrajectoryFeatures, measurements: EntertainmentMe
     player = details["player_bonus"]["points"] if details["player_bonus"] is not None else None
     pattern = details["pattern_bonus"]["points"] if details["pattern_bonus"] is not None else None
     importance = context_preview(context, config.context) if config.schema_version == 3 and context is not None else None
-    if config.schema_version == 4 and context is not None:
+    if config.schema_version >= 4 and context is not None:
         importance = record_preview(context, config.importance)
     context_bonus = importance["bonus"] if importance is not None else None
-    uncapped = base["score"] + sum(v for v in (player, pattern, context_bonus) if v is not None)
+    star_bonus = star["bonus"] if config.schema_version == 5 and star is not None else None
+    uncapped = base["score"] + sum(v for v in (player, pattern, context_bonus, star_bonus) if v is not None)
     capped = min(10, uncapped)
     value = round(capped, 4)
     verdict = ("Worth watching" if value >= config.high_from else
@@ -106,9 +113,12 @@ def candidate_preview(metrics: TrajectoryFeatures, measurements: EntertainmentMe
     missing = ([] if player is not None else ["player performance"]) + ([] if pattern is not None else ["extreme patterns"])
     if config.schema_version >= 3 and context_bonus is None:
         missing.append("game importance")
+    if config.schema_version == 5 and star_bonus is None:
+        missing.append("star power")
     return {**base, "score": value, "verdict": verdict, "drama_score": base["score"],
         "player_bonus": player, "pattern_bonus": pattern, "before_cap": uncapped,
         "cap_adjustment": capped - uncapped, "rounding_adjustment": value - capped,
         **({"context_bonus": context_bonus, "context": importance} if config.schema_version >= 3 else {}),
+        **({"star_bonus": star_bonus} if config.schema_version == 5 else {}),
         "coverage": "partial" if missing else "complete", "missing_families": missing,
         "enrichment": details}

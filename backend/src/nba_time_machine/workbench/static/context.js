@@ -37,7 +37,7 @@ window.WorkbenchContext = (() => {
       label.append(input);
       grid.append(label);
     }
-    section.append(grid, node("p", config.schema_version === 4 ? "Importance uses the two records attached to this game. Standings ranks and playoff stakes are unavailable in this formula." : "Legacy v3: earlier-season reconstruction, shared ranks and a standings-race proxy."));
+    section.append(grid, node("p", config.schema_version >= 4 ? "Importance uses the two records attached to this game. Standings ranks and playoff stakes are unavailable in this formula." : "Legacy v3: earlier-season reconstruction, shared ranks and a standings-race proxy."));
     return section;
   }
   function read(config) {
