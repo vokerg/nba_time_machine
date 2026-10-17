@@ -6,6 +6,14 @@ import type { FullReveal, GameCard, GameList, MediaFeed, Reason, Verdict } from 
 import type { QueueState, WatchQueue } from "./watchQueue";
 
 type Disclosure = { verdict?: Verdict; reason?: Reason; full?: FullReveal };
+
+const FIRST_NBA_DAY = "2025-07-01";
+const LAST_NBA_DAY = "2027-06-30";
+
+function nextNbaDay(day: string, offset: number): string {
+  const time = Date.parse(day + "T12:00:00Z");
+  return Number.isFinite(time) ? new Date(time + offset * 86_400_000).toISOString().slice(0, 10) : day;
+}
 function formatTime(iso: string): string {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York" }).format(new Date(iso)) + " ET";
 }
@@ -210,76 +218,126 @@ export function App() {
   const queuedIds = new Set((queue?.items ?? []).map((item) => item.game_id));
   const recommended = useMemo(() => orderByPregameInterest((slate?.games ?? []).filter((game) => game.pregame_interest !== undefined)), [slate]);
   return <div className="app">
-    <header className="topbar"><a className="brand" href="#home"><span className="brand-symbol">↶</span><span>NBA <strong>TIME MACHINE</strong></span></a><div className="topbar-right"><span className="demo-pill">Backend data</span></div></header>
+    <header className="topbar">
+      <a className="brand" href="#home" aria-label="NBA Time Machine home"><span className="brand-mark" aria-hidden="true">NBA</span><span>Time Machine</span></a>
+      <span className="topbar-caption"><span className="topbar-dot" aria-hidden="true" />Scores stay hidden until you choose to reveal them.</span>
+    </header>
     <main className="shell" id="home">
-      <section className="masthead"><div><p className="eyebrow">Your own NBA universe</p><h1>Catch up without <em>catching spoilers.</em></h1><p className="lede">Move your NBA world forward, then open each game's story when you're ready.</p></div></section>
+      <section className="intro" aria-labelledby="intro-heading">
+        <div><p className="eyebrow">NBA / YOUR TIMELINE</p><h1 id="intro-heading">Find your next game.</h1></div>
+        <p>Browse the schedule, save what looks good, and reveal only what you want to know.</p>
+      </section>
+
       <section className="timeline-panel" aria-labelledby="timeline-heading">
-        <div className="timeline-copy"><p className="eyebrow">Current NBA-world time</p><h2 id="timeline-heading">{timeline ? formatTime(timeline.time_cursor) : newProfile ? "Choose your starting point" : "Resuming timeline…"}</h2><p>The backend saves your cursor and game acknowledgements. Your world only moves forward.</p></div>
-        {newProfile ? <div className="timeline-controls"><label>Starting cursor (UTC)<input type="datetime-local" value={initialCursor} disabled={busy} onChange={(e) => setInitialCursor(e.target.value)} /></label><button type="button" disabled={busy || !initialCursor} onClick={() => void initialize()}>Start timeline</button></div> : timeline && <div className="timeline-controls">
-          <button disabled={busy || loading} onClick={() => void advance(6)}>Advance 6 hours</button><button className="primary" disabled={busy || loading} onClick={() => void advance(24)}>Advance 1 day</button>
-          <button disabled={busy || loading || Date.parse(timeline.time_cursor) >= Date.now()} onClick={() => { if (window.confirm("Advance to now? This accepts all NBA information up to now and cannot be undone.")) void advance((Date.now() - Date.parse(timeline.time_cursor)) / 3_600_000); }}>Advance to now</button>
+        <div className="timeline-copy">
+          <p className="eyebrow">Your NBA world · Eastern time</p>
+          <h2 id="timeline-heading">{timeline ? formatTime(timeline.time_cursor) : newProfile ? "Set your starting time" : "Resuming your timeline…"}</h2>
+          <p>Moving forward unlocks newer information. You can't move this timeline backward.</p>
+        </div>
+        {newProfile ? <div className="timeline-controls"><label>Starting time (UTC)<input type="datetime-local" value={initialCursor} disabled={busy} onChange={(e) => setInitialCursor(e.target.value)} /></label><button className="primary" type="button" disabled={busy || !initialCursor} onClick={() => void initialize()}>Start timeline</button></div> : timeline && <div className="timeline-controls">
+          <button type="button" disabled={busy || loading} onClick={() => void advance(6)}>Advance 6 hours</button>
+          <button className="primary" type="button" disabled={busy || loading} onClick={() => void advance(24)}>Advance 1 day</button>
+          <button type="button" disabled={busy || loading || Date.parse(timeline.time_cursor) >= Date.now()} onClick={() => { if (window.confirm("Advance to now? This accepts all NBA information up to now and cannot be undone.")) void advance((Date.now() - Date.parse(timeline.time_cursor)) / 3_600_000); }}>Advance to now</button>
         </div>}
       </section>
-      {error && <div className="notice error" role="alert">{error} <button disabled={busy} onClick={() => setReload((n) => n + 1)}>Reload saved state</button></div>}
+
+      {error && <div className="notice error" role="alert">{error} <button type="button" disabled={busy} onClick={() => setReload((n) => n + 1)}>Reload saved state</button></div>}
+
       {timeline && <div className="dashboard-grid">
         <section className="games-section" aria-labelledby="games-heading">
-          <div className="section-header"><div><p className="eyebrow">2025/26 · 2026/27</p><h2 id="games-heading">Games, on your terms.</h2></div></div>
-          <div className="schedule-controls"><label>NBA date (Eastern)<input type="date" min="2025-07-01" max="2027-06-30" value={day} disabled={busy} onChange={(e) => selectDate(e.target.value)} /></label>
-            <label>Schedule view<select value={view} disabled={busy} onChange={(e) => selectView(e.target.value as ScheduleView)}><option value="replay">Season replay</option><option value="pregame">Historically observed pregame</option><option value="observed">Observed schedule / backfill</option></select></label></div>
-          <p className="section-intro">{view === "replay" ? "Replay the imported season on its original game dates, through your current NBA day. These are retrospective matchups and tip times, not archived pregame context. Coverage is partial." : view === "pregame" ? "Only genuine pre-tip observations known at your cursor appear here." : "Matchups and tip times appear only after we observed them. Backfill does not reconstruct the historical pregame world."} Results remain behind explicit actions.</p>
+          <div className="section-header">
+            <div><p className="eyebrow">THE SCHEDULE</p><h2 id="games-heading">Games</h2></div>
+            {!loading && slate && <span className="section-count" aria-live="polite">{slate.games.length} {slate.games.length === 1 ? "game" : "games"} shown</span>}
+          </div>
+          <div className="schedule-controls">
+            <div className="date-control">
+              <label htmlFor="nba-date">NBA date · Eastern</label>
+              <div className="date-stepper">
+                <button type="button" aria-label="Previous NBA date" title="Previous day" disabled={busy || day <= FIRST_NBA_DAY} onClick={() => selectDate(nextNbaDay(day, -1))}>←</button>
+                <input id="nba-date" type="date" min={FIRST_NBA_DAY} max={LAST_NBA_DAY} value={day} disabled={busy} onChange={(e) => selectDate(e.target.value)} />
+                <button type="button" aria-label="Next NBA date" title="Next day" disabled={busy || day >= LAST_NBA_DAY} onClick={() => selectDate(nextNbaDay(day, 1))}>→</button>
+              </div>
+            </div>
+            <label className="schedule-view-label">Schedule view
+              <select value={view} disabled={busy} onChange={(e) => selectView(e.target.value as ScheduleView)}>
+                <option value="replay">Season replay</option>
+                <option value="pregame">Historically observed pregame</option>
+                <option value="observed">Observed schedule / backfill</option>
+              </select>
+            </label>
+          </div>
+          <p className="section-intro">{view === "replay" ? "Season replay shows retrospective matchups on their original dates, not reconstructed pregame knowledge. Coverage is partial." : view === "pregame" ? "Only pre-tip observations known at this point in your timeline appear here." : "Shows matchups once collected. Backfilled schedules aren't a reconstruction of what people knew before tip."} Results stay hidden until you explicitly open them.</p>
           {loading && <div className="empty-state" role="status">Loading games…</div>}
-          {!loading && slate?.games.length === 0 && <div className="empty-state">No covered games available at this cursor and date. Season replay covers dates through your current NBA day. Empty dates may mean missing provider coverage or observations, rather than no NBA games.</div>}
+          {!loading && slate?.games.length === 0 && <div className="empty-state"><strong>No covered games for this date.</strong><p>{view === "replay" ? "Replay only shows games through your current NBA day." : view === "pregame" ? "This view needs pre-tip observations available at your cursor." : "This view needs a schedule observation available at your cursor."} It could also reflect missing provider coverage, not necessarily that no games were played.</p></div>}
           <div className="game-list">{slate?.games.map((game) => {
             const shown = disclosures[game.game_id] ?? {};
             return <article className="game-card" key={game.game_id}>
-              <div className="game-meta"><span>{game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip unavailable"}</span><span>{game.state === "sealed" ? "Sealed" : "Acknowledged"}</span></div>
-              <h3>{matchup(game)}</h3><p className="pregame-label">Pregame interest · {game.pregame_interest?.toFixed(1) ?? "Not available"}</p>
-              <p className="small-label">Watchability hints can reveal that something unusual happened. Why reveals more detail.</p>
-              <div className="game-actions"><button disabled={busy || loading || queueLoading || !queue} onClick={() => void editQueue(game.game_id, queuedIds.has(game.game_id) ? null : "queued")}>{queuedIds.has(game.game_id) ? "Remove from queue" : "Save to queue"}</button><button disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button><button className="danger-link" disabled={busy || loading} onClick={() => setConfirming({ gameId: game.game_id, from: "slate" })}>Reveal result ↗</button></div>
-              {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite"><strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>{shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}{!shown.reason && shown.verdict?.watchability_verdict && <button disabled={busy} onClick={() => void disclose(game, "why")}>Why? Show one more hint</button>}</div>}
-              {confirming?.gameId === game.game_id && confirming.from === "slate" && <div className="confirmation"><p>Reveal this game's score and acknowledge it? Your global timeline will stay where it is.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
-              {shown.full && <div className="result-box" aria-live="polite"><p className="small-label">Explicitly revealed</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
+              <div className="game-meta">
+                <span className="tip-time">{game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip time unavailable"}</span>
+                <span className={"game-status " + (game.state === "sealed" ? "is-sealed" : "is-acknowledged")}>{game.state === "sealed" ? "Sealed" : "Acknowledged"}</span>
+              </div>
+              <h3>{matchup(game)}</h3>
+              <p className="pregame-label">{game.pregame_interest !== undefined ? "Pregame interest · " + game.pregame_interest.toFixed(1) : "Pregame interest unavailable"}</p>
+              <div className="game-actions">
+                <button className="save-action" type="button" disabled={busy || loading || queueLoading || !queue} onClick={() => void editQueue(game.game_id, queuedIds.has(game.game_id) ? null : "queued")}>{queuedIds.has(game.game_id) ? "Remove from queue" : "Save to queue"}</button>
+                <button className="hint-action" type="button" aria-describedby={"hint-caution-" + game.game_id} disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button>
+                <button className="danger-link" type="button" disabled={busy || loading} onClick={() => setConfirming({ gameId: game.game_id, from: "slate" })}>Reveal result</button>
+              </div>
+              <p className="hint-caution" id={"hint-caution-" + game.game_id}>Watchability hints may spoil surprises.</p>
+              {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite">
+                <p className="box-kicker">Watchability hint · may imply what happened</p>
+                <strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>
+                {shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}
+                {!shown.reason && shown.verdict?.watchability_verdict && <button className="text-action" disabled={busy} onClick={() => void disclose(game, "why")}>Why? Show one more hint →</button>}
+              </div>}
+              {confirming?.gameId === game.game_id && confirming.from === "slate" && <div className="confirmation" role="group" aria-label="Confirm result reveal"><p><strong>Reveal this game's score?</strong> This acknowledges the game but leaves your timeline where it is.</p><div className="confirmation-actions"><button className="confirm-button" disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div></div>}
+              {shown.full && <div className="result-box" aria-live="polite"><p className="box-kicker">Revealed for this game only</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
             </article>;
           })}</div>
         </section>
-        <aside className="side-column"><section className="side-panel watch-panel"><p className="eyebrow">The viewing guide</p><h2>What should I watch?</h2><p>Pregame interest alone determines these suggestions.</p>{recommended[0] ? <strong>{matchup(recommended[0])}</strong> : <p>No pregame recommendation available.</p>}
-          <h3>Postgame viewing guide</h3><p>Selection and order use completed-game quality and can hint at surprises. Numeric quality scores stay hidden.</p>
-          {view !== "pregame" ? <p>Use Historically observed pregame to request watchability picks from a historically observed slate.</p> : <>
-            <label className="ranking-consent"><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} />I accept outcome-based hints for this request.</label>
-            <div className="game-actions"><button disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend()}>Rank by watchability</button></div>
-          </>}
-          {watchPicks !== null && <div aria-live="polite">{watchPicks.length ? <ol>{watchPicks.map((game) => <li key={game.game_id}>{matchup(game)}</li>)}</ol> : <p>No eligible picks for this request. Watchability data is unavailable; this is not a poor-quality verdict.</p>}</div>}
-        </section>
+        <aside className="side-column" aria-label="Viewing tools">
+          <section className="side-panel watch-panel" aria-labelledby="guide-heading">
+            <p className="eyebrow">THE VIEWING GUIDE</p><h2 id="guide-heading">What should I watch?</h2>
+            <p className="side-description">Before tip-off, these are the games with the most pregame interest.</p>
+            <div className="guide-pick">{recommended[0] ? <><p className="box-kicker">Top pregame pick</p><strong>{matchup(recommended[0])}</strong></> : <p>No pregame recommendation available for this date.</p>}</div>
+            <div className="guide-postgame"><h3>After-the-game picks</h3><p>Optional: rank by how good games turned out, without showing scores. The ordering itself can be a hint.</p>
+              {view !== "pregame" ? <p className="muted-note">Switch to Historically observed pregame to request these picks.</p> : <>
+                <label className="ranking-consent"><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} /><span>I accept outcome-based hints for this request.</span></label>
+                <button className="guide-button" disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend()}>Rank by watchability</button>
+              </>}
+              {watchPicks !== null && <div className="guide-results" aria-live="polite">{watchPicks.length ? <ol>{watchPicks.map((game) => <li key={game.game_id}>{matchup(game)}</li>)}</ol> : <p>No eligible picks for this request. Watchability data is unavailable; this is not a poor-quality verdict.</p>}</div>}
+            </div>
+          </section>
           <section className="side-panel queue-panel" aria-labelledby="queue-heading">
-            <p className="eyebrow">Personal, not a reveal</p><h2 id="queue-heading">Watch Queue</h2>
-            <p>Queued / done / dismissed tracks your plans only. It never acknowledges games or moves your timeline. Cards follow your selected schedule view; unavailable games stay hidden.</p>
+            <div className="side-heading"><div><p className="eyebrow">YOUR SHORTLIST</p><h2 id="queue-heading">Watch Queue</h2></div>{queue && <span className="queue-count">{queue.items.length}</span>}</div>
+            <p className="side-description">Save games for later. Your plans never reveal scores or change your timeline.</p>
             {queueError && <p role="alert">Watch Queue: {queueError} <button disabled={busy} onClick={() => setReload((n) => n + 1)}>Reload saved state</button></p>}
             {queueLoading && <p role="status">Loading Watch Queue…</p>}
-            {!queueLoading && queue?.items.length === 0 && <p>Your Watch Queue is empty.</p>}
+            {!queueLoading && queue?.items.length === 0 && <p className="subtle-empty">No games saved yet. Use “Save to queue” on a matchup.</p>}
             <ol className="queue-list">{queue?.items.map((item) => {
               const game = item.game;
               const shown = disclosures[item.game_id] ?? {};
               return <li key={item.game_id} className="queue-item">
                 <strong>{game ? matchup(game) : "Saved game"}</strong>
                 <p className="small-label">{game ? (game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip unavailable") + " · " + (game.state === "sealed" ? "Sealed" : "Acknowledged") : "Game details unavailable at this cursor."}</p>
-                <div className="game-actions">
+                <div className="queue-actions">
                   <label>My plan <select aria-label="My plan" value={item.queue_state} disabled={busy} onChange={(e) => void editQueue(item.game_id, e.target.value as QueueState)}><option value="queued">Queued</option><option value="done">Done</option><option value="dismissed">Dismissed</option></select></label>
-                  <button disabled={busy} onClick={() => void editQueue(item.game_id, null)}>Remove</button>
-                  {game && <button className="danger-link" disabled={busy} onClick={() => setConfirming({ gameId: item.game_id, from: "queue" })}>Reveal result ↗</button>}
+                  <button type="button" disabled={busy} onClick={() => void editQueue(item.game_id, null)}>Remove</button>
+                  {game && <button className="danger-link" type="button" disabled={busy} onClick={() => setConfirming({ gameId: item.game_id, from: "queue" })}>Reveal result</button>}
                 </div>
-                {game && confirming?.gameId === item.game_id && confirming.from === "queue" && <div className="confirmation"><p>Reveal this game's result separately from your queue plan? The global cursor stays unchanged.</p><button disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div>}
+                {game && confirming?.gameId === item.game_id && confirming.from === "queue" && <div className="confirmation" role="group" aria-label="Confirm queue result reveal"><p>Reveal this game's score separately from your queue plan? Your timeline won't move.</p><div className="confirmation-actions"><button className="confirm-button" disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div></div>}
                 {game && shown.full && <div className="result-box"><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong></div>}
               </li>;
             })}</ol>
           </section>
-          <section className="side-panel favorites-panel"><h2>Favorite teams</h2><p>Favorites never change the canonical list order.</p><div className="favorite-choices">{teams.map((team) => <label key={team}><input type="checkbox" checked={favorites.includes(team)} onChange={() => setFavorites((prior) => prior.includes(team) ? prior.filter((name) => name !== team) : [...prior, team])} /><span>{team}</span></label>)}</div></section></aside>
+          <section className="side-panel favorites-panel"><p className="eyebrow">PERSONAL VIEW</p><h2>Favorite teams</h2><p className="side-description">Mark teams on this slate. This doesn't change the watchability ranking.</p>{teams.length ? <div className="favorite-choices">{teams.map((team) => <label key={team}><input type="checkbox" checked={favorites.includes(team)} onChange={() => setFavorites((prior) => prior.includes(team) ? prior.filter((name) => name !== team) : [...prior, team])} /><span>{team}</span></label>)}</div> : <p className="subtle-empty">Teams appear when a slate loads.</p>}</section>
+        </aside>
         <section className="media-section" aria-labelledby="media-heading">
-          <div className="section-header"><div><p className="eyebrow">Only reviewed items known by your cursor</p><h2 id="media-heading">News &amp; buzz</h2></div>
-            {media?.items.length ? <button type="button" onClick={() => setMediaExpanded((value) => !value)}>{mediaExpanded ? "Show fewer" : "Explore News & Buzz"}</button> : null}</div>
-          <p className="section-intro">General media follows your saved timeline, even after an individual result reveal. Unreviewed coverage stays unavailable.</p>
+          <div className="section-header"><div><p className="eyebrow">REVIEWED COVERAGE</p><h2 id="media-heading">News &amp; buzz</h2></div>{media?.items.length ? <button type="button" className="secondary-button" onClick={() => setMediaExpanded((value) => !value)}>{mediaExpanded ? "Show fewer" : "Explore News & Buzz"}</button> : null}</div>
+          <p className="section-intro">News is limited to what was verified as known at your timeline cursor. Revealing one game doesn't unlock newer headlines.</p>
           {mediaError && <p role="alert">News &amp; Buzz: {mediaError} <button onClick={() => setReload((n) => n + 1)}>Reload saved state</button></p>}
           {mediaLoading && !media && <p role="status">Loading reviewed news…</p>}
-          {!mediaLoading && media?.items.length === 0 && <div className="empty-state">No verified, spoiler-safe news available at this cursor. Source collection and review coverage may be missing.</div>}
+          {!mediaLoading && media?.items.length === 0 && <div className="empty-state"><strong>No reviewed news available yet.</strong><p>Source collection or review coverage may be missing at this point in your timeline.</p></div>}
           <div className="media-list">{(mediaExpanded ? media?.items : media?.items.slice(0, 3))?.map((item) =>
             <article className="media-item" key={item.item_id}>
               <div><p className="small-label">{item.media_type ?? "Article"} · {item.source ?? "Reviewed source"}{item.known_at ? " · Known " + formatTime(item.known_at) : ""}</p>
@@ -287,11 +345,11 @@ export function App() {
                 {item.excerpt && <p>{item.excerpt}</p>}
               </div>
             </article>)}</div>
-          {mediaExpanded && media?.next_page && <button disabled={mediaLoading} onClick={() => void loadMoreMedia()}>{mediaLoading ? "Loading…" : "Load more reviewed news"}</button>}
+          {mediaExpanded && media?.next_page && <button className="secondary-button" disabled={mediaLoading} onClick={() => void loadMoreMedia()}>{mediaLoading ? "Loading…" : "Load more reviewed news"}</button>}
         </section>
       </div>}
-      {!timeline && loading && <p role="status">Connecting to backend…</p>}
-      <footer className="footer"><span>NBA TIME MACHINE</span><span>Partial season coverage · forward-only cursor</span></footer>
+      {!timeline && loading && <p className="startup-status" role="status">Connecting to backend…</p>}
+      <footer className="footer"><span>NBA Time Machine</span><span>Partial season coverage · Your timeline only moves forward</span></footer>
     </main>
   </div>;
 }
