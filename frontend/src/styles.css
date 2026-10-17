@@ -143,6 +143,7 @@ input[type="date"], input[type="datetime-local"], select {
   padding: 10px 12px; min-height: 39px; color: #344138;
   font-size: 12px; font-weight: 690;
 }
+.hint-caution { margin: 8px 0 0; font-size: 11px; color: #81746b; }
 .game-actions .save-action { background: #273932; color: #fff; border-color: #273932; }
 .game-actions .hint-action { background: #f5f4f0; border-color: #f5f4f0; }
 .game-actions .danger-link, .queue-actions .danger-link {
