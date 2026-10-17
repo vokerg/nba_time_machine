@@ -130,3 +130,20 @@ def test_http_enforces_saved_cursor_pagination_validation_and_profile():
             assert client.get(url, params={"time_cursor": CURSOR.isoformat()}).status_code == 409
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize("kind", ["web", "media", "podcast"])
+def test_registered_article_and_podcast_source_kinds_are_reviewable(kind):
+    # Registry uses 'media' for national publishers (not only 'web').
+    # The revision still needs an explicit timely review and source verification.
+    args = fixture(changed={"source": {"kind": kind}})
+    assert _trusted_capture(**args, cursor=CURSOR) is not None
+    args = fixture(changed={"source": {"kind": kind, "verification_status": "unverified"}})
+    assert _trusted_capture(**args, cursor=CURSOR) is None
+    args = fixture(changed={"source": {"kind": kind}, "review": {"rights_cleared": False}})
+    assert _trusted_capture(**args, cursor=CURSOR) is None
+
+
+@pytest.mark.parametrize("kind", ["structured", "stats_site", "x_account", "youtube", "document", "video"])
+def test_unapproved_or_unimplemented_source_kinds_remain_blocked(kind):
+    assert _trusted_capture(**fixture(changed={"source": {"kind": kind}}), cursor=CURSOR) is None
