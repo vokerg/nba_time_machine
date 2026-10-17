@@ -14,7 +14,7 @@ Switching a slate date does not move the cursor or make earlier knowledge exist.
 
 Game requests use `/profiles/{profile_id}/games?date=YYYY-MM-DD&view=...`.
 The selected date uses Eastern NBA calendar days; tip times display in Eastern.
-Date input supports the 2025/26 and 2026/27 seasons. Three explicit views exist (season replay is the UI default):
+Date input supports the 2025/26 and 2026/27 seasons; the previous/next-day buttons change only the selected NBA date, not the saved information-time cursor. The compact timeline bar remains the only place to advance the world. Three explicit views exist (season replay is the UI default):
 
 - `replay`: retrospective imported matchups on original game dates; see below.
 - `pregame` (strict API default): genuine pre-tip observations already known at the cursor.
