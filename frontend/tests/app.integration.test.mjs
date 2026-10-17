@@ -264,6 +264,9 @@ test('missing watchability shows no dead-end why action', async () => {
   });
   try {
     await until(() => document.querySelector('.game-card'));
+    const hint = button('Show watchability hint');
+    const warning = document.getElementById(hint.getAttribute('aria-describedby'));
+    assert.match(warning.textContent, /hints may spoil surprises/);
     await click('Show watchability hint');
     await until(() => document.querySelector('.disclosure-box'));
     assert.match(document.querySelector('.disclosure-box').textContent, /Watchability data is unavailable/);
