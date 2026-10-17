@@ -280,9 +280,10 @@ export function App() {
               <p className="pregame-label">{game.pregame_interest !== undefined ? "Pregame interest · " + game.pregame_interest.toFixed(1) : "Pregame interest unavailable"}</p>
               <div className="game-actions">
                 <button className="save-action" type="button" disabled={busy || loading || queueLoading || !queue} onClick={() => void editQueue(game.game_id, queuedIds.has(game.game_id) ? null : "queued")}>{queuedIds.has(game.game_id) ? "Remove from queue" : "Save to queue"}</button>
-                <button className="hint-action" type="button" disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button>
+                <button className="hint-action" type="button" aria-describedby={"hint-caution-" + game.game_id} disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Show watchability hint</button>
                 <button className="danger-link" type="button" disabled={busy || loading} onClick={() => setConfirming({ gameId: game.game_id, from: "slate" })}>Reveal result</button>
               </div>
+              <p className="hint-caution" id={"hint-caution-" + game.game_id}>Watchability hints may spoil surprises.</p>
               {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite">
                 <p className="box-kicker">Watchability hint · may imply what happened</p>
                 <strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>
