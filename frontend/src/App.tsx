@@ -268,7 +268,7 @@ export function App() {
           </div>
           <p className="section-intro">{view === "replay" ? "Season replay shows retrospective matchups on their original dates, not reconstructed pregame knowledge. Coverage is partial." : view === "pregame" ? "Only pre-tip observations known at this point in your timeline appear here." : "Shows matchups once collected. Backfilled schedules aren't a reconstruction of what people knew before tip."} Results stay hidden until you explicitly open them.</p>
           {loading && <div className="empty-state" role="status">Loading games…</div>}
-          {!loading && slate?.games.length === 0 && <div className="empty-state"><strong>No covered games for this date.</strong><p>Season replay only includes dates through your NBA day. This can also mean missing provider coverage, not necessarily that no games were played.</p></div>}
+          {!loading && slate?.games.length === 0 && <div className="empty-state"><strong>No covered games for this date.</strong><p>{view === "replay" ? "Replay only shows games through your current NBA day." : view === "pregame" ? "This view needs pre-tip observations available at your cursor." : "This view needs a schedule observation available at your cursor."} It could also reflect missing provider coverage, not necessarily that no games were played.</p></div>}
           <div className="game-list">{slate?.games.map((game) => {
             const shown = disclosures[game.game_id] ?? {};
             return <article className="game-card" key={game.game_id}>
