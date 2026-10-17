@@ -74,3 +74,20 @@ Frontend: `npm test && npm run build`. Backend: PostgreSQL migrations,
 `alembic check`, and `pytest` in CI. Source activation remains a separate
 operational decision; report an empty feed as coverage unavailable, never
 as proof no news existed.
+
+
+## Registered media source kinds
+
+The source registry's `kind=media` entries (such as national NBA publisher
+feeds) are accepted as **article** media alongside `kind=web`; `kind=podcast`
+uses the podcast presentation. The internal read-model does **not** treat the
+unregistered `kind=video` alias or `kind=youtube` as an authorized article
+source. Video metadata needs a separate validated adapter and typed clearance
+before its source kind may be exposed.
+
+Recognizing a source kind never verifies or enables a feed: the latest capture
+revision still needs a human review, complete linkages, rights clearance,
+actual observation times, verified source status and all existing global
+cursor/spoiler gates. The national publisher sources in the seed remain
+`enabled=false` and `unverified`. This change does not claim live RSS or
+Neon coverage, does not authorize publisher reuse and does not bypass review.
