@@ -114,6 +114,36 @@ test('changing schedule view rejects an old pending slate and shows explicit mis
 });
 
 
+test('schedule arrows browse adjacent Eastern dates without moving the saved NBA world', async () => {
+  const calls = [];
+  const root = await mount(async (url, options) => {
+    calls.push({ url, options });
+    if (url.includes('/watch-queue')) return response({ time_cursor: cursor, items: [] });
+    if (url.includes('/timeline/')) return response(timeline);
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector('.game-card'));
+    const date = document.querySelector('#nba-date');
+    assert.equal(date.value, '2026-10-13');
+    assert.equal(document.querySelector('label[for="nba-date"]').textContent, 'NBA date · Eastern');
+    const next = document.querySelector('button[aria-label="Next NBA date"]');
+    const previous = document.querySelector('button[aria-label="Previous NBA date"]');
+    assert.ok(next);
+    assert.ok(previous);
+    await act(async () => next.click());
+    await until(() => date.value === '2026-10-14' &&
+      calls.some((call) => call.url.includes('games?date=2026-10-14&view=replay')));
+    await act(async () => previous.click());
+    await until(() => date.value === '2026-10-13' &&
+      calls.filter((call) => call.url.includes('games?date=2026-10-13&view=replay')).length === 2);
+    assert.equal(calls.some((call) => call.options.method === 'PUT'), false);
+    assert.equal(calls.some((call) => call.url.includes('/reveal')), false);
+    assert.equal(calls.filter((call) => call.url.includes('/watch-queue')).length, 1);
+    assert.match(document.querySelector('#timeline-heading').textContent, /Oct 13, 2026/);
+  } finally { await unmount(root); }
+});
+
 test('historical profile defaults to season replay and advancement follows the NBA date', async () => {
   const calls = [];
   let saved = { ...timeline, time_cursor: '2025-11-03T12:00:00Z' };
