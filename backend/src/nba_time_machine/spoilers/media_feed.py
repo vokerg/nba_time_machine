@@ -81,7 +81,7 @@ def _trusted_capture(
         or item.source_id != source.id or capture.source_id != source.id
         or capture.source_item_id != item.id
         or source.verification_status != "verified" or source.requires_auth
-        or source.kind not in ("web", "podcast", "video")
+        or source.kind not in ("web", "media", "podcast")
         or source.retention_policy not in ("full", "normalized_full", "metadata_excerpt", "metadata_only")
         or capture.content_type not in ("application/rss+xml", "application/atom+xml", "text/html")
         or not isinstance(capture.title, str) or not capture.title.strip()
@@ -205,7 +205,7 @@ class MediaFeedService:
                 result = MediaFeedItemResponse(
                     **safe.model_dump(),
                     source=source.name, source_id=source.id,
-                    media_type="podcast" if source.kind == "podcast" else ("video" if source.kind == "video" else "article"),
+                    media_type="podcast" if source.kind == "podcast" else "article",
                     known_at=known, url=url,
                 )
                 selected.append((result, key))

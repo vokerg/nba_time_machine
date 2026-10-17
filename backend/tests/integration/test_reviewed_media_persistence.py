@@ -47,7 +47,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                 TeamRecord(id=home, league="NBA", name="Home"),
                 TeamRecord(id=away, league="NBA", name="Away"),
                 SourceRecord(
-                    id=source_id, name="Reviewed RSS publisher", kind="web",
+                    id=source_id, name="Reviewed RSS publisher", kind="media",
                     adapter="rss", category=[], locator="https://example.org/rss",
                     enabled=False, verification_status="verified", cadence_minutes=60,
                     requires_auth=False, retention_policy="metadata_excerpt",
@@ -162,6 +162,7 @@ async def test_live_api_cursor_revision_mixed_game_and_pagination_fail_closed():
                 pytest.fail("pagination did not terminate")
             assert {item["headline"] for item in entries} == {"a-result", "league-preview"}
             assert all(item["source"] == "Reviewed RSS publisher" and item["url"].startswith("https://") for item in entries)
+            assert all(item["media_type"] == "article" for item in entries)
             assert all("home_score" not in str(item) and "thumbnail_url" not in str(item) for item in entries)
             assert all(item["known_at"] == REVIEW.isoformat().replace("+00:00", "Z") for item in entries)
             if pages:
