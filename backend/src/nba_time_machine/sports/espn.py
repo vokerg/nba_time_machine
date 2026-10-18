@@ -207,6 +207,16 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
             return stamp(meta[key]) if meta.get(key) else None
         except (ValueError, TypeError):
             return None
+    # Provider-local identities resolve the scorer; prose is used only for the
+    # explicitly numbered free-throw attempt, never to infer points or identity.
+    import re
+    names = {p.external_id: p.name for p in players}
+    for i, (play, row) in enumerate(zip(plays, payload.get("plays", []))):
+        attempt = re.fullmatch(r".+ makes free throw ([1-3]) of [1-3]", row.get("text", ""))
+        plays[i] = play.model_copy(update={
+            "scorer_name": names.get(play.participant_ids[0]) if play.scoring and play.participant_ids else None,
+            "free_throw_attempt": int(attempt[1]) if attempt else None,
+        })
     return reconcile_score_states(assess(Evidence(provider="espn", external_id=ref.external_id, ref=checked_ref,
         observed_at=observed_at, season=f"{year - 1}-{year}", game_type=game_type,
         status="final" if comp["status"]["type"]["completed"] is True else "pending",

@@ -134,12 +134,16 @@ class Play(Model):
     scoring_team_id: str | None = None
     reported_home: int | None = Field(default=None, ge=0, strict=True)
     reported_away: int | None = Field(default=None, ge=0, strict=True)
+    scorer_name: str | None = None
+    free_throw_attempt: int | None = Field(default=None, ge=1, le=3, strict=True)
+    jump_ball_players: tuple[str, ...] = ()
 
 
 class PlayerBox(Model):
     external_id: str = Field(min_length=1)
     team_id: str = Field(min_length=1)
     name: str = Field(min_length=1)
+    profile_slug: str | None = None
     starter: bool | None = None
     did_not_play: bool | None = None
     minutes: float | None = Field(default=None, ge=0, le=200)
