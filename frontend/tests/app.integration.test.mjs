@@ -66,9 +66,9 @@ test('rendered cards fetch no passive outcomes; full reveal requires confirmatio
     await until(() => document.querySelector('.game-card'));
     assert.equal(calls.length, 2);
     assert.doesNotMatch(document.querySelector('.game-card').textContent, /100|Home won/);
-    await click('Reveal result');
+    await click('Show score');
     assert.equal(calls.length, 2);
-    await click('Yes, reveal score');
+    await click('Yes, show score');
     await until(() => document.querySelector('.result-box'));
     assert.match(document.querySelector('.result-box').textContent, /100/);
     const revealedCall = calls.find((c) => c.url.endsWith('/reveal'));
@@ -397,8 +397,8 @@ test('individual result reveal cannot advance or refetch general media', async (
   });
   try {
     await until(() => document.querySelector('.media-item') && document.querySelector('.game-card'));
-    await click('Reveal result');
-    await click('Yes, reveal score');
+    await click('Show score');
+    await click('Yes, show score');
     await until(() => document.querySelector('.result-box'));
     assert.equal(count, 1);
     assert.equal(document.querySelector('.media-item').textContent.includes('123'), false);
