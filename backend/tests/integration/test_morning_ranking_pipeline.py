@@ -233,3 +233,36 @@ async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory
                 source = await session.get(SourceRecord, SOURCE_IDS['espn'])
                 source.verification_status = 'verified'
         await engine.dispose()
+
+
+async def test_reconstructed_evidence_persists_original_claims_and_replays_idempotently():
+    from nba_time_machine.sports.morning_models import assess, reconcile_score_states
+    engine, factory = await setup()
+    try:
+        e = evidence().model_copy(update={'season': 'recovery-' + str(uuid4())})
+        plays, previous = [], (0, 0)
+        for p in e.plays:
+            team = e.home.external_id if p.home > previous[0] else e.away.external_id
+            plays.append(p.model_copy(update={'scoring_team_id': team if p.scoring else None}))
+            previous = p.home, p.away
+        plays[3] = plays[3].model_copy(update={'home': 0})
+        recovered = reconcile_score_states(assess(e.model_copy(update={'plays': tuple(plays)})))
+        assert recovered.trajectory_basis == 'scoring_actions_v1'
+        store = MorningStore(factory, manual=True)
+        first = await store.collect(FixtureCollector([recovered]), DAY)
+        replay = await store.collect(FixtureCollector([
+            recovered.model_copy(update={'observed_at': NOW + timedelta(minutes=10)})]), DAY)
+        assert first.captures_written == 1 and replay.captures_written == 0
+        async with factory() as session:
+            fact = await session.scalar(select(TemporalFactRecord).where(
+                TemporalFactRecord.fact_type == 'provider_game_evidence',
+                TemporalFactRecord.fact_metadata['external_event_id'].astext == e.external_id))
+            assert fact.value['plays'][3]['reported_home'] == 0
+            assert fact.value['plays'][3]['home'] == 1
+            assert fact.value['reported_pbp_errors']
+            assert fact.observed_at == fact.available_at == NOW
+            pipeline = MorningRankingPipeline(session)
+            assert await pipeline.derive(fact.game_id, as_of=NOW - timedelta(seconds=1)) is None
+            assert await pipeline.derive(fact.game_id, as_of=NOW + timedelta(hours=1)) is not None
+    finally:
+        await engine.dispose()

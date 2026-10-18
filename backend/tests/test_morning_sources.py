@@ -385,3 +385,25 @@ async def test_cbs_redirect_loop_is_not_followed_twice():
         with pytest.raises(FetchError, match='http_301'):
             await client.fetch('cbs', 'https://www.cbssports.com/nba/gametracker/playbyplay/NBA_20261013_GS%40LAL/', 'gametracker')
         assert client.requests == 2
+
+
+@pytest.mark.asyncio
+async def test_phoenix_fallback_uses_cbs_schedule_identity_not_espn_abbreviation():
+    data = summary()
+    home, away = data['header']['competitions'][0]['competitors']
+    home['team']['abbreviation'], away['team']['abbreviation'] = 'PHX', 'UTA'
+    data['plays'].pop()  # Force the independent fallback.
+    backup = cbs_html(abbr='NBA_20261013_UTA@PHO').replace('LAL', 'PHO').replace('GS', 'UTA')
+    calls = []
+    def handler(req):
+        calls.append(req)
+        if req.url.host == 'site.api.espn.com':
+            return httpx.Response(200, json=scoreboard(data) if 'scoreboard' in req.url.path else data)
+        assert 'UTA%40PHO/' in str(req.url)
+        return httpx.Response(200, text=backup)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        r = await MorningCollector(PublicNBAClient(http, interval=0)).collect(DAY)
+    assert r.games[0].selected('box').provider == 'espn'
+    assert r.games[0].evidence[-1].provider == 'cbs'
+    assert r.games[0].evidence[-1].ref.home == 'PHX'
+    assert len(calls) == 3 and not r.errors

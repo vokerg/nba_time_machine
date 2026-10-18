@@ -201,3 +201,27 @@ fallback agrees on final status, scheduled tip and both final scores. It never
 uses an older clean ESPN revision behind a newer partial one. ESPN's identity,
 policy, timestamps, fact validity and ambiguity checks still apply. Player boxes
 remain independently incomplete when minutes or participation are missing.
+
+Verified October 18, 2026 against the configured owner's database: explicitly
+recollecting October 16 through the canonical manual collector made 15 requests,
+appended 14 normalized captures and produced **11 scorable workbench games out
+of 12**, previously five. Five trajectories use labeled scoring-action
+reconstruction. Atlanta–Dallas retains a usable primary trajectory despite its
+missing player minutes. Charlotte–Memphis remains unscored: the action totals and
+published quarter/final totals disagree by one point, and the available CBS HTML
+cannot establish stable play identities. No score history is fabricated, no
+production ratings are archived, and no source is enabled by this operation.
+
+A separate bounded CBS schedule smoke also established that Phoenix's provider
+abbreviation is **PHO**, not ESPN's PHX. The mapping now uses the actual CBS
+schedule identity; the corrected Utah–Phoenix GameTracker path returned HTTP 200.
+The old PHX path redirected to a lowercase path that returned 404, so redirect
+handling alone was not sufficient. The structured `plays` field in the two
+inspected CBS scoreboards was empty; no hidden complete action feed was claimed.
+
+The live browser showed 11/12 scorable games, labeled reconstructed inputs and
+readable quarter/final-total errors for the remaining game. Synthetic tests cover
+reconstruction rejection, retained source states through persistence/replay,
+latest-primary selection under expiry/revocation/conflicts, request budgets and
+redirect restrictions. [Sanitized verification](evidence/game-evidence-recovery-2026-10-18.json)
+contains counts/health only, without raw provider bodies or numeric ratings.
