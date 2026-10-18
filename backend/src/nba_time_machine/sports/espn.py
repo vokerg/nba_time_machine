@@ -6,7 +6,7 @@ import re
 
 from nba_time_machine.sports.morning_models import (
     EASTERN, TEAM_NAMES, Evidence, GameRef, Play, PlayerBox, Team, abbreviation,
-    assess, clock_ms, stamp, SeasonRecord, MatchupRecords,
+    assess, clock_ms, stamp, SeasonRecord, MatchupRecords, reconcile_score_states,
 )
 
 
@@ -146,7 +146,8 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
                 period_end=str(kind["id"]) == "412", game_end=str(kind["id"]) == "402",
                 participant_ids=tuple(str(v["athlete"]["id"]) for v in row.get("participants", [])),
                 wallclock=stamp(row["wallclock"]) if row.get("wallclock") else None,
-                scoring=row.get("scoringPlay"), points=row.get("scoreValue")))
+                scoring=row.get("scoringPlay"), points=row.get("scoreValue"),
+                scoring_team_id=str(row["team"]["id"]) if row.get("team", {}).get("id") is not None else None))
     except (ValueError, KeyError, TypeError):
         pbp_errors.append("invalid_play_schema")
         plays = []
@@ -206,11 +207,11 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
             return stamp(meta[key]) if meta.get(key) else None
         except (ValueError, TypeError):
             return None
-    return assess(Evidence(provider="espn", external_id=ref.external_id, ref=checked_ref,
+    return reconcile_score_states(assess(Evidence(provider="espn", external_id=ref.external_id, ref=checked_ref,
         observed_at=observed_at, season=f"{year - 1}-{year}", game_type=game_type,
         status="final" if comp["status"]["type"]["completed"] is True else "pending",
         home=normalized["home"], away=normalized["away"], plays=tuple(plays), players=tuple(players),
         pbp_errors=tuple(pbp_errors), box_errors=tuple(box_errors), box_team_errors=team_errors,
         notes=("source_timestamps_are_not_publication_or_trusted_final",),
         records=records, record_errors=tuple(sorted(set(record_errors))),
-        source_end_at=optional_stamp("lastPlayWallClock"), source_updated_at=optional_stamp("lastUpdatedAt")))
+        source_end_at=optional_stamp("lastPlayWallClock"), source_updated_at=optional_stamp("lastUpdatedAt"))))

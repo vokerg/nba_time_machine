@@ -131,6 +131,9 @@ class Play(Model):
     wallclock: AwareDatetime | None = None
     scoring: bool | None = None
     points: int | None = Field(default=None, ge=0, le=4, strict=True)
+    scoring_team_id: str | None = None
+    reported_home: int | None = Field(default=None, ge=0, strict=True)
+    reported_away: int | None = Field(default=None, ge=0, strict=True)
 
 
 class PlayerBox(Model):
@@ -165,6 +168,8 @@ class Evidence(Model):
     source_updated_at: AwareDatetime | None = None
     records: MatchupRecords | None = None
     record_errors: tuple[str, ...] = ()
+    trajectory_basis: Literal["provider_scores", "scoring_actions_v1"] = "provider_scores"
+    reported_pbp_errors: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def matchup(self):
@@ -200,6 +205,12 @@ def assess(evidence: Evidence) -> Evidence:
     if evidence.status == "final" and h.score == a.score:
         pbp.add("tied_final")
     plays = evidence.plays
+    if evidence.trajectory_basis == "scoring_actions_v1":
+        rebuilt = scoring_action_states(evidence)
+        if (rebuilt is None or evidence.provider != "espn"
+                or any(p.reported_home is None or p.reported_away is None for p in plays)
+                or rebuilt != tuple((p.home, p.away) for p in plays)):
+            pbp.add("invalid_scoring_action_reconstruction")
     ids = [p.external_id for p in plays]
     if not plays:
         pbp.add("missing_plays")
@@ -268,3 +279,43 @@ def assess(evidence: Evidence) -> Evidence:
         pbp.add("unresolved_participant")
     notes = evidence.notes + (("participant_box_match_unverified",) if box else ())
     return evidence.model_copy(update={"pbp_errors": tuple(sorted(pbp)), "box_errors": tuple(sorted(box)), "notes": notes})
+
+
+def scoring_action_states(evidence: Evidence) -> tuple[tuple[int, int], ...] | None:
+    """Accumulate explicit scoring-team/point claims in unchanged source order."""
+    home = away = 0
+    states = []
+    for play in evidence.plays:
+        if play.scoring is True and play.points in (1, 2, 3):
+            if play.scoring_team_id == evidence.home.external_id:
+                home += play.points
+            elif play.scoring_team_id == evidence.away.external_id:
+                away += play.points
+            else:
+                return None
+        elif play.scoring is not False or play.points != 0:
+            return None
+        states.append((home, away))
+    return tuple(states)
+
+
+def reconcile_score_states(evidence: Evidence) -> Evidence:
+    """Use scoring actions only if the entire reconstructed trace validates.
+
+    Original running scores remain attached to every action. No actions, points,
+    clocks, identities, period totals or terminal totals are changed or inferred.
+    """
+    recoverable = {"score_regression", "invalid_score_transition", "scoring_event_mismatch",
+                   "period_end_mismatch", "terminal_mismatch"}
+    if (evidence.provider != "espn" or evidence.trajectory_basis != "provider_scores"
+            or not evidence.pbp_errors or not set(evidence.pbp_errors) <= recoverable):
+        return evidence
+    states = scoring_action_states(evidence)
+    if states is None:
+        return evidence
+    plays = tuple(p.model_copy(update={"home": home, "away": away,
+        "reported_home": p.home, "reported_away": p.away})
+        for p, (home, away) in zip(evidence.plays, states, strict=True))
+    candidate = assess(evidence.model_copy(update={"plays": plays, "pbp_errors": (),
+        "trajectory_basis": "scoring_actions_v1", "reported_pbp_errors": evidence.pbp_errors}))
+    return candidate if candidate.pbp_usable else evidence

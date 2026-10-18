@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from sqlalchemy import select, text
 
 from nba_time_machine.db import (
-    SourceRecord, SportsExternalIdentityRecord,
+    GameObservationRecord, SourceRecord, SportsExternalIdentityRecord,
     TemporalFactRecord,
 )
 from nba_time_machine.ranking.evidence import SqlAlchemyRankingEvidenceRepository
@@ -37,6 +37,31 @@ class MorningRankingPipeline:
         observation = await SqlAlchemyRankingEvidenceRepository(self.session).game_observation_as_of(game_id, as_of)
         if observation is None or observation.status != "final":
             return None
+        result = await self._derive_observation(observation, as_of=as_of)
+        if result is not None or observation.source_id != SOURCE_IDS["cbs"]:
+            return result
+        # CBS may have been fetched solely because ESPN's independent box
+        # family was incomplete. Try only ESPN's latest revision, never an older
+        # clean revision within that provider, and require current state agreement.
+        o = GameObservationRecord
+        primary = (await self.session.scalars(select(o).where(
+            o.game_id == game_id, o.source_id == SOURCE_IDS["espn"],
+            o.observed_at <= as_of, o.available_at <= as_of,
+        ).order_by(o.observed_at.desc(), o.available_at.desc()).limit(2))).all()
+        if not primary or (len(primary) == 2 and
+                (primary[0].observed_at, primary[0].available_at) ==
+                (primary[1].observed_at, primary[1].available_at)):
+            return None
+        candidate = primary[0]
+        if (candidate.status != observation.status
+                or candidate.scheduled_tip_at != observation.scheduled_tip_at
+                or candidate.home_score != observation.home_score
+                or candidate.away_score != observation.away_score):
+            return None
+        return await self._derive_observation(candidate, as_of=as_of)
+
+    async def _derive_observation(self, observation, *, as_of):
+        game_id = observation.game_id
         rows = (await self.session.scalars(select(TemporalFactRecord).where(
             TemporalFactRecord.subject_type == "game",
             TemporalFactRecord.game_id == game_id,
