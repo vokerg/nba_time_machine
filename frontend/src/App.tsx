@@ -242,12 +242,12 @@ export function App() {
                   <option value="observed">Latest collected schedule</option>
                 </select>
               </label>
-              <p>Imported past games may reflect later corrections. These options are temporary while Browse and Time Machine modes are being built.</p>
+              <p>Imported past games may reflect later corrections. This does not change your saved information cutoff.</p>
             </details>
           </div>
           <p className="section-intro">Schedule coverage may be incomplete. Results remain hidden unless you choose to see them.</p>
           {loading && <div className="empty-state" role="status">Loading games…</div>}
-          {!loading && slate?.games.length === 0 && <div className="empty-state"><strong>No covered games for this date.</strong><p>{view === "replay" ? "Replay only shows games through your current NBA day." : view === "pregame" ? "This view needs pre-tip observations available at your cursor." : "This view needs a schedule observation available at your cursor."} It could also reflect missing provider coverage, not necessarily that no games were played.</p></div>}
+          {!loading && slate?.games.length === 0 && <div className="empty-state"><strong>No covered games for this date.</strong><p>{view === "replay" ? "Only dates up to your information cutoff are available here." : view === "pregame" ? "No verified pre-tip records were collected for this date and cutoff." : "No schedule was collected by your information cutoff."} It could also reflect missing provider coverage, not necessarily that no games were played.</p></div>}
           <div className="game-list">{slate?.games.map((game) => {
             const shown = disclosures[game.game_id] ?? {};
             return <article className={"game-card" + (isFavoriteGame(game, favorites) ? " favorite-game" : "")} key={game.game_id}>
@@ -259,7 +259,7 @@ export function App() {
               <p className="pregame-label">{game.pregame_interest !== undefined ? "Pregame interest · " + game.pregame_interest.toFixed(1) : "Pregame interest unavailable"}</p>
               <div className="game-actions">
                 <button className="hint-action" type="button" aria-describedby={"hint-caution-" + game.game_id} disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Worth watching?</button>
-                <button className="danger-link" type="button" disabled={busy || loading} onClick={() => setConfirming({ gameId: game.game_id, from: "slate" })}>Reveal result</button>
+                <button className="danger-link" type="button" disabled={busy || loading} onClick={() => setConfirming({ gameId: game.game_id, from: "slate" })}>Show score</button>
               </div>
               <p className="hint-caution" id={"hint-caution-" + game.game_id}>This hint uses what happened during the game and may spoil a surprise.</p>
               {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite">
@@ -267,7 +267,7 @@ export function App() {
                 <strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>
                 {shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}
               </div>}
-              {confirming?.gameId === game.game_id && confirming.from === "slate" && <div className="confirmation" role="group" aria-label="Confirm result reveal"><p><strong>Reveal this game's score?</strong> This acknowledges the game but leaves your timeline where it is.</p><div className="confirmation-actions"><button className="confirm-button" disabled={busy} onClick={() => void disclose(game, "full")}>Yes, reveal score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div></div>}
+              {confirming?.gameId === game.game_id && confirming.from === "slate" && <div className="confirmation" role="group" aria-label="Confirm result reveal"><p><strong>Show the final score for this game?</strong> This doesn't change your information cutoff.</p><div className="confirmation-actions"><button className="confirm-button" disabled={busy} onClick={() => void disclose(game, "full")}>Yes, show score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div></div>}
               {shown.full && <div className="result-box" aria-live="polite"><p className="box-kicker">Revealed for this game only</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
             </article>;
           })}</div>
@@ -278,7 +278,7 @@ export function App() {
             <p className="side-description">Before tip-off, these are the games with the most pregame interest.</p>
             <div className="guide-pick">{visiblePregamePicks[0] ? <><p className="box-kicker">Top pregame pick</p><strong>{matchup(visiblePregamePicks[0])}</strong></> : recommended.length ? <p>All pregame picks feature your teams. Include your teams to see them here.</p> : <p>No pregame recommendation available for this date.</p>}</div>
             <div className="guide-postgame"><h3>After-the-game picks</h3><p>Optional: rank by how good games turned out, without showing scores. The ordering itself can be a hint.</p>
-              {view !== "pregame" ? <p className="muted-note">Postgame ranking is not yet available for imported schedules. You can still request a verdict for an individual game.</p> : <>
+              {view !== "pregame" ? <p className="muted-note">Postgame rankings are unavailable for this schedule. Individual game verdicts may still be available.</p> : <>
                 <label className="ranking-consent"><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} /><span>I accept outcome-based hints for this request.</span></label>
                 <button className="guide-button" disabled={busy || loading || !rankingConsent || !slate?.games.length} onClick={() => void recommend()}>Rank by watchability</button>
               </>}
