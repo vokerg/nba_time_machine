@@ -169,3 +169,67 @@ async def test_complete_revision_requires_new_snapshot_then_is_available():
             assert len(rows) == 2
     finally:
         await engine.dispose()
+
+
+@pytest.mark.parametrize('fault', [None, 'new_partial_primary', 'expired', 'revoked',
+                                   'ambiguous', 'conflicting_score', 'pending', 'conflicting_tip'])
+async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory(fault):
+    from morning_fixtures import cbs_html
+    from nba_time_machine.sports import cbs
+    from nba_time_machine.db import GameObservationRecord
+    engine, factory = await setup()
+    try:
+        game, e = await capture(factory)
+        # ESPN box may be incomplete while the trajectory remains usable.
+        primary = e.model_copy(update={'observed_at': NOW + timedelta(minutes=1),
+            'box_errors': ('missing_player_minutes_or_points',), 'notes': ('box_failure',)})
+        await MorningStore(factory, manual=True).collect(FixtureCollector([primary]), DAY)
+        if fault == 'new_partial_primary':
+            bad = primary.model_copy(update={'observed_at': NOW + timedelta(minutes=2),
+                'pbp_errors': ('score_regression',)})
+            await MorningStore(factory, manual=True).collect(FixtureCollector([bad]), DAY)
+        backup = cbs.gametracker(cbs_html(), e.ref, NOW + timedelta(minutes=3)).model_copy(
+            update={'season': e.season, 'external_id': str(uuid4().int)[:12]})
+        await MorningStore(factory, manual=True).collect(FixtureCollector([backup]), DAY)
+        async with factory.begin() as session:
+            fact = await session.scalar(select(TemporalFactRecord).where(
+                TemporalFactRecord.game_id == game, TemporalFactRecord.source_id == SOURCE_IDS['espn'],
+                TemporalFactRecord.observed_at == primary.observed_at))
+            if fault == 'expired':
+                fact.valid_to = NOW + timedelta(minutes=4)
+            elif fault == 'revoked':
+                source = await session.get(SourceRecord, SOURCE_IDS['espn'])
+                source.verification_status = 'unverified'
+            elif fault == 'ambiguous':
+                session.add(TemporalFactRecord(subject_type='game', game_id=game,
+                    source_id=fact.source_id, fact_type=fact.fact_type, value=fact.value,
+                    observed_at=fact.observed_at, available_at=fact.available_at, valid_from=fact.valid_from))
+            elif fault in ('conflicting_score', 'pending', 'conflicting_tip'):
+                obs = await session.scalar(select(GameObservationRecord).where(
+                    GameObservationRecord.game_id == game, GameObservationRecord.source_id == SOURCE_IDS['cbs']))
+                if fault == 'conflicting_score':
+                    obs.home_score += 1
+                elif fault == 'pending':
+                    obs.status = 'in_progress'
+                else:
+                    obs.scheduled_tip_at += timedelta(minutes=5)
+        async with factory() as session:
+            result = await MorningRankingPipeline(session).derive(game, as_of=NOW + timedelta(hours=1))
+            assert (result is not None) == (fault is None)
+            if result:
+                assert result[0].source_id == SOURCE_IDS['espn']
+                assert result[1].clutch_ms == 300000
+            from nba_time_machine.workbench.service import inspect_game
+            from nba_time_machine.workbench.calculations import TuningConfig
+            from nba_time_machine.workbench.app import DEFAULT_CONFIG
+            config = TuningConfig.model_validate_json(DEFAULT_CONFIG.read_text())
+            obs = await session.scalar(select(GameObservationRecord).where(
+                GameObservationRecord.game_id == game, GameObservationRecord.source_id == SOURCE_IDS['cbs']))
+            inspected = await inspect_game(session, obs, NOW + timedelta(hours=1), config, config)
+            assert {p['provider'] for p in inspected['provider_coverage']} == {'espn', 'cbs'}
+    finally:
+        if fault == 'revoked':
+            async with factory.begin() as session:
+                source = await session.get(SourceRecord, SOURCE_IDS['espn'])
+                source.verification_status = 'verified'
+        await engine.dispose()

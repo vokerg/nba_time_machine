@@ -46,8 +46,8 @@ counts; inspect the collector report for full discovery/coverage.
 | Winner's maximum deficit | Largest observed deficit of the eventual winner | Divide by 25, cap at 1 |
 | Overtime periods | Validated period count minus four | Divide by 3, cap at 1 |
 
-Each score holds until the next play in that period. No interpolation, repair or
-provider mixing occurs. Zero means measured absence; unavailable trajectory data
+Each score holds until the next play in that period. No interpolation or provider mixing occurs. Explicit scoring-action
+reconciliation retains both reported and derived score states (see below). Zero means measured absence; unavailable trajectory data
 produces no score. Box failure alone does not invalidate a complete trajectory,
 subject to the collector's existing participant reconciliation checks.
 
@@ -71,7 +71,8 @@ The producer verifies the canonical game mapping and latest NBA observation,
 requires a matching final state, scores/tip/timestamps, and reruns validation.
 Conflicting same-time observations/facts, expired facts, revoked source policies,
 missing tips, pending states and partial traces produce no score. It does not
-resurrect older clean evidence or mix providers to hide a problematic revision.
+resurrect older clean revisions within a provider or splice provider action
+streams. An agreeing latest primary may survive an incomplete backup (see below).
 
 Scoring eligibility begins when we observed a validated final state, using the
 later observation/availability time. Actual tip, publication and actual final
@@ -118,3 +119,19 @@ owner Neon writes or scheduling activation were performed.
 The [Star Power workbench proposal](STAR_POWER.md) reads separate permission-gated
 ranking snapshots, known before tipoff, and ESPN participation from these same box
 facts. It does not change this production pipeline or archived scores.
+
+### Independent backup coverage (#107)
+
+A partial CBS observation no longer masks the latest usable ESPN trajectory merely
+because CBS was fetched later for an independent box-score failure. The latest
+canonical observation must still be final, and ESPN's latest observation must
+agree with its tip and both final scores. Only ESPN's latest revision is eligible:
+expired/revoked, ambiguous, future or malformed evidence never revives an older
+clean revision. Conflicting current final states still withhold the rating.
+No provider action streams or player rows are spliced together.
+
+The ESPN parser's versioned scoring-action reconstruction is documented in
+[Morning collection](NBA_MORNING_COLLECTION.md#evidence-recovery-107). Feature
+arithmetic and scoring weights are unchanged; retained source states and the
+explicit trajectory basis make derived inputs auditable. The workbench displays
+both providers' family coverage and readable reasons for unresolved evidence.

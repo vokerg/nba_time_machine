@@ -53,7 +53,40 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
     result = {"game_id": str(game_id), "home": home.name, "away": away.name,
         "tip": observation.scheduled_tip_at.isoformat(), "status": observation.status,
         "baseline": None, "experiment": None, "archived": None,
-        "diagnostics": [], "evidence": None, "supporting_plays": [], "metrics": None}
+        "diagnostics": [], "evidence": None, "supporting_plays": [], "metrics": None,
+        "provider_coverage": []}
+    # Independent family health for each provider's latest revision; do not let
+    # the later partial backup hide the useful primary or its actual failure.
+    f = TemporalFactRecord
+    latest = select(f.id.label("id"), func.row_number().over(
+        partition_by=f.source_id, order_by=(f.observed_at.desc(), f.available_at.desc(), f.id.desc()),
+    ).label("position")).where(f.game_id == game_id, f.fact_type == "provider_game_evidence",
+        f.observed_at <= as_of, f.available_at <= as_of).subquery()
+    provider_facts = (await session.scalars(select(f).join(latest, latest.c.id == f.id)
+        .where(latest.c.position == 1).order_by(f.source_id))).all()
+    for provider_fact in provider_facts:
+        try:
+            item = assess(Evidence.model_validate({**provider_fact.value, "observed_at": provider_fact.observed_at}))
+            approved = True
+            try:
+                source_policy(await session.get(SourceRecord, provider_fact.source_id), item.provider, manual=True)
+            except ValueError:
+                approved = False
+            current = provider_fact.valid_from <= as_of and (provider_fact.valid_to is None or provider_fact.valid_to > as_of)
+            boundary_errors = ([] if current else ["evidence_not_valid_at_cutoff"]) + ([] if approved else ["source_policy_not_approved"])
+            result["provider_coverage"].append({"provider": item.provider,
+                "observed_at": provider_fact.observed_at.isoformat(),
+                "fact_id": str(provider_fact.id), "source_approved": approved,
+                "pbp_usable": item.pbp_usable and approved and current,
+                "box_usable": item.box_usable and approved and current,
+                "pbp_errors": list(item.pbp_errors) + boundary_errors,
+                "box_errors": list(item.box_errors) + boundary_errors,
+                "trajectory_basis": item.trajectory_basis,
+                "reported_pbp_errors": list(item.reported_pbp_errors)})
+        except (ValidationError, ValueError, TypeError):
+            result["provider_coverage"].append({"provider": provider_fact.source_id,
+                "pbp_usable": False, "box_usable": False, "pbp_errors": ["invalid_evidence_schema"],
+                "box_errors": ["invalid_evidence_schema"]})
     derived = await MorningRankingPipeline(session).derive(game_id, as_of=as_of)
     # Show why withheld, including retained evidence that failed ranking validation.
     facts = (await session.scalars(select(TemporalFactRecord).where(
@@ -75,6 +108,7 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         try:
             parsed = assess(Evidence.model_validate({**fact.value, "observed_at": fact.observed_at}))
             result["evidence"] = parsed.model_dump(mode="json")
+            result["provenance"]["trajectory_basis"] = parsed.trajectory_basis
             result["provenance"]["source_url"] = (
                 "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=" + quote(parsed.external_id, safe="")
                 if parsed.provider == "espn" else

@@ -147,8 +147,8 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
                 participant_ids=tuple(str(v["athlete"]["id"]) for v in row.get("participants", [])),
                 wallclock=stamp(row["wallclock"]) if row.get("wallclock") else None,
                 scoring=row.get("scoringPlay"), points=row.get("scoreValue"),
-                scoring_team_id=str(row["team"]["id"]) if row.get("team", {}).get("id") is not None else None))
-    except (ValueError, KeyError, TypeError):
+                scoring_team_id=str(row["team"]["id"]) if (row.get("team") or {}).get("id") is not None else None))
+    except (ValueError, KeyError, TypeError, AttributeError):
         pbp_errors.append("invalid_play_schema")
         plays = []
     team_errors = {}

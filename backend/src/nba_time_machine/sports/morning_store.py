@@ -121,7 +121,7 @@ class MorningStore:
                 rejected += 1
                 report.persistence_errors.append(provider + ":persist_failed")
         report.captures_written += written
-        failures = [a for a in attempts if a.status != "ok"]
+        failures = [a for a in attempts if a.status not in ("ok", "redirected")]
         source_errors = [err for err in report.errors if err.startswith(provider + "_")]
         partial = any(not e.pbp_usable or not e.box_usable for e in values)
         if changed_policy:
