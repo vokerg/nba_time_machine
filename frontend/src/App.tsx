@@ -192,6 +192,7 @@ export function App() {
   }
   const visiblePicks = watchPicks === null ? null : visibleWatchOrder(watchPicks, favorites, includeFavorites);
   const recommended = useMemo(() => orderByPregameInterest((slate?.games ?? []).filter((game) => game.pregame_interest !== undefined)), [slate]);
+  const visiblePregamePicks = visibleWatchOrder(recommended, favorites, includeFavorites);
   return <div className="app">
     <header className="topbar">
       <a className="brand" href="#home" aria-label="NBA Time Machine home"><span className="brand-mark" aria-hidden="true">NBA</span><span>Time Machine</span></a>
@@ -205,15 +206,15 @@ export function App() {
 
       <section className="timeline-panel" aria-labelledby="timeline-heading">
         <div className="timeline-copy">
-          <p className="eyebrow">Your NBA world · Eastern time</p>
+          <p className="eyebrow">Time Machine · information cutoff</p>
           <h2 id="timeline-heading">{timeline ? formatTime(timeline.time_cursor) : newProfile ? "Set your starting time" : "Resuming your timeline…"}</h2>
-          <p>Moving forward unlocks newer information. You can't move this timeline backward.</p>
+          <p>Only information known before this point is available in the current schedule view. Advancing can't be undone.</p>
         </div>
-        {newProfile ? <div className="timeline-controls"><label>Starting time (UTC)<input type="datetime-local" value={initialCursor} disabled={busy} onChange={(e) => setInitialCursor(e.target.value)} /></label><button className="primary" type="button" disabled={busy || !initialCursor} onClick={() => void initialize()}>Start timeline</button></div> : timeline && <div className="timeline-controls">
+        {newProfile ? <div className="timeline-controls"><label>Starting time (UTC)<input type="datetime-local" value={initialCursor} disabled={busy} onChange={(e) => setInitialCursor(e.target.value)} /></label><button className="primary" type="button" disabled={busy || !initialCursor} onClick={() => void initialize()}>Start timeline</button></div> : timeline && <details className="timeline-details"><summary>Adjust cutoff</summary><div className="timeline-controls">
           <button type="button" disabled={busy || loading} onClick={() => void advance(6)}>Advance 6 hours</button>
           <button className="primary" type="button" disabled={busy || loading} onClick={() => void advance(24)}>Advance 1 day</button>
           <button type="button" disabled={busy || loading || Date.parse(timeline.time_cursor) >= Date.now()} onClick={() => { if (window.confirm("Advance to now? This accepts all NBA information up to now and cannot be undone.")) void advance((Date.now() - Date.parse(timeline.time_cursor)) / 3_600_000); }}>Advance to now</button>
-        </div>}
+        </div></details>}
       </section>
 
       {error && <div className="notice error" role="alert">{error} <button type="button" disabled={busy} onClick={() => setReload((n) => n + 1)}>Reload saved state</button></div>}
@@ -275,7 +276,7 @@ export function App() {
           <section className="side-panel watch-panel" aria-labelledby="guide-heading">
             <p className="eyebrow">THE VIEWING GUIDE</p><h2 id="guide-heading">What should I watch?</h2>
             <p className="side-description">Before tip-off, these are the games with the most pregame interest.</p>
-            <div className="guide-pick">{recommended[0] ? <><p className="box-kicker">Top pregame pick</p><strong>{matchup(recommended[0])}</strong></> : <p>No pregame recommendation available for this date.</p>}</div>
+            <div className="guide-pick">{visiblePregamePicks[0] ? <><p className="box-kicker">Top pregame pick</p><strong>{matchup(visiblePregamePicks[0])}</strong></> : recommended.length ? <p>All pregame picks feature your teams. Include your teams to see them here.</p> : <p>No pregame recommendation available for this date.</p>}</div>
             <div className="guide-postgame"><h3>After-the-game picks</h3><p>Optional: rank by how good games turned out, without showing scores. The ordering itself can be a hint.</p>
               {view !== "pregame" ? <p className="muted-note">Postgame ranking is not yet available for imported schedules. You can still request a verdict for an individual game.</p> : <>
                 <label className="ranking-consent"><input type="checkbox" checked={rankingConsent} disabled={busy || loading} onChange={(e) => setRankingConsent(e.target.checked)} /><span>I accept outcome-based hints for this request.</span></label>
