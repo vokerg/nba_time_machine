@@ -162,6 +162,7 @@ test('historical profile defaults to season replay and advancement follows the N
     assert.equal(document.querySelector('select').value, 'replay');
     assert.match(document.body.textContent, /Schedule coverage may be incomplete/);
     assert.equal(document.querySelector('.result-box'), null);
+    await act(async () => document.querySelector('.timeline-details summary').click());
     await click('Advance 1 day');
     await until(() => calls.some((c) => c.url.endsWith('date=2025-11-04&view=replay')));
     assert.equal(document.querySelector('input[type="date"]').value, '2025-11-04');
@@ -184,8 +185,8 @@ async function acceptRanking() {
 test('mounted ranking requires fresh consent, has no time-budget controls and excludes favorites, keeps ordinary list unchanged', async () => {
   const other = '00000000-0000-0000-0000-000000000003';
   const cards = [
-    { ...card, home_team: 'Los Angeles Lakers', away_team: 'Boston Celtics' },
-    { ...card, game_id: other, home_team: 'Miami Heat', away_team: 'Orlando Magic' },
+    { ...card, home_team: 'Los Angeles Lakers', away_team: 'Boston Celtics', pregame_interest: 9 },
+    { ...card, game_id: other, home_team: 'Miami Heat', away_team: 'Orlando Magic', pregame_interest: 8 },
   ];
   const calls = [];
   const root = await mount(async (url, options) => {
@@ -203,11 +204,13 @@ test('mounted ranking requires fresh consent, has no time-budget controls and ex
     assert.equal(document.querySelector('.watch-panel input[type="number"]'), null);
     assert.equal(button('Choose within budget'), undefined);
     assert.doesNotMatch(document.querySelector('.watch-panel').textContent, /budget|minutes|allocation/i);
+    assert.match(document.querySelector('.guide-pick').textContent, /Boston Celtics at Los Angeles Lakers/);
     assert.equal(calls.filter((call) => call.url.includes('/recommendations/')).length, 0);
     const lakers = [...document.querySelectorAll('.favorite-choices label')].find((el) => el.textContent.includes('Los Angeles Lakers'));
     assert.ok(lakers);
     await act(async () => lakers.querySelector('input').click());
     assert.ok(document.querySelector('.favorite-game'));
+    assert.match(document.querySelector('.guide-pick').textContent, /Orlando Magic at Miami Heat/);
     assert.equal(JSON.parse(window.localStorage.getItem('nba-time-machine:favorites:v1:' + profile))[0], 'Los Angeles Lakers');
     await acceptRanking();
     await click('Rank by watchability');
@@ -221,6 +224,7 @@ test('mounted ranking requires fresh consent, has no time-budget controls and ex
     assert.deepEqual([...document.querySelectorAll('.watch-panel li')].map((el) => el.textContent), ['Orlando Magic at Miami Heat']);
     const include = document.querySelector('.include-favorites input');
     await act(async () => include.click());
+    assert.match(document.querySelector('.guide-pick').textContent, /Boston Celtics at Los Angeles Lakers/);
     assert.deepEqual([...document.querySelectorAll('.watch-panel li')].map((el) => el.textContent),
       ['Orlando Magic at Miami Heat', 'Boston Celtics at Los Angeles Lakers']);
     assert.deepEqual([...document.querySelectorAll('.game-card h3')].map((el) => el.textContent),
@@ -422,6 +426,7 @@ test('stale media load is aborted when the global cursor advances', async () => 
   });
   try {
     await until(() => release && document.querySelector('.game-card'));
+    await act(async () => document.querySelector('.timeline-details summary').click());
     await click('Advance 1 day');
     await until(() => document.querySelector('.media-item')?.textContent.includes('advanced cursor'));
     release(response({ time_cursor: cursor, items: [{ item_id: 'stale', headline: 'Stale old story' }] }));
