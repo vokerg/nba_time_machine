@@ -64,10 +64,10 @@ test('rendered cards fetch no passive outcomes; full reveal requires confirmatio
   });
   try {
     await until(() => document.querySelector('.game-card'));
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 2);
     assert.doesNotMatch(document.querySelector('.game-card').textContent, /100|Home won/);
     await click('Reveal result');
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 2);
     await click('Yes, reveal score');
     await until(() => document.querySelector('.result-box'));
     assert.match(document.querySelector('.result-box').textContent, /100/);
@@ -83,7 +83,7 @@ test('rendered cards fetch no passive outcomes; full reveal requires confirmatio
     ));
     try {
       await until(() => document.querySelector('.game-card'));
-      assert.match(document.querySelector('.game-card').textContent, /Acknowledged/);
+      assert.match(document.querySelector('.game-card').textContent, /Score revealed/);
       assert.equal(document.querySelector('.result-box'), null);
     } finally { await unmount(resumed); }
   } catch (e) { await unmount(root); throw e; }
@@ -126,7 +126,7 @@ test('schedule arrows browse adjacent Eastern dates without moving the saved NBA
     await until(() => document.querySelector('.game-card'));
     const date = document.querySelector('#nba-date');
     assert.equal(date.value, '2026-10-13');
-    assert.equal(document.querySelector('label[for="nba-date"]').textContent, 'NBA date · Eastern');
+    assert.equal(document.querySelector('label[for="nba-date"]').textContent, 'Game date · Eastern');
     const next = document.querySelector('button[aria-label="Next NBA date"]');
     const previous = document.querySelector('button[aria-label="Previous NBA date"]');
     assert.ok(next);
@@ -139,7 +139,7 @@ test('schedule arrows browse adjacent Eastern dates without moving the saved NBA
       calls.filter((call) => call.url.includes('games?date=2026-10-13&view=replay')).length === 2);
     assert.equal(calls.some((call) => call.options.method === 'PUT'), false);
     assert.equal(calls.some((call) => call.url.includes('/reveal')), false);
-    assert.equal(calls.filter((call) => call.url.includes('/watch-queue')).length, 1);
+    assert.equal(calls.filter((call) => call.url.includes('/watch-queue')).length, 0);
     assert.match(document.querySelector('#timeline-heading').textContent, /Oct 13, 2026/);
   } finally { await unmount(root); }
 });
@@ -160,7 +160,7 @@ test('historical profile defaults to season replay and advancement follows the N
     await until(() => document.querySelector('.game-card'));
     assert.ok(calls.some((c) => c.url.endsWith('date=2025-11-03&view=replay')));
     assert.equal(document.querySelector('select').value, 'replay');
-    assert.match(document.body.textContent, /retrospective matchups/);
+    assert.match(document.body.textContent, /Schedule coverage may be incomplete/);
     assert.equal(document.querySelector('.result-box'), null);
     await click('Advance 1 day');
     await until(() => calls.some((c) => c.url.endsWith('date=2025-11-04&view=replay')));
@@ -176,14 +176,17 @@ async function choosePregame() {
   await until(() => document.querySelector('.game-card') && !document.body.textContent.includes('Loading games'));
 }
 async function acceptRanking() {
-  const checkbox = document.querySelector('.watch-panel input[type="checkbox"]');
+  const checkbox = document.querySelector('.ranking-consent input[type="checkbox"]');
   assert.ok(checkbox);
   await act(async () => checkbox.click());
 }
 
 test('mounted ranking requires fresh consent, has no time-budget controls and excludes favorites, keeps ordinary list unchanged', async () => {
   const other = '00000000-0000-0000-0000-000000000003';
-  const cards = [card, { ...card, game_id: other, home_team: 'Other' }];
+  const cards = [
+    { ...card, home_team: 'Los Angeles Lakers', away_team: 'Boston Celtics' },
+    { ...card, game_id: other, home_team: 'Miami Heat', away_team: 'Orlando Magic' },
+  ];
   const calls = [];
   const root = await mount(async (url, options) => {
     calls.push({ url, options });
@@ -201,7 +204,11 @@ test('mounted ranking requires fresh consent, has no time-budget controls and ex
     assert.equal(button('Choose within budget'), undefined);
     assert.doesNotMatch(document.querySelector('.watch-panel').textContent, /budget|minutes|allocation/i);
     assert.equal(calls.filter((call) => call.url.includes('/recommendations/')).length, 0);
-    for (const checkbox of document.querySelectorAll('.favorite-choices input')) await act(async () => checkbox.click());
+    const lakers = [...document.querySelectorAll('.favorite-choices label')].find((el) => el.textContent.includes('Los Angeles Lakers'));
+    assert.ok(lakers);
+    await act(async () => lakers.querySelector('input').click());
+    assert.ok(document.querySelector('.favorite-game'));
+    assert.equal(JSON.parse(window.localStorage.getItem('nba-time-machine:favorites:v1:' + profile))[0], 'Los Angeles Lakers');
     await acceptRanking();
     await click('Rank by watchability');
     await until(() => document.querySelector('.watch-panel ol'));
@@ -211,10 +218,15 @@ test('mounted ranking requires fresh consent, has no time-budget controls and ex
       slate_date: '2026-10-13', candidate_game_ids: [game, other], consent_to_outcome_ranking: true,
       planned_minutes_per_game: 120,
     });
-    assert.deepEqual([...document.querySelectorAll('.watch-panel li')].map((el) => el.textContent), ['Away at Other', 'Away at Home']);
-    assert.deepEqual([...document.querySelectorAll('.game-card h3')].map((el) => el.textContent), ['Away at Home', 'Away at Other']);
+    assert.deepEqual([...document.querySelectorAll('.watch-panel li')].map((el) => el.textContent), ['Orlando Magic at Miami Heat']);
+    const include = document.querySelector('.include-favorites input');
+    await act(async () => include.click());
+    assert.deepEqual([...document.querySelectorAll('.watch-panel li')].map((el) => el.textContent),
+      ['Orlando Magic at Miami Heat', 'Boston Celtics at Los Angeles Lakers']);
+    assert.deepEqual([...document.querySelectorAll('.game-card h3')].map((el) => el.textContent),
+      ['Boston Celtics at Los Angeles Lakers', 'Orlando Magic at Miami Heat']);
     assert.equal(button('Rank by watchability').disabled, true);
-    assert.equal(document.querySelector('.watch-panel input[type="checkbox"]').checked, false);
+    assert.equal(document.querySelector('.ranking-consent input[type="checkbox"]').checked, false);
     assert.equal(calls.some((call) => /\/(reveal|watchability|why)$/.test(call.url) && !call.url.includes('/recommendations/')), false);
     await acceptRanking();
     await click('Rank by watchability');
@@ -264,100 +276,67 @@ test('missing watchability shows no dead-end why action', async () => {
   });
   try {
     await until(() => document.querySelector('.game-card'));
-    const hint = button('Show watchability hint');
+    const hint = button('Worth watching?');
     const warning = document.getElementById(hint.getAttribute('aria-describedby'));
-    assert.match(warning.textContent, /hints may spoil surprises/);
-    await click('Show watchability hint');
+    assert.match(warning.textContent, /may spoil a surprise/);
+    await click('Worth watching?');
     await until(() => document.querySelector('.disclosure-box'));
     assert.match(document.querySelector('.disclosure-box').textContent, /Watchability data is unavailable/);
     assert.equal(button('Why?'), undefined);
   } finally { await unmount(root); }
 });
 
-test('personal queue actions do not reveal results or change sealed slate state', async () => {
+test('favorite teams persist across remount, and the queue is absent from the consumer surface', async () => {
+  const requests = [];
+  const teamCard = { ...card, home_team: 'Los Angeles Lakers', away_team: 'Golden State Warriors' };
+  const backend = async (url) => {
+    requests.push(url);
+    if (url.includes('/timeline/')) return response(timeline);
+    return response({ time_cursor: cursor, games: [teamCard] });
+  };
+  const root = await mount(backend);
+  try {
+    await until(() => document.querySelector('.game-card'));
+    assert.equal(document.querySelectorAll('.favorite-choices input').length, 30);
+    assert.equal(document.querySelector('.queue-panel'), null);
+    assert.equal(button('Save to queue'), undefined);
+    assert.equal(requests.some((url) => url.includes('/watch-queue')), false);
+    const summary = document.querySelector('.team-picker summary');
+    await act(async () => summary.click());
+    const label = [...document.querySelectorAll('.favorite-choices label')].find((el) => el.textContent.includes('Los Angeles Lakers'));
+    assert.ok(label);
+    await act(async () => label.querySelector('input').click());
+    assert.match(document.querySelector('.game-card').textContent, /Your team/);
+    assert.ok(window.localStorage.getItem('nba-time-machine:favorites:v1:' + profile).includes('Los Angeles Lakers'));
+    await unmount(root);
+    const resumed = createRoot(document.getElementById('root'));
+    await act(async () => resumed.render(createElement(App)));
+    try {
+      await until(() => document.querySelector('.game-card'));
+      assert.ok([...document.querySelectorAll('.favorite-choices label')].find(
+        (el) => el.textContent.includes('Los Angeles Lakers')).querySelector('input').checked);
+      assert.match(document.querySelector('.game-card').textContent, /Your team/);
+    } finally { await unmount(resumed); }
+  } catch (e) { if (document.querySelector('.game-card')) { /* root may already be unmounted */ } throw e; }
+});
+
+test('coarse verdict never offers an explanation button without evidence', async () => {
   const calls = [];
-  const saved = new Map();
-  const root = await mount(async (url, options) => {
-    calls.push({ url, options });
-    if (url.includes('/timeline/')) return response(timeline);
-    if (url.includes('/watch-queue')) {
-      const id = url.match(/watch-queue\/([^?]+)/)?.[1];
-      if (options.method === 'PUT') { saved.set(id, JSON.parse(options.body).queue_state); return response(null, 204); }
-      if (options.method === 'DELETE') { saved.delete(id); return response(null, 204); }
-      return response({ time_cursor: cursor, items: [...saved].map(([game_id, queue_state]) =>
-        ({ game_id, queue_state, game: card })) });
-    }
-    return response(slate);
-  });
-  try {
-    await until(() => document.querySelector('.game-card') && !button('Save to queue').disabled);
-    assert.match(document.querySelector('.game-card').textContent, /Sealed/);
-    await click('Save to queue');
-    await until(() => document.querySelector('.queue-item'));
-    assert.equal(saved.get(game), 'queued');
-    assert.match(document.querySelector('.queue-item').textContent, /Sealed/);
-    const choice = document.querySelector('.queue-panel select');
-    await act(async () => { choice.value = 'done'; choice.dispatchEvent(new window.Event('change', { bubbles: true })); });
-    await until(() => saved.get(game) === 'done' && document.querySelector('.queue-panel select')?.value === 'done');
-    assert.equal(document.querySelector('.result-box'), null);
-    assert.match(document.querySelector('.game-card').textContent, /Sealed/);
-    assert.equal(calls.filter((call) => /reveal|watchability|\/why/.test(call.url)).length, 0);
-    await click('Remove from queue');
-    await until(() => document.querySelectorAll('.queue-item').length === 0);
-    assert.equal(saved.size, 0);
-    assert.equal(calls.filter((call) => call.url.includes('/timeline/') && call.options.method === 'PUT').length, 0);
-  } finally { await unmount(root); }
-});
-
-test('queue follows schedule view and discards pending replay data after strict-mode switch', async () => {
-  const saved = [{ game_id: game, queue_state: 'queued', game: null }];
-  let releaseReplay;
   const root = await mount(async (url) => {
+    calls.push(url);
     if (url.includes('/timeline/')) return response(timeline);
-    if (url.includes('/watch-queue')) {
-      if (url.includes('view=replay')) return new Promise((resolve) => { releaseReplay = resolve; });
-      return response({ time_cursor: cursor, items: saved });
-    }
+    if (url.endsWith('/watchability')) return response({ game_id: game, disclosure: 'watchability', watchability_verdict: 'Worth considering' });
     return response(slate);
   });
   try {
-    await until(() => releaseReplay && document.querySelector('.game-card'));
-    const select = document.querySelector('.schedule-controls select');
-    await act(async () => { select.value = 'pregame'; select.dispatchEvent(new window.Event('change', { bubbles: true })); });
-    await until(() => document.querySelector('.queue-item')?.textContent.includes('Game details unavailable'));
-    releaseReplay(response({ time_cursor: cursor, items: [
-      { game_id: game, queue_state: 'queued', game: { ...card, home_team: 'Retrospective team' } }
-    ] }));
-    await tick();
-    assert.match(document.querySelector('.queue-item').textContent, /Saved game/);
-    assert.doesNotMatch(document.querySelector('.queue-item').textContent, /Retrospective team/);
+    await until(() => document.querySelector('.game-card'));
+    await click('Worth watching?');
+    await until(() => document.querySelector('.disclosure-box'));
+    assert.match(document.querySelector('.disclosure-box').textContent, /Worth considering/);
+    assert.equal(button('Why?'), undefined);
+    assert.equal(calls.some((url) => url.endsWith('/why')), false);
   } finally { await unmount(root); }
 });
-
-test('queue reveal confirmation is shown only where requested even if game is on the slate', async () => {
-  const root = await mount(async (url) => {
-    if (url.includes('/timeline/')) return response(timeline);
-    if (url.includes('/watch-queue')) return response({
-      time_cursor: cursor, items: [{ game_id: game, queue_state: 'queued', game: card }],
-    });
-    return response(slate);
-  });
-  try {
-    await until(() => document.querySelector('.queue-item') && document.querySelector('.game-card'));
-    const queueButton = document.querySelector('.queue-panel .danger-link');
-    await act(async () => queueButton.click());
-    assert.equal(document.querySelectorAll('.confirmation').length, 1);
-    assert.ok(document.querySelector('.queue-panel .confirmation'));
-    assert.equal(document.querySelector('.game-card .confirmation'), null);
-    await click('Keep result hidden');
-    const slateButton = document.querySelector('.game-card .danger-link');
-    await act(async () => slateButton.click());
-    assert.equal(document.querySelectorAll('.confirmation').length, 1);
-    assert.ok(document.querySelector('.game-card .confirmation'));
-    assert.equal(document.querySelector('.queue-panel .confirmation'), null);
-  } finally { await unmount(root); }
-});
-
 
 test('reviewed news renders approved metadata, paginates and never requests results', async () => {
   const requests = [];
