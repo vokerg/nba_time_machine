@@ -1,11 +1,11 @@
 """Capture -> reproducible features -> archived score -> gated coarse verdict."""
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import httpx
 from fastapi import FastAPI
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from integration.test_morning_persistence import setup, evidence, FixtureCollector, DAY, NOW
 from nba_time_machine.db import (
@@ -23,10 +23,12 @@ from nba_time_machine.temporal import TimelineService, SqlAlchemyTimelineReposit
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
-async def capture(factory):
+async def capture(factory, run_ids=None):
     e = evidence().model_copy(update={"season": "ranking-" + str(uuid4())})
     report = await MorningStore(factory, manual=True).collect(FixtureCollector([e]), DAY)
     assert report.captures_written == 1
+    if run_ids is not None:
+        run_ids.append(UUID(report.run_id))
     async with factory() as session:
         game = await session.scalar(select(SportsExternalIdentityRecord.game_id).where(
             SportsExternalIdentityRecord.provider_key == "espn",
@@ -171,6 +173,22 @@ async def test_complete_revision_requires_new_snapshot_then_is_available():
         await engine.dispose()
 
 
+async def collect_tracked(factory, values, run_ids):
+    report = await MorningStore(factory, manual=True).collect(FixtureCollector(values), DAY)
+    run_ids.append(UUID(report.run_id))
+    return report
+
+
+async def cleanup_test_runs(factory, run_ids):
+    # These uniquely tracked synthetic runs belong only to this test. Leaving
+    # them behind can exhaust the operator's deliberately bounded health window.
+    from nba_time_machine.db import CollectionRunRecord, RawCaptureRecord, SourceOutcomeRecord
+    async with factory.begin() as session:
+        await session.execute(delete(RawCaptureRecord).where(RawCaptureRecord.collection_run_id.in_(run_ids)))
+        await session.execute(delete(SourceOutcomeRecord).where(SourceOutcomeRecord.collection_run_id.in_(run_ids)))
+        await session.execute(delete(CollectionRunRecord).where(CollectionRunRecord.id.in_(run_ids)))
+
+
 @pytest.mark.parametrize('fault', [None, 'new_partial_primary', 'expired', 'revoked',
                                    'ambiguous', 'conflicting_score', 'pending', 'conflicting_tip', 'conflicting_periods'])
 async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory(fault):
@@ -178,19 +196,20 @@ async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory
     from nba_time_machine.sports import cbs
     from nba_time_machine.db import GameObservationRecord
     engine, factory = await setup()
+    run_ids = []
     try:
-        game, e = await capture(factory)
+        game, e = await capture(factory, run_ids)
         # ESPN box may be incomplete while the trajectory remains usable.
         primary = e.model_copy(update={'observed_at': NOW + timedelta(minutes=1),
             'box_errors': ('missing_player_minutes_or_points',), 'notes': ('box_failure',)})
-        await MorningStore(factory, manual=True).collect(FixtureCollector([primary]), DAY)
+        await collect_tracked(factory, [primary], run_ids)
         if fault == 'new_partial_primary':
             bad = primary.model_copy(update={'observed_at': NOW + timedelta(minutes=2),
                 'pbp_errors': ('score_regression',)})
-            await MorningStore(factory, manual=True).collect(FixtureCollector([bad]), DAY)
+            await collect_tracked(factory, [bad], run_ids)
         backup = cbs.gametracker(cbs_html(), e.ref, NOW + timedelta(minutes=3)).model_copy(
             update={'season': e.season, 'external_id': str(uuid4().int)[:12]})
-        await MorningStore(factory, manual=True).collect(FixtureCollector([backup]), DAY)
+        await collect_tracked(factory, [backup], run_ids)
         async with factory.begin() as session:
             fact = await session.scalar(select(TemporalFactRecord).where(
                 TemporalFactRecord.game_id == game, TemporalFactRecord.source_id == SOURCE_IDS['espn'],
@@ -236,12 +255,14 @@ async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory
             async with factory.begin() as session:
                 source = await session.get(SourceRecord, SOURCE_IDS['espn'])
                 source.verification_status = 'verified'
+        await cleanup_test_runs(factory, run_ids)
         await engine.dispose()
 
 
 async def test_reconstructed_evidence_persists_original_claims_and_replays_idempotently():
     from nba_time_machine.sports.morning_models import assess, reconcile_score_states
     engine, factory = await setup()
+    run_ids = []
     try:
         e = evidence().model_copy(update={'season': 'recovery-' + str(uuid4())})
         plays, previous = [], (0, 0)
@@ -252,10 +273,9 @@ async def test_reconstructed_evidence_persists_original_claims_and_replays_idemp
         plays[3] = plays[3].model_copy(update={'home': 0})
         recovered = reconcile_score_states(assess(e.model_copy(update={'plays': tuple(plays)})))
         assert recovered.trajectory_basis == 'scoring_actions_v1'
-        store = MorningStore(factory, manual=True)
-        first = await store.collect(FixtureCollector([recovered]), DAY)
-        replay = await store.collect(FixtureCollector([
-            recovered.model_copy(update={'observed_at': NOW + timedelta(minutes=10)})]), DAY)
+        first = await collect_tracked(factory, [recovered], run_ids)
+        replay = await collect_tracked(factory, [
+            recovered.model_copy(update={'observed_at': NOW + timedelta(minutes=10)})], run_ids)
         assert first.captures_written == 1 and replay.captures_written == 0
         async with factory() as session:
             fact = await session.scalar(select(TemporalFactRecord).where(
@@ -269,4 +289,5 @@ async def test_reconstructed_evidence_persists_original_claims_and_replays_idemp
             assert await pipeline.derive(fact.game_id, as_of=NOW - timedelta(seconds=1)) is None
             assert await pipeline.derive(fact.game_id, as_of=NOW + timedelta(hours=1)) is not None
     finally:
+        await cleanup_test_runs(factory, run_ids)
         await engine.dispose()
