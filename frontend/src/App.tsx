@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BackendClient, nbaDate, profileIdentity } from "./api";
 import type { ScheduleView, Timeline } from "./api";
 import { orderByPregameInterest } from "./dashboard";
-import type { FullReveal, GameCard, GameList, MediaFeed, Reason, Verdict } from "./dashboard";
+import type { FullReveal, GameCard, GameList, MediaFeed, Verdict } from "./dashboard";
 import { NBA_TEAMS, isFavoriteGame, readFavorites, visibleWatchOrder, writeFavorites } from "./favorites";
 
-type Disclosure = { verdict?: Verdict; reason?: Reason; full?: FullReveal };
+type Disclosure = { verdict?: Verdict; full?: FullReveal };
 
 const FIRST_NBA_DAY = "2025-07-01";
 const LAST_NBA_DAY = "2027-06-30";
@@ -153,7 +153,7 @@ export function App() {
     setWatchPicks(null); setRankingConsent(false);
     generation.current += 1; setSlate(null); setDisclosures({}); setConfirming(null); setView(value);
   }
-  async function disclose(game: GameCard, layer: "watchability" | "why" | "full") {
+  async function disclose(game: GameCard, layer: "watchability" | "full") {
     if (!client) return;
     const ticket = generation.current;
     setBusy(true); setError(null);
@@ -161,7 +161,7 @@ export function App() {
       const result = await client.disclose(game.game_id, layer, true);
       if (ticket !== generation.current) return;
       setDisclosures((prior) => ({ ...prior, [game.game_id]: {
-        ...prior[game.game_id], ...(layer === "full" ? { full: result as FullReveal } : layer === "why" ? { reason: result as Reason } : { verdict: result as Verdict }),
+        ...prior[game.game_id], ...(layer === "full" ? { full: result as FullReveal } : { verdict: result as Verdict }),
       } }));
       if (layer === "full") {
         setSlate((prior) => prior && ({ ...prior, games: prior.games.map((card) => card.game_id === game.game_id ? { ...card, state: "acknowledged" } : card) }));
@@ -266,10 +266,9 @@ export function App() {
                 <button className="danger-link" type="button" disabled={busy || loading} onClick={() => setConfirming(game.game_id)}>Show score</button>
               </div>
               <p className="hint-caution" id={"hint-caution-" + game.game_id}>This hint uses what happened during the game and may spoil a surprise.</p>
-              {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite">
+              {shown.verdict && !shown.full && <div className="disclosure-box" aria-live="polite">
                 <p className="box-kicker">After-the-game verdict · spoiler hint</p>
-                <strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>
-                {shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}
+                <strong>{shown.verdict.watchability_verdict ?? "Watchability data is unavailable"}</strong>
               </div>}
               {confirming === game.game_id && <div className="confirmation" role="group" aria-label="Confirm result reveal"><p><strong>Show the final score for this game?</strong> This doesn't change your information cutoff.</p><div className="confirmation-actions"><button className="confirm-button" disabled={busy} onClick={() => void disclose(game, "full")}>Yes, show score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div></div>}
               {shown.full && <div className="result-box" aria-live="polite"><p className="box-kicker">Revealed for this game only</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
