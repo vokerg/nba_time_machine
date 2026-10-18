@@ -52,6 +52,20 @@ test('rendered loading and database error states contain no synthetic fallback',
   } finally { await unmount(root); }
 });
 
+test('new profiles suggest the current UTC time instead of the calibration season', async () => {
+  const root = await mount(async (url) => {
+    if (url.includes('/timeline/')) return response({}, 404);
+    throw new Error('Only timeline resume should be requested before setup');
+  });
+  try {
+    await until(() => document.querySelector('input[type="datetime-local"]'));
+    const selected = document.querySelector('input[type="datetime-local"]').value;
+    const delta = Math.abs(Date.parse(selected + ':00Z') - Date.now());
+    assert.ok(delta < 120_000, 'initial cutoff should be within two minutes of now');
+    assert.equal(document.querySelector('.game-card'), null);
+  } finally { await unmount(root); }
+});
+
 test('rendered cards fetch no passive outcomes; full reveal requires confirmation and reload preserves backend state', async () => {
   const calls = [];
   let acknowledged = false;
