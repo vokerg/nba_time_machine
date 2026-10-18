@@ -362,6 +362,8 @@ function renderGames() {
     }
     if (game.provenance?.trajectory_basis === "scoring_actions_v1")
       state.append(el("span", "Reconciled scoring actions", "badge partial"));
+    if (game.recovery)
+      state.append(el("span", "CBS-corroborated correction · preview", "badge partial"));
     row.append(state);
     $("games").append(row);
   }
@@ -431,6 +433,8 @@ function renderDetail() {
     target.append(el("div", game.diagnostics.join(" · "), "notice"));
   if (game.provenance?.trajectory_basis === "scoring_actions_v1")
     target.append(el("p", "Running scores reconstructed from explicit scoring actions and checked against every period and final total. Original provider scores remain in the evidence export.", "notice"));
+  if (game.recovery)
+    target.append(el("p", `${game.recovery.player}: ${game.recovery.interpretation} This correction applies to the local proposal only. Both input fact IDs, original scoring claims and the effective trajectory are included in the evidence export.`, "notice"));
   for (const provider of game.provider_coverage || []) {
     const describe = (usable, errors) => usable ? "Validated" : (errors || []).map(evidenceReason).join("; ") || "Not available";
     target.append(el("p", `${provider.provider.toUpperCase()} · Play-by-play: ${describe(provider.pbp_usable, provider.pbp_errors)} · Player box: ${describe(provider.box_usable, provider.box_errors)}${provider.source_approved === false ? " · Source policy not approved" : ""}`, "notice"));

@@ -457,3 +457,15 @@ test("collection gaps explain each provider and reconstructed scores are labeled
     assert.match(recovered.w.document.getElementById("detail").textContent, /Original provider scores remain in the evidence export/);
   } finally { recovered.close(); }
 });
+
+test("cross-provider correction is explicitly labeled as a local preview", async () => {
+  const s = await setup(baseline, (r) => {
+    r.games[0].recovery = { player: "Synthetic Player", interpretation: "Corroborated surplus free throw." };
+    return r;
+  });
+  try {
+    assert.match(s.w.document.getElementById("games").textContent, /CBS-corroborated correction · preview/);
+    assert.match(s.w.document.getElementById("detail").textContent, /local proposal only/);
+    assert.match(s.w.document.getElementById("detail").textContent, /Both input fact IDs/);
+  } finally { s.close(); }
+});

@@ -137,8 +137,15 @@ def gametracker(content: str, ref: GameRef, observed_at: datetime) -> Evidence:
                         raise ValueError("invalid_cbs_score")
                     away_score, home_score = map(int, parts)
                 end = values[3].strip().lower() == "end of period"
+                made = re.fullmatch(r"(.+) makes (.+)", values[3])
+                free_throw = re.fullmatch(r"(?:regular )?free throw ([1-3]) of [1-3]", made[2]) if made else None
+                jump = re.fullmatch(r"Jump ball\. (.+) vs\. (.+) \(.+ gains possession\)", values[3])
+                points = int(values[2][1:]) if made and re.fullmatch(r"\+[123]", values[2]) else 0
                 plays.append(Play(index=len(plays), period=pbp_period, remaining_ms=clock_ms(values[0]),
-                    home=home_score, away=away_score, kind="period_end" if end else "play", period_end=end))
+                    home=home_score, away=away_score, kind="period_end" if end else "play", period_end=end,
+                    scoring=bool(points), points=points, scorer_name=made[1] if points else None,
+                    free_throw_attempt=int(free_throw[1]) if free_throw else None,
+                    jump_ball_players=(jump[1], jump[2]) if jump else ()))
     except (ValueError, TypeError, KeyError):
         plays = []
         pbp_errors.append("invalid_cbs_play_schema")
@@ -172,6 +179,8 @@ def gametracker(content: str, ref: GameRef, observed_at: datetime) -> Evidence:
                         played = bool(stats and str(stats.get("PTS", "")).isdigit())
                         minute, precision = minutes(stats["MIN"]) if played else (None, "unknown")
                         entry = PlayerBox(external_id=player_id, team_id=team_id, name=links[0].text(),
+                            profile_slug=(re.search(r"/nba/players/\d+/([a-z0-9-]+)/", links[0].attrs["href"])[1]
+                                if re.search(r"/nba/players/\d+/([a-z0-9-]+)/", links[0].attrs["href"]) else None),
                             starter=header[0] == "Starters", did_not_play=False if played else (True if dnp else None),
                             minutes=minute, minutes_precision=precision,
                             statistics=parse_statistics(stats) if played else {})

@@ -1,0 +1,31 @@
+{
+  "issue": 109,
+  "date": "2026-10-18",
+  "requested_slate": "2026-10-16",
+  "scope": "one explicitly requested game; local proposal only",
+  "recovery_version": "cbs_corroborated_free_throw_v1",
+  "live_collection": {
+    "requests": 3,
+    "captures_written": 2,
+    "errors": [],
+    "original_provider_coverage_still_partial": true,
+    "collector_exit_code": 2
+  },
+  "live_workbench": {
+    "proposal_present": true,
+    "correction_explicitly_labeled": true,
+    "both_input_fact_ids_and_timestamps_exported": true,
+    "original_scoring_claim_retained": true,
+    "effective_trajectory_passes_all_existing_checks": true,
+    "remaining_gap": "game importance excludes this preseason game",
+    "archived_rating_count_before": 21,
+    "archived_rating_count_after": 21
+  },
+  "verification": {
+    "browser_checked": true,
+    "ui_tests_passed": 17,
+    "focused_recovery_tests_passed": 24,
+    "disposable_postgresql_input_guard_tests_passed": 14,
+    "full_backend_tests_passed": 561
+  }
+}

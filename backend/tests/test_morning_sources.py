@@ -407,3 +407,23 @@ async def test_phoenix_fallback_uses_cbs_schedule_identity_not_espn_abbreviation
     assert r.games[0].evidence[-1].provider == 'cbs'
     assert r.games[0].evidence[-1].ref.home == 'PHX'
     assert len(calls) == 3 and not r.errors
+
+
+def test_normalized_corroboration_metadata_preserves_explicit_action_claims():
+    data = summary()
+    row = data['plays'][1]
+    row.update(text='Synthetic Player 2001 makes free throw 2 of 2',
+               participants=[{'athlete': {'id': '2001'}}])
+    a = parsed(data)
+    assert a.plays[1].scorer_name == 'Synthetic Player 2001'
+    assert a.plays[1].free_throw_attempt == 2
+    content = cbs_html().replace('Synthetic action', 'Zach Example makes regular free throw 1 of 2', 1)
+    content = content.replace('<td></td><td>Zach Example', '<td>+1</td><td>Zach Example', 1)
+    content = content.replace('<td>End of period</td>', '<td>Jump ball. Zach Example vs. Other Player (Third Player gains possession)</td>', 1)
+    content = content.replace('/3001/synthetic-player/', '/3001/zach-example/')
+    b = cbs.gametracker(content, cbs.ref_from_abbr('NBA_20261013_GS@LAL'), NOW)
+    assert b.plays[0].scorer_name == 'Zach Example'
+    assert b.plays[0].free_throw_attempt == 1 and b.plays[0].points == 1
+    assert b.plays[1].jump_ball_players == ('Zach Example', 'Other Player')
+    assert b.players[0].profile_slug == 'zach-example'
+    assert all(p.external_id is None for p in b.plays)

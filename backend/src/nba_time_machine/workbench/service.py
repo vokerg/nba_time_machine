@@ -25,6 +25,8 @@ from nba_time_machine.workbench.context import ContextSettings, context_preview,
 from nba_time_machine.workbench.evidence import supporting_plays
 from nba_time_machine.ranking.player_ranking_store import read_snapshot
 from nba_time_machine.ranking.star_power import star_preview
+from nba_time_machine.ranking.morning_features import trajectory_features
+from nba_time_machine.workbench.recovery import preview_recovery, VERSION as RECOVERY_VERSION
 
 
 async def slate_observations(session, day: date, as_of: datetime):
@@ -142,6 +144,18 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             result["diagnostics"].append("invalid_evidence_schema")
     else:
         result["diagnostics"].append("no_stored_provider_game_evidence_at_this_as_of")
+    recovery = await preview_recovery(session, observation, as_of) if not derived else None
+    if recovery:
+        fact, original, parsed, proof = recovery
+        result["recovery"] = proof
+        result["evidence"] = original.model_dump(mode="json")
+        result["diagnostics"] = ["CBS-corroborated free-throw correction; local preview only"]
+        result["box_diagnostics"] = list(original.box_errors)
+        result["provenance"] = {"fact_id": str(fact.id), "source_id": fact.source_id,
+            "observed_at": fact.observed_at.isoformat(), "available_at": fact.available_at.isoformat(),
+            "trajectory_basis": RECOVERY_VERSION, "derivation_version": FEATURE_VERSION,
+            "finality_basis": "validated final state observed; actual finish timestamp unknown"}
+    proposal_eligible = derived is not None or recovery is not None
     context = (game_record_context(parsed, result.get("provenance")) if experiment.schema_version >= 4
                else await read_context(session, parsed, as_of)) if parsed else None
     if context is not None and experiment.schema_version >= 4:
@@ -153,9 +167,9 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
     star = star_preview(parsed, await read_snapshot(session, parsed, as_of, fallback_to_first=backfill),
                         experiment.star, allow_first_snapshot=backfill) if experiment.schema_version >= 5 else None
     if star is not None:
-        result["star_power"] = {**star, "included_in_proposal": derived is not None and star["bonus"] is not None}
-    if derived:
-        fact, metrics, score = derived
+        result["star_power"] = {**star, "included_in_proposal": proposal_eligible and star["bonus"] is not None}
+    if proposal_eligible:
+        metrics = derived[1] if derived else trajectory_features(parsed)
         result["metrics"] = asdict(metrics)
         result["baseline"] = preview(metrics, baseline)
         measurements = entertainment_measurements(parsed)
@@ -171,12 +185,12 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
         candidate_details = result["experiment"].pop("enrichment", None) if result["experiment"] else None
         result["enrichment"] = candidate_details or enrichment_preview(
             measurements, experiment.player or PlayerSettings(), experiment.pattern or PatternSettings())
-        result["enrichment"]["candidate_eligible"] = derived is not None and experiment.schema_version >= 2
+        result["enrichment"]["candidate_eligible"] = proposal_eligible and experiment.schema_version >= 2
     if context is not None:
         result["context"] = result["experiment"].pop("context", None) if result["experiment"] else None
         result["context"] = result["context"] or (record_preview(context, experiment.importance) if experiment.schema_version >= 4
             else context_preview(context, experiment.context or ContextSettings()))
-        result["context"]["included_in_proposal"] = derived is not None and experiment.schema_version >= 3
+        result["context"]["included_in_proposal"] = proposal_eligible and experiment.schema_version >= 3
     row = await session.scalar(select(RecommendationScoreRecord).where(
         RecommendationScoreRecord.game_id == game_id,
         RecommendationScoreRecord.score_kind == "postgame",
