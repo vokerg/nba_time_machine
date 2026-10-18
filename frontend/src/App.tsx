@@ -208,7 +208,7 @@ export function App() {
         <div className="timeline-copy">
           <p className="eyebrow">Time Machine · information cutoff</p>
           <h2 id="timeline-heading">{timeline ? formatTime(timeline.time_cursor) : newProfile ? "Set your starting time" : "Resuming your timeline…"}</h2>
-          <p>Only information known before this point is available in the current schedule view. Advancing can't be undone.</p>
+          <p>Your time cutoff protects future information. Imported schedules may include games collected later.</p>
         </div>
         {newProfile ? <div className="timeline-controls"><label>Starting time (UTC)<input type="datetime-local" value={initialCursor} disabled={busy} onChange={(e) => setInitialCursor(e.target.value)} /></label><button className="primary" type="button" disabled={busy || !initialCursor} onClick={() => void initialize()}>Start timeline</button></div> : timeline && <details className="timeline-details"><summary>Adjust cutoff</summary><div className="timeline-controls">
           <button type="button" disabled={busy || loading} onClick={() => void advance(6)}>Advance 6 hours</button>
