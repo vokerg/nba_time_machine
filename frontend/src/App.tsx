@@ -204,7 +204,7 @@ export function App() {
         <p>Choose a date. Scores stay hidden until you ask.</p>
       </section>
 
-      <section className="timeline-panel" aria-labelledby="timeline-heading">
+      <section className={"timeline-panel" + (newProfile ? " needs-setup" : "")} aria-labelledby="timeline-heading">
         <div className="timeline-copy">
           <p className="eyebrow">Time Machine · information cutoff</p>
           <h2 id="timeline-heading">{timeline ? formatTime(timeline.time_cursor) : newProfile ? "Set your starting time" : "Resuming your timeline…"}</h2>
