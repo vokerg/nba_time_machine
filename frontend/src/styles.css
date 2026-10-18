@@ -295,3 +295,20 @@ input[type="date"], input[type="datetime-local"], select {
   .favorite-game { padding-left: 14px; }
   .game-meta-end { gap: 7px; }
 }
+
+/* The information cutoff is available without turning the main page into a clock UI. */
+.timeline-panel { background: #fff; border-color: #e0dfd9; color: #29342d; padding: 16px 20px; gap: 20px; }
+.timeline-panel .eyebrow { color: #946143; margin-bottom: 3px; }
+.timeline-copy h2 { font-size: 17px; margin-bottom: 3px; letter-spacing: -.025em; }
+.timeline-copy p:last-child { color: #6a756c; font-size: 11px; }
+.timeline-details { position: relative; flex-shrink: 0; }
+.timeline-details > summary { color: #35483b; border: 1px solid #d9ded6; background: #fbfaf7; border-radius: 7px; padding: 10px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.timeline-details[open] { align-self: stretch; }
+.timeline-details .timeline-controls { justify-content: flex-start; margin-top: 12px; }
+.timeline-details .timeline-controls button { color: #2e4135; background: #fff; border-color: #bfc9bf; }
+.timeline-details .timeline-controls button.primary { color: #fff; background: #283930; border-color: #283930; }
+.timeline-details .timeline-controls button:not(:disabled):hover { background: #edf2eb; color: #283930; }
+.timeline-details .timeline-controls button.primary:not(:disabled):hover { background: #40594d; color: #fff; }
+.timeline-panel.needs-setup { background: #283730; color: #fff; }
+@media (max-width: 1040px) { .timeline-panel { flex-direction: row; align-items: center; } }
+@media (max-width: 680px) { .timeline-panel { flex-direction: column; align-items: stretch; } }
