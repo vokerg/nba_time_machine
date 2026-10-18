@@ -14,6 +14,15 @@ export const NBA_TEAMS = [
 ] as const;
 
 const knownTeams = new Set<string>(NBA_TEAMS);
+/** ESPN uses "LA Clippers", while other permitted NBA sources spell out Los Angeles. */
+const TEAM_ALIASES: Readonly<Record<string, string>> = { "LA Clippers": "Los Angeles Clippers" };
+function canonicalTeam(name: string): string {
+  return TEAM_ALIASES[name] ?? name;
+}
+function validSelections(values: readonly unknown[]): string[] {
+  return [...new Set(values.filter((name): name is string => typeof name === "string")
+    .map(canonicalTeam).filter((name) => knownTeams.has(name)))];
+}
 export function favoriteKey(profileId: string): string {
   return `nba-time-machine:favorites:v1:${profileId}`;
 }
@@ -21,9 +30,7 @@ export function favoriteKey(profileId: string): string {
 export function readFavorites(storage: Pick<Storage, "getItem">, profileId: string): string[] {
   try {
     const value: unknown = JSON.parse(storage.getItem(favoriteKey(profileId)) ?? "[]");
-    return Array.isArray(value) ? [...new Set(value.filter(
-      (team): team is string => typeof team === "string" && knownTeams.has(team),
-    ))] : [];
+    return Array.isArray(value) ? validSelections(value) : [];
   } catch {
     return [];
   }
@@ -31,12 +38,14 @@ export function readFavorites(storage: Pick<Storage, "getItem">, profileId: stri
 
 export function writeFavorites(storage: Pick<Storage, "setItem">, profileId: string, favorites: readonly string[]): void {
   storage.setItem(favoriteKey(profileId), JSON.stringify(
-    [...new Set(favorites.filter((team) => knownTeams.has(team)))],
+    validSelections(favorites),
   ));
 }
 
 export function isFavoriteGame(game: Pick<GameCard, "home_team" | "away_team">, favorites: readonly string[]): boolean {
-  return favorites.includes(game.home_team ?? "") || favorites.includes(game.away_team ?? "");
+  const selected = new Set(favorites.map(canonicalTeam));
+  return selected.has(canonicalTeam(game.home_team ?? "")) ||
+    selected.has(canonicalTeam(game.away_team ?? ""));
 }
 
 export function visibleWatchOrder(games: readonly GameCard[], favorites: readonly string[], includeFavorites: boolean): GameCard[] {
