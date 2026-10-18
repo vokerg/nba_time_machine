@@ -93,3 +93,25 @@ stale concurrent-tab responses fail closed.
 ## Reviewed general News & Buzz feed (#91)
 
 The dashboard requests the profile's reviewed, timeline-bound media feed independently of the selected game/schedule view. See [Reviewed News & Buzz](MEDIA_FEED.md) for review/retention requirements, page-key semantics and operational coverage limitations. Individual game reveals do not reload or unlock news.
+
+## Consumer UI migration toward game browsing (#111 / PR #112)
+
+The first, frontend-only slice replaces slate-limited and ephemeral favorites with a
+canonical all-30-team chooser and profile-scoped browser-local persistence. Users can
+exclude their teams from the **displayed, consented postgame watch order** by default,
+or explicitly include them, without changing the canonical backend ranking or score.
+Games for selected teams receive a separate badge; preferences are not spoiler
+permissions. Local storage persists per opaque profile UUID on this browser, not
+across devices or authenticated accounts.
+
+The obsolete Watch Queue **UI** has been removed from the main viewing surface;
+its existing persisted records/API remain untouched. The non-functional secondary
+`why` button is hidden until verified explanatory evidence is implemented.
+Technical schedule views are now collapsed under temporary Coverage options and
+**are not a real Browse/Time Machine mode split yet**. In particular, the replay
+view still uses the saved global cursor and the strict pregame recommendation
+API cannot rank arbitrary imported slates. Do not claim that ordinary date browsing,
+one-click bulk disclosure, numerical postgame scoring explanations, or independent
+Browse-mode authorization are implemented by this slice. Those require reviewed
+backend contracts and further #111 PRs. The prior paragraphs of this document
+specify the existing backend temporal semantics until that change lands.
