@@ -25,7 +25,7 @@ export function App() {
   const [client, setClient] = useState<BackendClient | null>(null);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [newProfile, setNewProfile] = useState(false);
-  const [initialCursor, setInitialCursor] = useState("2025-10-01T00:00");
+  const [initialCursor, setInitialCursor] = useState(() => new Date().toISOString().slice(0, 16));
   const [day, setDay] = useState("2025-10-21");
   const [view, setView] = useState<ScheduleView>("replay");
   const [slate, setSlate] = useState<GameList | null>(null);
