@@ -355,9 +355,31 @@ function renderGames() {
     );
     if (game.star_power?.snapshot?.retrospective)
       state.append(el("span", "Retrospective first-snapshot assumption", "badge partial"));
+    if (!game.baseline) {
+      const primary = game.provider_coverage?.find((p) => p.provider === "espn");
+      const reasons = primary?.pbp_errors?.length ? primary.pbp_errors : game.diagnostics;
+      state.append(el("small", reasons.filter((reason) => !reason.startsWith("ranking_withheld:")).map(evidenceReason).join(" · ")));
+    }
+    if (game.provenance?.trajectory_basis === "scoring_actions_v1")
+      state.append(el("span", "Reconciled scoring actions", "badge partial"));
     row.append(state);
     $("games").append(row);
   }
+}
+function evidenceReason(code) {
+  return ({
+    score_regression: "Provider running score goes backwards",
+    invalid_score_transition: "Inconsistent score change",
+    scoring_event_mismatch: "Running score disagrees with scoring action",
+    period_end_mismatch: "Play-by-play disagrees with quarter totals",
+    terminal_mismatch: "Play-by-play disagrees with final score",
+    missing_play_ids: "Backup has no stable play IDs",
+    clock_order: "Events are out of clock order",
+    unknown_participation: "Player participation is unknown",
+    missing_player_minutes_or_points: "Player minutes or points are missing",
+    partial_team_box: "Incomplete player box score",
+    no_stored_provider_game_evidence_at_this_as_of: "No evidence stored by this cutoff",
+  })[code] || code.replaceAll("_", " ");
 }
 function renderDetail() {
   const target = $("detail");
@@ -407,6 +429,12 @@ function renderDetail() {
   WorkbenchEnrichment.renderTotals(target, game);
   if (game.diagnostics.length)
     target.append(el("div", game.diagnostics.join(" · "), "notice"));
+  if (game.provenance?.trajectory_basis === "scoring_actions_v1")
+    target.append(el("p", "Running scores reconstructed from explicit scoring actions and checked against every period and final total. Original provider scores remain in the evidence export.", "notice"));
+  for (const provider of game.provider_coverage || []) {
+    const describe = (usable, errors) => usable ? "Validated" : (errors || []).map(evidenceReason).join("; ") || "Not available";
+    target.append(el("p", `${provider.provider.toUpperCase()} · Play-by-play: ${describe(provider.pbp_usable, provider.pbp_errors)} · Player box: ${describe(provider.box_usable, provider.box_errors)}${provider.source_approved === false ? " · Source policy not approved" : ""}`, "notice"));
+  }
   if (game.experiment) {
     target.append(el("h3", "Drama contribution · clutch, lead changes, comeback & overtime"));
     const wrap = el("div", undefined, "table-wrap"),

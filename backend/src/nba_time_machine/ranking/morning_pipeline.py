@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from sqlalchemy import select, text
 
 from nba_time_machine.db import (
-    SourceRecord, SportsExternalIdentityRecord,
+    GameObservationRecord, SourceRecord, SportsExternalIdentityRecord,
     TemporalFactRecord,
 )
 from nba_time_machine.ranking.evidence import SqlAlchemyRankingEvidenceRepository
@@ -37,6 +37,60 @@ class MorningRankingPipeline:
         observation = await SqlAlchemyRankingEvidenceRepository(self.session).game_observation_as_of(game_id, as_of)
         if observation is None or observation.status != "final":
             return None
+        result = await self._derive_observation(observation, as_of=as_of)
+        if result is not None or observation.source_id != SOURCE_IDS["cbs"]:
+            return result
+        # CBS may have been fetched solely because ESPN's independent box
+        # family was incomplete. Try only ESPN's latest revision, never an older
+        # clean revision within that provider, and require current state agreement.
+        o = GameObservationRecord
+        primary = (await self.session.scalars(select(o).where(
+            o.game_id == game_id, o.source_id == SOURCE_IDS["espn"],
+            o.observed_at <= as_of, o.available_at <= as_of,
+        ).order_by(o.observed_at.desc(), o.available_at.desc()).limit(2))).all()
+        if not primary or (len(primary) == 2 and
+                (primary[0].observed_at, primary[0].available_at) ==
+                (primary[1].observed_at, primary[1].available_at)):
+            return None
+        candidate = primary[0]
+        if (candidate.status != observation.status
+                or candidate.scheduled_tip_at != observation.scheduled_tip_at
+                or candidate.home_score != observation.home_score
+                or candidate.away_score != observation.away_score):
+            return None
+        result = await self._derive_observation(candidate, as_of=as_of)
+        if result is None:
+            return None
+        # Equal final scores alone do not establish equal OT/quarter history.
+        # The backup's current evidence must agree on those period totals too.
+        f = TemporalFactRecord
+        backups = (await self.session.scalars(select(f).where(
+            f.game_id == game_id, f.fact_type == "provider_game_evidence",
+            f.source_id == observation.source_id, f.observed_at <= as_of,
+            f.available_at <= as_of,
+        ).order_by(f.observed_at.desc(), f.available_at.desc()).limit(2))).all()
+        if not backups or (len(backups) == 2 and
+                (backups[0].observed_at, backups[0].available_at) ==
+                (backups[1].observed_at, backups[1].available_at)):
+            return None
+        backup = backups[0]
+        if (backup.observed_at != observation.observed_at
+                or backup.available_at != observation.available_at
+                or backup.valid_from > as_of
+                or (backup.valid_to is not None and backup.valid_to <= as_of)):
+            return None
+        try:
+            current = Evidence.model_validate({**backup.value, "observed_at": backup.observed_at})
+            primary = Evidence.model_validate({**result[0].value, "observed_at": result[0].observed_at})
+        except (ValidationError, ValueError, TypeError):
+            return None
+        if (current.home.periods != primary.home.periods or current.away.periods != primary.away.periods
+                or current.game_type != primary.game_type or current.season != primary.season):
+            return None
+        return result
+
+    async def _derive_observation(self, observation, *, as_of):
+        game_id = observation.game_id
         rows = (await self.session.scalars(select(TemporalFactRecord).where(
             TemporalFactRecord.subject_type == "game",
             TemporalFactRecord.game_id == game_id,

@@ -307,3 +307,13 @@ rosters provide separate identity-only team facts through the same canonical
 capture/fact/source-health pipeline, never participation or historical availability.
 See [Star Power](../STAR_POWER.md) for exact bounds, setup, timing and verification.
 The generic ingestion scheduler and consumer app do not activate this collector.
+
+### Reconciled ESPN scoring actions (#107)
+
+An explicit `scoring_actions_v1` normalization may reconstruct stale ESPN running
+score states from unchanged, identified scoring-team/point actions, only after all
+period and final totals and existing trajectory checks reconcile. Original score
+claims and their error codes remain retained beside derived states. No missing
+events, identities, clocks, points, minutes or participation are invented. See
+[recovery contract](../NBA_MORNING_COLLECTION.md#evidence-recovery-107) for rejection
+rules and the tightly bounded same-game CBS canonical redirect exception.

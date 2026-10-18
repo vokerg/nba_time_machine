@@ -52,7 +52,7 @@ rerunning a day; incomplete games are never silently called successful.
 | Cadence | One date per manual/daily invocation | Requested only when primary fails/partial, or explicit backup smoke |
 | Request limits | Shared default 40 requests, maximum 100; at least one second between default requests; maximum 20 games | Same shared budget |
 | Time/size | 20-second request deadline including body, 4-MiB decoded-body cap | Same, plus HTML depth limit |
-| Errors | No retries or redirects; 401/403/429 stops that host for the remainder of the run; Retry-After recorded | Other provider remains independently available |
+| Errors | No retries; one same-game CBS canonical redirect only (see below); 401/403/429 stops that host for the remainder of the run; Retry-After recorded | Other provider remains independently available |
 | Retention | Selected normalized statistics/actions/IDs and coverage only | Same; descriptions, articles, ads, scripts, tokens and HTML are excluded |
 | Full content | Never supplied to persistence | Never supplied to persistence |
 
@@ -76,8 +76,9 @@ period clocks, every regulation/OT period and zero-clock end, period totals and
 terminal score reconciliation, tied OT boundaries, and ordinary scoring
 transitions. ESPN sequence numbers/wall clocks are preserved as source claims
 where relevant but **never used to reorder the array**. Unexplained score
-regressions or scoring-event discrepancies mark the trace partial; no repair or
-inferred revision is attempted. This is structural/internal reconciliation, not
+regressions or scoring-event discrepancies mark the trace partial unless the
+explicit, fully reconciled scoring-action interpretation below succeeds. No
+inferred action revision is attempted. This is structural/internal reconciliation, not
 an independent audit of every scorer event.
 
 Player boxes preserve source player IDs, starter/participation state, shooting
@@ -164,3 +165,63 @@ The local [v4 importance formula](GAME_RECORD_IMPORTANCE.md) removes the complet
 game's win/loss from these totals, without a season-history dependency. Historical
 captures lacking this optional metadata remain readable and need explicit
 re-collection to obtain it. Observation/availability timestamps are never backdated.
+
+## Evidence recovery (#107)
+
+ESPN sometimes returns HTTP 200 with stale running scores attached to otherwise
+identified, clock-ordered actions. The parser now retains each action's scoring
+team ID. If the only trajectory failures concern score states, it attempts the
+explicit `scoring_actions_v1` interpretation: accumulate each action's declared
+one/two/three points for its declared team, in unchanged array order. Every action
+must explicitly declare scoring/non-scoring and points. The complete candidate
+must pass all existing identity, clock, period, overtime, participant and terminal
+checks, including reconciliation against **every** supplied quarter and final
+total. No event is inserted, removed, reordered or assigned an inferred team or
+point value. This is reconciliation against independent fields in the same
+provider response, not an independent provider audit.
+
+Accepted candidates carry `trajectory_basis=scoring_actions_v1`, the original
+`reported_pbp_errors`, and `reported_home` / `reported_away` on every retained
+play. `home` / `away` then represent derived running states. The reconstruction
+is revalidated when consumed. Unknown scoring metadata, unresolved action totals,
+missing IDs/boundaries and ordering errors keep the original trace partial.
+Old evidence is not silently rewritten; an explicit collection appends a newly
+interpreted capture at its actual observation time. The workbench labels this
+basis and exports both reported and derived states.
+
+CBS may redirect an uppercase GameTracker URL to its lowercase canonical spelling.
+The client follows at most one HTTP 301/308 for that exact same game path on the
+same HTTPS host, without query/fragment changes. It counts both requests against
+the existing budget and reports the first attempt as `redirected`. Other redirects
+remain errors; 401/403/429 host stopping, byte/deadline limits and source-policy
+checks still apply. This does not make CBS's ID-less HTML a complete PBP source.
+
+Trajectory selection may use the latest ESPN revision when a later partial CBS
+fallback agrees on final status, scheduled tip, both final scores, period totals and game type. It never
+uses an older clean ESPN revision behind a newer partial one. ESPN's identity,
+policy, timestamps, fact validity and ambiguity checks still apply. Player boxes
+remain independently incomplete when minutes or participation are missing.
+
+Verified October 18, 2026 against the configured owner's database: explicitly
+recollecting October 16 through the canonical manual collector made 15 requests,
+appended 14 normalized captures and produced **11 scorable workbench games out
+of 12**, previously five. Five trajectories use labeled scoring-action
+reconstruction. Atlanta–Dallas retains a usable primary trajectory despite its
+missing player minutes. Charlotte–Memphis remains unscored: the action totals and
+published quarter/final totals disagree by one point, and the available CBS HTML
+cannot establish stable play identities. No score history is fabricated, no
+production ratings are archived, and no source is enabled by this operation.
+
+A separate bounded CBS schedule smoke also established that Phoenix's provider
+abbreviation is **PHO**, not ESPN's PHX. The mapping now uses the actual CBS
+schedule identity; the corrected Utah–Phoenix GameTracker path returned HTTP 200.
+The old PHX path redirected to a lowercase path that returned 404, so redirect
+handling alone was not sufficient. The structured `plays` field in the two
+inspected CBS scoreboards was empty; no hidden complete action feed was claimed.
+
+The live browser showed 11/12 scorable games, labeled reconstructed inputs and
+readable quarter/final-total errors for the remaining game. Synthetic tests cover
+reconstruction rejection, retained source states through persistence/replay,
+latest-primary selection under expiry/revocation/conflicts, request budgets and
+redirect restrictions. [Sanitized verification](evidence/game-evidence-recovery-2026-10-18.json)
+contains counts/health only, without raw provider bodies or numeric ratings.

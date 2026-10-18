@@ -6,7 +6,7 @@ import json
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
-from urllib.parse import quote, urlsplit
+from urllib.parse import quote, unquote, urljoin, urlsplit
 
 import httpx
 
@@ -43,7 +43,7 @@ class PublicNBAClient:
         self.last_request = None
         self.stopped_hosts = set()
 
-    async def fetch(self, provider: str, url: str, stage: str, game=None) -> str:
+    async def fetch(self, provider: str, url: str, stage: str, game=None, *, _canonical_redirect=False) -> str:
         host = urlsplit(url).hostname
         allowed = {"espn": "site.api.espn.com", "cbs": "www.cbssports.com"}
         if host != allowed.get(provider) or urlsplit(url).scheme != "https":
@@ -65,6 +65,19 @@ class PublicNBAClient:
                 async with self.http.stream("GET", url, follow_redirects=False,
                                             timeout=self.timeout) as response:
                     attempt.http_status = response.status_code
+                    if (provider == "cbs" and stage == "gametracker"
+                            and response.status_code in (301, 308) and not _canonical_redirect):
+                        target = urljoin(url, response.headers.get("location", ""))
+                        original, redirect = urlsplit(url), urlsplit(target)
+                        # Only the observed lowercase spelling of this exact game
+                        # URL is permitted. No other route, host, query or scheme.
+                        if (response.headers.get("location") and target != url
+                                and redirect.scheme == "https" and redirect.netloc == original.netloc
+                                and not redirect.query and not redirect.fragment
+                                and unquote(original.path).startswith("/nba/gametracker/playbyplay/NBA_")
+                                and unquote(redirect.path) == unquote(original.path).lower()):
+                            attempt.status = "redirected"
+                            return await self.fetch(provider, target, stage, game, _canonical_redirect=True)
                     if response.status_code != 200:
                         attempt.status = f"http_{response.status_code}"
                         if response.status_code in (401, 403, 429):
@@ -126,6 +139,8 @@ class MorningReport:
                     "plays": len(e.plays), "players": len(e.players),
                     "has_game_records": e.records is not None,
                     "record_errors": list(e.record_errors),
+                    "trajectory_basis": e.trajectory_basis,
+                    "reported_pbp_errors": list(e.reported_pbp_errors),
                     "pbp_errors": list(e.pbp_errors), "box_errors": list(e.box_errors)} for e in g.evidence]
             } for g in self.games],
             "attempts": [asdict(a) for a in self.attempts],

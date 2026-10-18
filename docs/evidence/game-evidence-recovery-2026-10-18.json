@@ -1,0 +1,295 @@
+{
+  "issue": 107,
+  "day": "2026-10-16",
+  "observed_at": "2026-10-18T09:11:53.499573+00:00",
+  "run_id": "3ce8a6db-b24a-4fb7-bb82-0ba24394e388",
+  "requests": 15,
+  "captures_written": 14,
+  "collection_errors": [],
+  "persistence_errors": [],
+  "previous_workbench_ratings": 5,
+  "verified_workbench_ratings": 11,
+  "stored_games": 12,
+  "reconstructed_trajectories": 5,
+  "games": [
+    {
+      "home": "ORL",
+      "away": "MIA",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 515,
+          "players": 42,
+          "trajectory_basis": "scoring_actions_v1",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": [
+            "invalid_score_transition",
+            "period_end_mismatch",
+            "score_regression",
+            "scoring_event_mismatch"
+          ]
+        }
+      ]
+    },
+    {
+      "home": "PHI",
+      "away": "BOS",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 564,
+          "players": 27,
+          "trajectory_basis": "scoring_actions_v1",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": [
+            "invalid_score_transition",
+            "score_regression",
+            "scoring_event_mismatch"
+          ]
+        }
+      ]
+    },
+    {
+      "home": "DET",
+      "away": "TOR",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 540,
+          "players": 37,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": []
+        }
+      ]
+    },
+    {
+      "home": "IND",
+      "away": "MIL",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 548,
+          "players": 36,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": []
+        }
+      ]
+    },
+    {
+      "home": "DAL",
+      "away": "ATL",
+      "pbp_provider": "espn",
+      "box_provider": null,
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 535,
+          "players": 37,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [],
+          "box_errors": [
+            "missing_player_minutes_or_points",
+            "partial_team_box"
+          ],
+          "reported_pbp_errors": []
+        },
+        {
+          "provider": "cbs",
+          "plays": 503,
+          "players": 35,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [
+            "clock_order",
+            "invalid_score_transition",
+            "missing_play_ids",
+            "score_regression"
+          ],
+          "box_errors": [
+            "unknown_participation"
+          ],
+          "reported_pbp_errors": []
+        }
+      ]
+    },
+    {
+      "home": "SAS",
+      "away": "SAC",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 525,
+          "players": 39,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": []
+        }
+      ]
+    },
+    {
+      "home": "MEM",
+      "away": "CHA",
+      "pbp_provider": null,
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 505,
+          "players": 37,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [
+            "period_end_mismatch",
+            "terminal_mismatch"
+          ],
+          "box_errors": [],
+          "reported_pbp_errors": []
+        },
+        {
+          "provider": "cbs",
+          "plays": 440,
+          "players": 34,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [
+            "invalid_score_transition",
+            "missing_play_ids",
+            "score_regression"
+          ],
+          "box_errors": [
+            "unknown_participation"
+          ],
+          "reported_pbp_errors": []
+        }
+      ]
+    },
+    {
+      "home": "NOP",
+      "away": "WAS",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 528,
+          "players": 43,
+          "trajectory_basis": "scoring_actions_v1",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": [
+            "invalid_score_transition",
+            "score_regression",
+            "scoring_event_mismatch"
+          ]
+        }
+      ]
+    },
+    {
+      "home": "CHI",
+      "away": "MIN",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 525,
+          "players": 43,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": []
+        }
+      ]
+    },
+    {
+      "home": "GSW",
+      "away": "POR",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 507,
+          "players": 32,
+          "trajectory_basis": "provider_scores",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": []
+        }
+      ]
+    },
+    {
+      "home": "PHX",
+      "away": "UTA",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 506,
+          "players": 36,
+          "trajectory_basis": "scoring_actions_v1",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": [
+            "invalid_score_transition",
+            "score_regression",
+            "scoring_event_mismatch"
+          ]
+        }
+      ]
+    },
+    {
+      "home": "LAL",
+      "away": "DEN",
+      "pbp_provider": "espn",
+      "box_provider": "espn",
+      "evidence": [
+        {
+          "provider": "espn",
+          "plays": 443,
+          "players": 44,
+          "trajectory_basis": "scoring_actions_v1",
+          "pbp_errors": [],
+          "box_errors": [],
+          "reported_pbp_errors": [
+            "invalid_score_transition",
+            "score_regression",
+            "scoring_event_mismatch"
+          ]
+        }
+      ]
+    }
+  ],
+  "remaining_gap": "Charlotte\u2013Memphis: ESPN action totals and final/quarter totals disagree by one point; CBS HTML has no stable event IDs. No trajectory fabricated.",
+  "independent_gap": "Atlanta\u2013Dallas: missing ESPN player minutes; trajectory remains usable but player contributions stay unavailable.",
+  "owner_archive_writes": false,
+  "source_enablement_changes": false,
+  "cbs_phoenix_identity": {
+    "schedule": "NBA_20261016_UTA@PHO",
+    "incorrect_old_alias": "PHX",
+    "correct_alias": "PHO",
+    "correct_path_http_status": 200
+  },
+  "validation": {
+    "backend_full_run": "522 passed on fresh disposable PostgreSQL after isolating test-owned collection runs",
+    "morning_unit_tests": 47,
+    "pipeline_integration_tests": 19,
+    "workbench_dom_tests": 16,
+    "hosted_ci": "Previous implementation passed; final regression-cleanup commit checks must be checked on PR #108"
+  }
+}

@@ -425,3 +425,35 @@ test("v6 retrospective policy round-trips and labels every assumed ranking", asy
     assert.deepEqual(request.config.star,v6.star);
   } finally {s.close();}
 });
+
+
+test("collection gaps explain each provider and reconstructed scores are labeled", async () => {
+  const s = await setup(baseline, (r) => {
+    const g = r.games[0];
+    g.baseline = null;
+    g.experiment = null;
+    g.diagnostics = ["ranking_withheld: incomplete"];
+    g.provider_coverage = [
+      { provider: "espn", pbp_usable: false, box_usable: true,
+        pbp_errors: ["period_end_mismatch"], box_errors: [] },
+      { provider: "cbs", pbp_usable: false, box_usable: false,
+        pbp_errors: ["missing_play_ids"], box_errors: ["unknown_participation"] },
+    ];
+    return r;
+  });
+  try {
+    assert.match(s.w.document.getElementById("games").textContent, /Play-by-play disagrees with quarter totals/);
+    const detail = s.w.document.getElementById("detail").textContent;
+    assert.match(detail, /ESPN · Play-by-play: Play-by-play disagrees with quarter totals · Player box: Validated/);
+    assert.match(detail, /Backup has no stable play IDs/);
+    assert.match(detail, /Player participation is unknown/);
+  } finally { s.close(); }
+  const recovered = await setup(baseline, (r) => {
+    r.games[0].provenance = { trajectory_basis: "scoring_actions_v1" };
+    return r;
+  });
+  try {
+    assert.match(recovered.w.document.getElementById("games").textContent, /Reconciled scoring actions/);
+    assert.match(recovered.w.document.getElementById("detail").textContent, /Original provider scores remain in the evidence export/);
+  } finally { recovered.close(); }
+});

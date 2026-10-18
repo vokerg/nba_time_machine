@@ -269,3 +269,141 @@ async def test_budget_byte_cap_and_redirects_are_enforced():
     async with httpx.AsyncClient(transport=httpx.MockTransport(redirect), follow_redirects=True) as http:
         with pytest.raises(FetchError, match="http_302"):
             await PublicNBAClient(http).fetch("espn", "https://site.api.espn.com/test", "test")
+
+
+def scoring_fixture():
+    """Synthetic explicit scoring teams, independent of reported running states."""
+    data = summary()
+    previous = (0, 0)
+    home, away = data['header']['competitions'][0]['competitors']
+    for row in data['plays']:
+        if row['scoringPlay']:
+            row['team'] = {'id': home['id'] if row['homeScore'] > previous[0] else away['id']}
+        previous = row['homeScore'], row['awayScore']
+    return data
+
+
+def test_stale_running_states_reconstruct_only_from_explicit_reconciled_actions():
+    from nba_time_machine.sports.morning_models import Evidence, assess
+    from nba_time_machine.ranking.morning_features import trajectory_features
+    data = scoring_fixture()
+    original = parsed(data)
+    # Stale timeout/end state after a basket: preserve the source claim.
+    data['plays'][3]['homeScore'] = 0
+    recovered = parsed(data)
+    assert recovered.pbp_usable and recovered.box_usable
+    assert recovered.trajectory_basis == 'scoring_actions_v1'
+    assert 'score_regression' in recovered.reported_pbp_errors
+    assert recovered.plays[3].reported_home == 0
+    assert recovered.plays[3].home == 1
+    assert recovered.observed_at == NOW
+    assert trajectory_features(recovered) == trajectory_features(original)
+    assert assess(Evidence.model_validate(recovered.model_dump())).pbp_usable
+    corrupt = list(recovered.plays)
+    corrupt[1] = corrupt[1].model_copy(update={'scoring_team_id': 'unknown'})
+    assert 'invalid_scoring_action_reconstruction' in assess(
+        recovered.model_copy(update={'plays': tuple(corrupt)})).pbp_errors
+
+
+@pytest.mark.parametrize('fault', ['missing_team', 'unknown_team', 'points', 'unknown_scoring',
+                                   'clock', 'duplicate', 'boundary', 'missing_end', 'period_total'])
+def test_reconstruction_does_not_hide_missing_or_conflicting_evidence(fault):
+    data = scoring_fixture()
+    data['plays'][3]['homeScore'] = 0
+    if fault == 'missing_team':
+        data['plays'][1].pop('team')
+    elif fault == 'unknown_team':
+        data['plays'][1]['team']['id'] = 'unknown'
+    elif fault == 'points':
+        data['plays'][1]['scoreValue'] = 2
+    elif fault == 'unknown_scoring':
+        data['plays'][0].pop('scoringPlay')
+    elif fault == 'clock':
+        data['plays'][2]['clock']['displayValue'] = '11:30'
+    elif fault == 'duplicate':
+        data['plays'][2]['id'] = data['plays'][1]['id']
+    elif fault == 'boundary':
+        data['plays'][0]['homeScore'] = 1
+    elif fault == 'missing_end':
+        data['plays'].pop()
+    else:
+        h = data['header']['competitions'][0]['competitors'][0]
+        h['linescores'][0]['displayValue'] = '0'
+        h['linescores'][1]['displayValue'] = '2'
+    e = parsed(data)
+    assert not e.pbp_usable
+    assert e.trajectory_basis == 'provider_scores'
+    assert all(p.reported_home is None for p in e.plays)
+
+
+@pytest.mark.asyncio
+async def test_cbs_canonical_redirect_is_bounded_and_counts_requests():
+    url = 'https://www.cbssports.com/nba/gametracker/playbyplay/NBA_20261013_GS%40LAL/'
+    calls = []
+    def handler(req):
+        calls.append(req)
+        if len(calls) == 1:
+            return httpx.Response(301, headers={'Location': url.lower()})
+        return httpx.Response(200, text=cbs_html())
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        client = PublicNBAClient(http, interval=0)
+        assert await client.fetch('cbs', url, 'gametracker') == cbs_html()
+        assert client.requests == 2
+        assert [a.status for a in client.attempts] == ['redirected', 'ok']
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        calls.clear()
+        client = PublicNBAClient(http, interval=0, max_requests=1)
+        with pytest.raises(FetchError, match='request_budget'):
+            await client.fetch('cbs', url, 'gametracker')
+        assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('location', [
+    'http://www.cbssports.com/nba/gametracker/playbyplay/nba_20261013_gs%40lal/',
+    'https://other.invalid/nba/gametracker/playbyplay/nba_20261013_gs%40lal/',
+    '/nba/gametracker/playbyplay/nba_20261014_gs%40lal/',
+    '/nba/gametracker/playbyplay/nba_20261013_gs%40lal/?token=abc',
+    '/nba/gametracker/playbyplay/nba_20261013_gs%40lal/#fragment',
+])
+async def test_cbs_redirect_cannot_change_provider_game_or_access_method(location):
+    def handler(req):
+        return httpx.Response(301, headers={'Location': location})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        client = PublicNBAClient(http, interval=0)
+        with pytest.raises(FetchError, match='http_301'):
+            await client.fetch('cbs', 'https://www.cbssports.com/nba/gametracker/playbyplay/NBA_20261013_GS%40LAL/', 'gametracker')
+        assert client.requests == 1
+
+
+@pytest.mark.asyncio
+async def test_cbs_redirect_loop_is_not_followed_twice():
+    def handler(req):
+        return httpx.Response(301, headers={'Location': '/nba/gametracker/playbyplay/nba_20261013_gs%40lal/'})
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        client = PublicNBAClient(http, interval=0)
+        with pytest.raises(FetchError, match='http_301'):
+            await client.fetch('cbs', 'https://www.cbssports.com/nba/gametracker/playbyplay/NBA_20261013_GS%40LAL/', 'gametracker')
+        assert client.requests == 2
+
+
+@pytest.mark.asyncio
+async def test_phoenix_fallback_uses_cbs_schedule_identity_not_espn_abbreviation():
+    data = summary()
+    home, away = data['header']['competitions'][0]['competitors']
+    home['team']['abbreviation'], away['team']['abbreviation'] = 'PHX', 'UTA'
+    data['plays'].pop()  # Force the independent fallback.
+    backup = cbs_html(abbr='NBA_20261013_UTA@PHO').replace('LAL', 'PHO').replace('GS', 'UTA')
+    calls = []
+    def handler(req):
+        calls.append(req)
+        if req.url.host == 'site.api.espn.com':
+            return httpx.Response(200, json=scoreboard(data) if 'scoreboard' in req.url.path else data)
+        assert 'UTA%40PHO/' in str(req.url)
+        return httpx.Response(200, text=backup)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        r = await MorningCollector(PublicNBAClient(http, interval=0)).collect(DAY)
+    assert r.games[0].selected('box').provider == 'espn'
+    assert r.games[0].evidence[-1].provider == 'cbs'
+    assert r.games[0].evidence[-1].ref.home == 'PHX'
+    assert len(calls) == 3 and not r.errors

@@ -241,3 +241,18 @@ assumption and any cross-season use. Source dates remain real; the report cutoff
 still must include the selected snapshot. Strict v5 review files remain strict.
 Change Ranking snapshot policy in the Star Power controls to compare v6 strict
 versus retrospective results. This does not change production or archived scores.
+
+## Collection diagnostics and score-state recovery (#107)
+
+The slate now displays readable reasons beside an unavailable rating. Selecting a
+game shows separate latest ESPN/CBS play-by-play and player-box diagnostics, so a
+partial backup cannot conceal usable primary coverage. When a later partial CBS
+observation agrees with the current final state, the latest validated ESPN
+trajectory can still supply the proposal; missing player contributions remain
+explicitly incomplete.
+
+A `Reconciled scoring actions` badge identifies ESPN trajectories reconstructed
+from explicit scoring-team/point actions and reconciled against every quarter and
+final total. Original provider running scores remain in the evidence export,
+alongside the versioned interpretation and original diagnostics. Unresolved
+scoring totals still produce no trajectory rating. See [collection recovery](NBA_MORNING_COLLECTION.md#evidence-recovery-107).
