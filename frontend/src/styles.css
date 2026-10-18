@@ -273,3 +273,25 @@ input[type="date"], input[type="datetime-local"], select {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* Fan-first controls: favorites are a compact preference, not a slate-limited form. */
+.game-meta-end { display: inline-flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+.favorite-marker { color: #3e6848; font-weight: 720; white-space: nowrap; }
+.favorite-game { border-left: 3px solid #7e9a7f; padding-left: 21px; }
+.advanced-schedule { align-self: flex-end; max-width: 295px; color: #6e766e; font-size: 12px; }
+.advanced-schedule summary, .team-picker summary { cursor: pointer; color: #46574b; font-weight: 680; padding: 11px 0; }
+.advanced-schedule[open] { padding: 0 12px 12px; border: 1px solid #deded5; border-radius: 9px; background: #fff; }
+.advanced-schedule p { margin: 10px 0 0; line-height: 1.5; }
+.advanced-schedule .schedule-view-label { margin-top: 5px; }
+.team-picker { margin-top: 13px; border-top: 1px solid #e8e7e1; }
+.selected-teams { display: flex; gap: 6px; flex-wrap: wrap; }
+.selected-teams span { font-size: 12px; color: #3b5844; background: #edf3ea; padding: 6px 9px; border-radius: 6px; }
+.team-picker .favorite-choices { margin-top: 5px; max-height: 310px; overflow-y: auto; padding: 3px; display: grid; grid-template-columns: 1fr; }
+.team-picker .favorite-choices label { min-height: 36px; }
+.include-favorites { display: flex; align-items: flex-start; gap: 8px; margin-top: 13px; color: #46574b; font-size: 12px; line-height: 1.45; cursor: pointer; }
+.include-favorites input { margin-top: 2px; accent-color: #6a8868; }
+@media (max-width: 520px) {
+  .advanced-schedule { width: 100%; max-width: none; align-self: auto; }
+  .favorite-game { padding-left: 14px; }
+  .game-meta-end { gap: 7px; }
+}
