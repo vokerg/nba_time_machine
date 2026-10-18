@@ -85,6 +85,7 @@ test('rendered cards fetch no passive outcomes; full reveal requires confirmatio
     await click('Yes, show score');
     await until(() => document.querySelector('.result-box'));
     assert.match(document.querySelector('.result-box').textContent, /100/);
+    assert.match(document.querySelector('.game-status').textContent, /Score shown/);
     const revealedCall = calls.find((c) => c.url.endsWith('/reveal'));
     assert.equal(revealedCall.options.method, 'POST');
     assert.equal(calls.filter((c) => c.options.method === 'PUT').length, 0);
@@ -97,10 +98,29 @@ test('rendered cards fetch no passive outcomes; full reveal requires confirmatio
     ));
     try {
       await until(() => document.querySelector('.game-card'));
-      assert.match(document.querySelector('.game-card').textContent, /Score revealed/);
+      assert.match(document.querySelector('.game-card').textContent, /Previously opened/);
+      assert.doesNotMatch(document.querySelector('.game-card').textContent, /Score shown/);
       assert.equal(document.querySelector('.result-box'), null);
     } finally { await unmount(resumed); }
   } catch (e) { await unmount(root); throw e; }
+});
+
+test('a current cutoff cannot be moved irreversibly into the future', async () => {
+  const recent = new Date(Date.now() - 60_000).toISOString();
+  const requests = [];
+  const root = await mount(async (url, options) => {
+    requests.push({ url, options });
+    if (url.includes('/timeline/')) return response({ ...timeline, time_cursor: recent });
+    return response({ time_cursor: recent, games: [card] });
+  });
+  try {
+    await until(() => document.querySelector('.game-card'));
+    await act(async () => document.querySelector('.timeline-details summary').click());
+    assert.equal(button('Advance 6 hours').disabled, true);
+    assert.equal(button('Advance 1 day').disabled, true);
+    await act(async () => button('Advance 1 day').click());
+    assert.equal(requests.some((r) => r.options.method === 'PUT'), false);
+  } finally { await unmount(root); }
 });
 
 test('changing schedule view rejects an old pending slate and shows explicit missing coverage', async () => {
