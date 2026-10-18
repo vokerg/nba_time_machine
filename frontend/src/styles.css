@@ -315,3 +315,5 @@ input[type="date"], input[type="datetime-local"], select {
 
 .timeline-panel.needs-setup .eyebrow { color: #c6d0b2; }
 .timeline-panel.needs-setup .timeline-copy p:last-child { color: #c8d1c7; }
+
+.advanced-schedule summary:focus-visible, .team-picker summary:focus-visible, .timeline-details summary:focus-visible { outline: 3px solid #af5a3b; outline-offset: 3px; border-radius: 5px; }
