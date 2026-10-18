@@ -23,6 +23,10 @@ test('favorites persist per profile, sanitize stored values, and survive reload'
   assert.deepEqual(readFavorites(storage, profile), []);
   saved.set(favoriteKey(profile), JSON.stringify(['Los Angeles Lakers', null, 15, 'Imaginary Team']));
   assert.deepEqual(readFavorites(storage, profile), ['Los Angeles Lakers']);
+  saved.set(favoriteKey(profile), JSON.stringify(['LA Clippers', 'Los Angeles Clippers']));
+  assert.deepEqual(readFavorites(storage, profile), ['Los Angeles Clippers']);
+  writeFavorites(storage, profile, ['LA Clippers']);
+  assert.deepEqual(JSON.parse(storage.getItem(favoriteKey(profile))), ['Los Angeles Clippers']);
 });
 
 test('watch order filters favorite games, never reranks the canonical list', () => {
@@ -36,4 +40,7 @@ test('watch order filters favorite games, never reranks the canonical list', () 
   assert.deepEqual(visibleWatchOrder(games, favorites, false).map((g) => g.game_id), ['b']);
   assert.deepEqual(visibleWatchOrder(games, favorites, true).map((g) => g.game_id), ['a', 'b', 'c']);
   assert.deepEqual(games.map((g) => g.game_id), ['a', 'b', 'c']);
+  const alternateName = [{ game_id: 'd', home_team: 'LA Clippers', away_team: 'Golden State Warriors' }];
+  assert.equal(isFavoriteGame(alternateName[0], ['Los Angeles Clippers']), true);
+  assert.equal(visibleWatchOrder(alternateName, ['Los Angeles Clippers'], false).length, 0);
 });
