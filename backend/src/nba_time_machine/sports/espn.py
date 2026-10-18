@@ -1,4 +1,4 @@
-"""Parse the observed ESPN scoreboard/summary interfaces, never source prose."""
+"""Parse observed ESPN scoreboard/summary interfaces into normalized claims."""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -209,10 +209,10 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
             return None
     # Provider-local identities resolve the scorer; prose is used only for the
     # explicitly numbered free-throw attempt, never to infer points or identity.
-    import re
     names = {p.external_id: p.name for p in players}
     for i, (play, row) in enumerate(zip(plays, payload.get("plays", []))):
-        attempt = re.fullmatch(r".+ makes free throw ([1-3]) of [1-3]", row.get("text", ""))
+        text = row.get("text")
+        attempt = re.fullmatch(r".+ makes free throw ([1-3]) of [1-3]", text) if isinstance(text, str) else None
         plays[i] = play.model_copy(update={
             "scorer_name": names.get(play.participant_ids[0]) if play.scoring and play.participant_ids else None,
             "free_throw_attempt": int(attempt[1]) if attempt else None,

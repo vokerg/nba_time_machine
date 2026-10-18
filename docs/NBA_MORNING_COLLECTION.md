@@ -225,3 +225,15 @@ reconstruction rejection, retained source states through persistence/replay,
 latest-primary selection under expiry/revocation/conflicts, request budgets and
 redirect restrictions. [Sanitized verification](evidence/game-evidence-recovery-2026-10-18.json)
 contains counts/health only, without raw provider bodies or numeric ratings.
+
+### Normalized corroboration metadata (#109)
+
+ESPN plays additionally retain scorer names resolved through provider-local player
+IDs and explicit numbered made-free-throw attempts. CBS plays retain exact made
+scorer names, explicit scoring values/attempt ordinals and named jump-ball
+participants; player rows retain their exact profile-URL slug to disambiguate
+abbreviated display names. These are normalized claims, not trusted event
+corrections or provider play IDs. Original score states and collection times are
+unchanged. The [local workbench recovery](SCORING_WORKBENCH.md#cbs-corroborated-free-throw-previews-109)
+uses these fields for a bounded, separately labeled preview interpretation.
+Collection reports and production ranking continue to report original coverage.

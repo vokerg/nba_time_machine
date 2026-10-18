@@ -256,3 +256,44 @@ from explicit scoring-team/point actions and reconciled against every quarter an
 final total. Original provider running scores remain in the evidence export,
 alongside the versioned interpretation and original diagnostics. Unresolved
 scoring totals still produce no trajectory rating. See [collection recovery](NBA_MORNING_COLLECTION.md#evidence-recovery-107).
+
+## CBS-corroborated free-throw previews (#109)
+
+A local proposal can now recover one narrowly defined ESPN discrepancy: a surplus
+second made free throw when the immediately preceding action is the same player's
+first made free throw at the same clock. CBS must show that first free throw and
+then a same-clock jump ball involving that player, omit the second free throw,
+and match every remaining scoring action for that player in provider order
+(period, whole-second clock, points and free-throw ordinal). CBS truncates fractional
+seconds; no actions are sorted or matched by approximate names.
+
+The complete ESPN player box must reconcile for every other player. Only the
+identified player's total may be one point over. Their CBS player box must agree
+on points, made field goals, made threes and free throws made/attempted. An exact,
+unique full-name match or exact CBS player-profile slug establishes that player's
+identity within the same team; abbreviated display names alone are insufficient.
+Both providers must agree on matchup, scheduled tip, season/type, all quarter/OT
+totals and final scores. The corrected trajectory must pass all existing event,
+clock, period and final checks, and exactly one candidate must qualify.
+
+The preview reads only the latest unambiguous facts and observations for both
+providers at the selected cutoff. Expired facts, future inputs, identity mapping
+failures, conflicting current observations or revoked source policies withhold
+recovery. A partial CBS feed is corroboration for this one interpretation, not a
+complete replacement trajectory. No missing events, clocks or IDs are invented.
+
+The UI labels **CBS-corroborated correction · preview**. Exports retain the original
+ESPN evidence, original surplus action, both input fact IDs with actual observation
+and availability timestamps, and the effective trajectory under version
+`cbs_corroborated_free_throw_v1`. Original facts/captures remain unchanged. This is
+local proposal recovery only; production scoring eligibility and archived ratings
+are unchanged. Newly normalized action metadata requires explicit recollection
+through the canonical collector; older captures are not silently rewritten.
+
+Verified October 18, 2026: explicit recollection of only Charlotte–Memphis used
+three requests and appended two normalized revisions with no collection errors.
+The collector still correctly exits 2 for original partial provider coverage.
+The running browser/API now show a corrected proposal and its explicit provenance
+label. The remaining game-importance gap is the existing preseason exclusion.
+Owner archived-rating counts stayed 21 before/after; no ratings were materialized.
+See the [sanitized verification record](evidence/workbench-free-throw-2026-10-18.json).

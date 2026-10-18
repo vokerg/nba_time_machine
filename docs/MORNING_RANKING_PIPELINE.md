@@ -135,3 +135,8 @@ The ESPN parser's versioned scoring-action reconstruction is documented in
 arithmetic and scoring weights are unchanged; retained source states and the
 explicit trajectory basis make derived inputs auditable. The workbench displays
 both providers' family coverage and readable reasons for unresolved evidence.
+
+The local workbench's [CBS-corroborated free-throw preview](SCORING_WORKBENCH.md#cbs-corroborated-free-throw-previews-109)
+is a separate tuning interpretation. It does not change this producer, scoring
+weights, original input evidence or archive eligibility. A recovered local proposal
+therefore does not imply that a production rating exists for the game.

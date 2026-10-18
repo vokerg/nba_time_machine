@@ -87,3 +87,32 @@ def test_incomplete_or_conflicting_corroboration_stays_unavailable(change):
     elif change == 'missing_scorer': a = a.model_copy(update={'plays': tuple(p.model_copy(update={'scorer_name': None}) if p.scoring else p for p in a.plays)})
     elif change == 'pending': b = b.model_copy(update={'status': 'pending'})
     assert recover_free_throw(a, b) is None
+
+
+def test_exact_profile_slug_supports_abbreviated_backup_names_without_fuzzy_matching():
+    a, b, _ = evidence_pair()
+    b = b.model_copy(update={'players': tuple(p.model_copy(update={
+        'name': 'S. Player', 'profile_slug': 'synthetic-player-2001'
+    }) if p.name == 'Synthetic Player 2001' else p for p in b.players)})
+    assert recover_free_throw(a, b)
+    b = b.model_copy(update={'players': tuple(p.model_copy(update={
+        'profile_slug': 'someone-else'
+    }) if p.name == 'S. Player' else p for p in b.players)})
+    assert recover_free_throw(a, b) is None
+
+
+@pytest.mark.parametrize('change', ['primary_index', 'backup_index', 'jump_before_first', 'no_first_attempt'])
+def test_action_order_and_free_throw_trip_must_be_established(change):
+    a, b, _ = evidence_pair()
+    if change == 'primary_index':
+        a = a.model_copy(update={'plays': tuple(p.model_copy(update={'index': 999}) if p.free_throw_attempt == 2 else p for p in a.plays)})
+    elif change == 'backup_index':
+        b = b.model_copy(update={'plays': tuple(p.model_copy(update={'index': 999}) if p.jump_ball_players else p for p in b.plays)})
+    elif change == 'jump_before_first':
+        plays = list(b.plays)
+        i = next(i for i,p in enumerate(plays) if p.jump_ball_players)
+        plays[i-1], plays[i] = plays[i], plays[i-1]
+        b = b.model_copy(update={'plays': tuple(p.model_copy(update={'index': i}) for i,p in enumerate(plays))})
+    elif change == 'no_first_attempt':
+        a = a.model_copy(update={'plays': tuple(p.model_copy(update={'free_throw_attempt': None}) if p.free_throw_attempt == 1 else p for p in a.plays)})
+    assert recover_free_throw(a, b) is None

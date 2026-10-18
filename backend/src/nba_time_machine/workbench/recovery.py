@@ -42,7 +42,8 @@ def recover_free_throw(primary: Evidence, backup: Evidence):
                    for side in ("home", "away"))):
         return None
     states = scoring_action_states(primary)
-    if not states:
+    if (not states or any(p.index != i for e in (primary, backup)
+                          for i, p in enumerate(e.plays))):
         return None
     # A single player's total must be exactly one point over their complete box;
     # every other player's scoring actions must already reconcile.
@@ -76,7 +77,14 @@ def recover_free_throw(primary: Evidence, backup: Evidence):
     for play in own:
         if play.points != 1 or play.free_throw_attempt != 2 or play.scoring_team_id != player.team_id:
             continue
-        if not any(j.period == play.period and j.remaining_ms == play.remaining_ms
+        previous = primary.plays[play.index - 1] if play.index else None
+        if (previous is None or previous.scorer_name != player.name or previous.free_throw_attempt != 1
+                or not previous.scoring or previous.points != 1
+                or (previous.period, previous.remaining_ms) != (play.period, play.remaining_ms)):
+            continue
+        first = [p for p in other if signature(p) == signature(previous)]
+        if len(first) != 1 or not any(j.index > first[0].index and j.period == play.period
+                   and j.remaining_ms == play.remaining_ms
                    and player.name in j.jump_ball_players for j in backup.plays):
             continue
         remaining = [p for p in own if p.index != play.index]
