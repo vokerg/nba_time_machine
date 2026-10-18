@@ -312,3 +312,6 @@ input[type="date"], input[type="datetime-local"], select {
 .timeline-panel.needs-setup { background: #283730; color: #fff; }
 @media (max-width: 1040px) { .timeline-panel { flex-direction: row; align-items: center; } }
 @media (max-width: 680px) { .timeline-panel { flex-direction: column; align-items: stretch; } }
+
+.timeline-panel.needs-setup .eyebrow { color: #c6d0b2; }
+.timeline-panel.needs-setup .timeline-copy p:last-child { color: #c8d1c7; }
