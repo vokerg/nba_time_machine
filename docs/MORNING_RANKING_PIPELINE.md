@@ -125,7 +125,7 @@ facts. It does not change this production pipeline or archived scores.
 A partial CBS observation no longer masks the latest usable ESPN trajectory merely
 because CBS was fetched later for an independent box-score failure. The latest
 canonical observation must still be final, and ESPN's latest observation must
-agree with its tip and both final scores. Only ESPN's latest revision is eligible:
+agree with its tip, both final scores, quarter/OT totals and game type. Only ESPN's latest revision is eligible:
 expired/revoked, ambiguous, future or malformed evidence never revives an older
 clean revision. Conflicting current final states still withhold the rating.
 No provider action streams or player rows are spliced together.

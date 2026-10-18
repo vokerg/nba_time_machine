@@ -58,7 +58,36 @@ class MorningRankingPipeline:
                 or candidate.home_score != observation.home_score
                 or candidate.away_score != observation.away_score):
             return None
-        return await self._derive_observation(candidate, as_of=as_of)
+        result = await self._derive_observation(candidate, as_of=as_of)
+        if result is None:
+            return None
+        # Equal final scores alone do not establish equal OT/quarter history.
+        # The backup's current evidence must agree on those period totals too.
+        f = TemporalFactRecord
+        backups = (await self.session.scalars(select(f).where(
+            f.game_id == game_id, f.fact_type == "provider_game_evidence",
+            f.source_id == observation.source_id, f.observed_at <= as_of,
+            f.available_at <= as_of,
+        ).order_by(f.observed_at.desc(), f.available_at.desc()).limit(2))).all()
+        if not backups or (len(backups) == 2 and
+                (backups[0].observed_at, backups[0].available_at) ==
+                (backups[1].observed_at, backups[1].available_at)):
+            return None
+        backup = backups[0]
+        if (backup.observed_at != observation.observed_at
+                or backup.available_at != observation.available_at
+                or backup.valid_from > as_of
+                or (backup.valid_to is not None and backup.valid_to <= as_of)):
+            return None
+        try:
+            current = Evidence.model_validate({**backup.value, "observed_at": backup.observed_at})
+            primary = Evidence.model_validate({**result[0].value, "observed_at": result[0].observed_at})
+        except (ValidationError, ValueError, TypeError):
+            return None
+        if (current.home.periods != primary.home.periods or current.away.periods != primary.away.periods
+                or current.game_type != primary.game_type or current.season != primary.season):
+            return None
+        return result
 
     async def _derive_observation(self, observation, *, as_of):
         game_id = observation.game_id

@@ -288,7 +288,7 @@
   "validation": {
     "backend_full_run": "518 passed; existing macOS descendant-cleanup test failed, then passed targeted rerun",
     "morning_unit_tests": 47,
-    "pipeline_integration_tests": 18,
+    "pipeline_integration_tests": 19,
     "workbench_dom_tests": 16,
     "hosted_ci": "backend and frontend passed before final persistence/alias regressions; recheck final commit"
   }

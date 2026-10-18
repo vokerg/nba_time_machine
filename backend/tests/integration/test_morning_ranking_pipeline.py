@@ -172,7 +172,7 @@ async def test_complete_revision_requires_new_snapshot_then_is_available():
 
 
 @pytest.mark.parametrize('fault', [None, 'new_partial_primary', 'expired', 'revoked',
-                                   'ambiguous', 'conflicting_score', 'pending', 'conflicting_tip'])
+                                   'ambiguous', 'conflicting_score', 'pending', 'conflicting_tip', 'conflicting_periods'])
 async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory(fault):
     from morning_fixtures import cbs_html
     from nba_time_machine.sports import cbs
@@ -204,6 +204,10 @@ async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory
                 session.add(TemporalFactRecord(subject_type='game', game_id=game,
                     source_id=fact.source_id, fact_type=fact.fact_type, value=fact.value,
                     observed_at=fact.observed_at, available_at=fact.available_at, valid_from=fact.valid_from))
+            elif fault == 'conflicting_periods':
+                backup_fact = await session.scalar(select(TemporalFactRecord).where(
+                    TemporalFactRecord.game_id == game, TemporalFactRecord.source_id == SOURCE_IDS['cbs']))
+                backup_fact.value = {**backup_fact.value, 'home': {**backup_fact.value['home'], 'periods': [0, 2, 1, 1]}}
             elif fault in ('conflicting_score', 'pending', 'conflicting_tip'):
                 obs = await session.scalar(select(GameObservationRecord).where(
                     GameObservationRecord.game_id == game, GameObservationRecord.source_id == SOURCE_IDS['cbs']))

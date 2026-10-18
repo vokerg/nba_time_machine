@@ -197,7 +197,7 @@ remain errors; 401/403/429 host stopping, byte/deadline limits and source-policy
 checks still apply. This does not make CBS's ID-less HTML a complete PBP source.
 
 Trajectory selection may use the latest ESPN revision when a later partial CBS
-fallback agrees on final status, scheduled tip and both final scores. It never
+fallback agrees on final status, scheduled tip, both final scores, period totals and game type. It never
 uses an older clean ESPN revision behind a newer partial one. ESPN's identity,
 policy, timestamps, fact validity and ambiguity checks still apply. Player boxes
 remain independently incomplete when minutes or participation are missing.
