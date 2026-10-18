@@ -30,7 +30,7 @@ export function App() {
   const [view, setView] = useState<ScheduleView>("replay");
   const [slate, setSlate] = useState<GameList | null>(null);
   const [disclosures, setDisclosures] = useState<Record<string, Disclosure>>({});
-  const [confirming, setConfirming] = useState<{ gameId: string; from: "slate" | "queue" } | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +133,10 @@ export function App() {
   }
   async function advance(hours: number) {
     if (!client || !timeline) return;
+    if (Date.parse(timeline.time_cursor) + hours * 3_600_000 > Date.now()) {
+      setError("Your information cutoff cannot move beyond the current time.");
+      return;
+    }
     setBusy(true); setError(null); setSlate(null); setDisclosures({}); setConfirming(null); generation.current += 1;
     setWatchPicks(null); setRankingConsent(false);
     try {
@@ -211,8 +215,8 @@ export function App() {
           <p>Your time cutoff protects future information. Imported schedules may include games collected later.</p>
         </div>
         {newProfile ? <div className="timeline-controls"><label>Starting time (UTC)<input type="datetime-local" value={initialCursor} disabled={busy} onChange={(e) => setInitialCursor(e.target.value)} /></label><button className="primary" type="button" disabled={busy || !initialCursor} onClick={() => void initialize()}>Start timeline</button></div> : timeline && <details className="timeline-details"><summary>Adjust cutoff</summary><div className="timeline-controls">
-          <button type="button" disabled={busy || loading} onClick={() => void advance(6)}>Advance 6 hours</button>
-          <button className="primary" type="button" disabled={busy || loading} onClick={() => void advance(24)}>Advance 1 day</button>
+          <button type="button" disabled={busy || loading || Date.parse(timeline.time_cursor) + 6 * 3_600_000 > Date.now()} onClick={() => void advance(6)}>Advance 6 hours</button>
+          <button className="primary" type="button" disabled={busy || loading || Date.parse(timeline.time_cursor) + 24 * 3_600_000 > Date.now()} onClick={() => void advance(24)}>Advance 1 day</button>
           <button type="button" disabled={busy || loading || Date.parse(timeline.time_cursor) >= Date.now()} onClick={() => { if (window.confirm("Advance to now? This accepts all NBA information up to now and cannot be undone.")) void advance((Date.now() - Date.parse(timeline.time_cursor)) / 3_600_000); }}>Advance to now</button>
         </div></details>}
       </section>
@@ -253,13 +257,13 @@ export function App() {
             return <article className={"game-card" + (isFavoriteGame(game, favorites) ? " favorite-game" : "")} key={game.game_id}>
               <div className="game-meta">
                 <span className="tip-time">{game.scheduled_tip ? formatTime(game.scheduled_tip) : "Tip time unavailable"}</span>
-                <span className="game-meta-end">{isFavoriteGame(game, favorites) && <span className="favorite-marker">Your team</span>}<span className={"game-status " + (game.state === "sealed" ? "is-sealed" : "is-acknowledged")}>{game.state === "sealed" ? "Score hidden" : "Score revealed"}</span></span>
+                <span className="game-meta-end">{isFavoriteGame(game, favorites) && <span className="favorite-marker">Your team</span>}<span className={"game-status " + (game.state === "sealed" ? "is-sealed" : "is-acknowledged")}>{shown.full ? "Score shown" : game.state === "acknowledged" ? "Previously opened" : "Score hidden"}</span></span>
               </div>
               <h3>{matchup(game)}</h3>
               <p className="pregame-label">{game.pregame_interest !== undefined ? "Pregame interest · " + game.pregame_interest.toFixed(1) : "Pregame interest unavailable"}</p>
               <div className="game-actions">
                 <button className="hint-action" type="button" aria-describedby={"hint-caution-" + game.game_id} disabled={busy || loading} onClick={() => void disclose(game, "watchability")}>Worth watching?</button>
-                <button className="danger-link" type="button" disabled={busy || loading} onClick={() => setConfirming({ gameId: game.game_id, from: "slate" })}>Show score</button>
+                <button className="danger-link" type="button" disabled={busy || loading} onClick={() => setConfirming(game.game_id)}>Show score</button>
               </div>
               <p className="hint-caution" id={"hint-caution-" + game.game_id}>This hint uses what happened during the game and may spoil a surprise.</p>
               {(shown.verdict || shown.reason) && !shown.full && <div className="disclosure-box" aria-live="polite">
@@ -267,7 +271,7 @@ export function App() {
                 <strong>{shown.reason?.watchability_verdict ?? shown.verdict?.watchability_verdict ?? "Watchability data is unavailable"}</strong>
                 {shown.reason?.watchability_reason && <p>{shown.reason.watchability_reason}</p>}
               </div>}
-              {confirming?.gameId === game.game_id && confirming.from === "slate" && <div className="confirmation" role="group" aria-label="Confirm result reveal"><p><strong>Show the final score for this game?</strong> This doesn't change your information cutoff.</p><div className="confirmation-actions"><button className="confirm-button" disabled={busy} onClick={() => void disclose(game, "full")}>Yes, show score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div></div>}
+              {confirming === game.game_id && <div className="confirmation" role="group" aria-label="Confirm result reveal"><p><strong>Show the final score for this game?</strong> This doesn't change your information cutoff.</p><div className="confirmation-actions"><button className="confirm-button" disabled={busy} onClick={() => void disclose(game, "full")}>Yes, show score</button><button disabled={busy} onClick={() => setConfirming(null)}>Keep result hidden</button></div></div>}
               {shown.full && <div className="result-box" aria-live="polite"><p className="box-kicker">Revealed for this game only</p><strong>{game.away_team} {shown.full.away_score ?? "–"} — {shown.full.home_score ?? "–"} {game.home_team}</strong>{shown.full.result && <p>{shown.full.result}</p>}</div>}
             </article>;
           })}</div>
