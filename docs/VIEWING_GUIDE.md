@@ -58,6 +58,23 @@ components must exactly match the archive. A newer correction, revoked policy,
 ambiguous identity or incomplete evidence withholds the stale rating. This read
 performs no collection, calibration, archive write or workbench-formula adoption.
 
+Guide reads batch the date's game snapshots and acknowledgement state. A
+consented disclosure batches current morning evidence across eligible archived
+ratings and shares that derivation between archive and guide integrity checks.
+The full-result projection reuses the same cutoff-specific game snapshot. These
+are request-local optimizations: a new request re-reads current evidence and
+source policy; no cached rating or prior consent bypasses corrections, revocation,
+Time Machine cutoffs or the final saved-cursor recheck. Rating derivation remains
+read-only, with no provider fetch, AI call or archive write.
+
+The disposable-PostgreSQL regression in `test_guide_performance.py` bounds reads
+for one or eight games at 14 SELECTs per disclosure (order, verdict and full),
+compared with the prior eight-game implementation's 124 for order, 54 for a
+single verdict and 58 for a single result. Bulk full disclosure still writes
+one idempotent acknowledgement per returned result. Local query-count evidence
+is not a claim about deployed end-to-end latency. Curated ranking-fact fallback
+still uses the existing per-game reader when a morning derivation is unavailable.
+
 The fan breakdown converts each stored weighted contribution into points out of
 ten using the sum of available weights. Source reference, observation,
 availability, version and score snapshot remain inspectable under Rating evidence.

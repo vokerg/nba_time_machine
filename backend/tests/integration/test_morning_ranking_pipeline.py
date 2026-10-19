@@ -143,7 +143,10 @@ async def test_untrusted_latest_evidence_does_not_materialize(fault):
                     observed_at=fact.observed_at, available_at=fact.available_at,
                     valid_from=fact.valid_from))
         async with factory.begin() as session:
-            assert not await MorningRankingPipeline(session).process(game, as_of=cursor, write=True)
+            pipeline = MorningRankingPipeline(session)
+            assert await pipeline.derive(game, as_of=cursor) is None
+            assert (await pipeline.derive_many((game,), as_of=cursor))[game] is None
+            assert not await pipeline.process(game, as_of=cursor, write=True)
             assert await session.scalar(select(RecommendationScoreRecord.id).where(
                 RecommendationScoreRecord.game_id == game)) is None
     finally:
@@ -237,7 +240,10 @@ async def test_partial_backup_preserves_only_current_agreeing_primary_trajectory
                 else:
                     obs.scheduled_tip_at += timedelta(minutes=5)
         async with factory() as session:
-            result = await MorningRankingPipeline(session).derive(game, as_of=NOW + timedelta(hours=1))
+            pipeline = MorningRankingPipeline(session)
+            result = await pipeline.derive(game, as_of=NOW + timedelta(hours=1))
+            batched = (await pipeline.derive_many((game,), as_of=NOW + timedelta(hours=1)))[game]
+            assert batched == result
             assert (result is not None) == (fault is None)
             if result:
                 assert result[0].source_id == SOURCE_IDS['espn']
@@ -290,4 +296,49 @@ async def test_reconstructed_evidence_persists_original_claims_and_replays_idemp
             assert await pipeline.derive(fact.game_id, as_of=NOW + timedelta(hours=1)) is not None
     finally:
         await cleanup_test_runs(factory, run_ids)
+        await engine.dispose()
+
+
+@pytest.mark.parametrize("fault", ["observation_tie", "nonfinal", "future_valid_fact", "non_nba"])
+async def test_batch_and_single_agree_on_latest_observation_and_validity(fault):
+    from nba_time_machine.db import GameObservationRecord, GameRecord, SeasonRecord
+    engine, factory = await setup()
+    try:
+        game, _ = await capture(factory)
+        cutoff = NOW + timedelta(hours=1)
+        async with factory.begin() as session:
+            observation = await session.scalar(select(GameObservationRecord).where(GameObservationRecord.game_id == game))
+            if fault == "observation_tie":
+                # Same-provider/timestamp duplicates are forbidden by schema;
+                # competing providers can still make the latest state ambiguous.
+                session.add(GameObservationRecord(game_id=game, source_id=SOURCE_IDS["cbs"],
+                    observed_at=observation.observed_at, available_at=observation.available_at,
+                    status=observation.status, scheduled_tip_at=observation.scheduled_tip_at,
+                    home_score=observation.home_score, away_score=observation.away_score))
+            elif fault == "nonfinal":
+                session.add(GameObservationRecord(game_id=game, source_id=observation.source_id,
+                    observed_at=NOW + timedelta(minutes=1), available_at=NOW + timedelta(minutes=1),
+                    status="in_progress", scheduled_tip_at=observation.scheduled_tip_at))
+            elif fault == "future_valid_fact":
+                fact = await session.scalar(select(TemporalFactRecord).where(
+                    TemporalFactRecord.game_id == game, TemporalFactRecord.fact_type == "provider_game_evidence"))
+                # Both readers exclude this row before selecting the newest
+                # valid feature revision, preserving their existing contract.
+                session.add(TemporalFactRecord(subject_type="game", game_id=game,
+                    source_id=fact.source_id, fact_type=fact.fact_type, value={"broken": True},
+                    observed_at=NOW + timedelta(minutes=1), available_at=NOW + timedelta(minutes=1),
+                    valid_from=cutoff + timedelta(hours=1)))
+            else:
+                row = await session.get(GameRecord, game)
+                season = await session.get(SeasonRecord, row.season_id)
+                season.league = "OTHER"
+        async with factory() as session:
+            pipeline = MorningRankingPipeline(session)
+            for at in (NOW - timedelta(seconds=1), cutoff):
+                single = await pipeline.derive(game, as_of=at)
+                batched = await pipeline.derive_many((game, uuid4()), as_of=at)
+                assert batched[game] == single
+                assert sum(result is not None for result in batched.values()) == int(
+                    fault == "future_valid_fact" and at == cutoff)
+    finally:
         await engine.dispose()
