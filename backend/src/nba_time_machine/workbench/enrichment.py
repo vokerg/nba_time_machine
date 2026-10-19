@@ -1,5 +1,5 @@
 """Explicit, uncalibrated preview formulas for measured performances and patterns."""
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field
 
 from nba_time_machine.ranking.entertainment_features import EntertainmentMeasurements
 

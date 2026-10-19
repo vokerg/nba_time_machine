@@ -38,3 +38,12 @@ def test_additive_version_and_cap_are_reproducible_and_tampering_is_rejected():
         assert not score_evidence_is_consistent(replace(overall, value=overall.value - .1))
         assert not score_evidence_is_consistent(replace(overall, components=overall.components + overall.components[-1:]))
         assert score_evidence_is_consistent(base)  # original archive unchanged
+
+
+def test_overall_rejects_malformed_components_without_raising():
+    base = score_postgame(uuid4(), {PostgameSignal.CLUTCH: FeatureObservation(
+        .5, 'fact:drama', NOW, NOW)}, final_at=NOW, as_of=NOW)
+    score = add_matchup_expectation(base, .8, source_ref='fact:records', observed_at=NOW, available_at=NOW)
+    for values in ({'normalized_value':100}, {'normalized_value':True}, {'weight':0}, {'weight':'10'}):
+        bad = replace(score, components=(replace(score.components[0], **values), score.components[1]))
+        assert not score_evidence_is_consistent(bad)
