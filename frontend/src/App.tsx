@@ -1,3 +1,5 @@
+import { useDayUpdate } from "./useDayUpdate";
+import { updateFailure } from "./dayUpdate";
 import { useEffect, useRef, useState } from "react";
 import { BackendClient, nbaDate, profileIdentity, type Timeline } from "./api";
 import type { GameCard, GameList, MediaFeed } from "./dashboard";
@@ -54,6 +56,7 @@ export function App() {
   const [news, setNews] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const update = useDayUpdate(client, day, mode, timeline?.time_cursor);
   const generation = useRef(0);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const revealTrigger = useRef<HTMLButtonElement | null>(null);
@@ -114,7 +117,7 @@ export function App() {
       controller.abort();
       generation.current++;
     };
-  }, [client, timeline, day, mode]);
+  }, [client, timeline, day, mode, update.version]);
 
   useEffect(() => {
     if (!news || !client || !timeline) return;
@@ -374,6 +377,17 @@ export function App() {
             ).slice(2)}{" "}
             season
           </span>
+          {mode === "browse" && day <= today() && (
+            <button
+              className="fetch-day"
+              disabled={busy || !timeline || update.active}
+              onClick={() => void update.start()}
+            >
+              {update.active
+                ? "Updating this date…"
+                : "Fetch games & update ratings"}
+            </button>
+          )}
           <button
             className="reveal-all"
             disabled={busy || loading || !slate?.games.length}
@@ -382,6 +396,32 @@ export function App() {
             Reveal all for this date
           </button>
         </div>
+        {mode === "browse" && (update.job || update.error) && (
+          <div
+            className="update-status"
+            role={
+              update.error || update.job?.state === "failed"
+                ? "alert"
+                : "status"
+            }
+            aria-live="polite"
+          >
+            {update.error ??
+              (update.job?.state === "collecting"
+                ? "Fetching game evidence…"
+                : update.job?.state === "publishing"
+                  ? "Updating verified ratings…"
+                  : update.job?.state === "failed"
+                    ? updateFailure(update.job.error)
+                    : "Date updated. Choose a spoiler option to see available ratings. Completed, verified evidence is required; some games may remain unrated.")}
+          </div>
+        )}
+        {mode === "time-machine" && (
+          <p className="coverage-note">
+            To fetch fresh data, switch to Browse games. Fetching never moves
+            this cutoff.
+          </p>
+        )}
         <div className="dashboard-grid">
           <section className="games-section" aria-labelledby="games-heading">
             <div className="section-header">

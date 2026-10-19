@@ -78,3 +78,43 @@ explicitly opened, and always reads the saved global cursor, even in Browse.
 Run frontend tests/build and backend guide/policy tests. PostgreSQL persistence
 checks must use disposable local/CI databases, never the owner's database.
 See the PR for actual executed checks and browser verification.
+
+## Fetch games & update ratings (owner follow-up)
+
+In Browse, choose a supported date up to today's Eastern NBA day and press
+**Fetch games & update ratings**. This explicit action runs the existing bounded
+ESPN/CBS morning collector, then publishes the existing production model from
+verified canonical evidence. The current workbench formula is not adopted. No
+scheduler is installed and selecting a date alone still performs no collection.
+
+`POST /profiles/{profile_id}/guide/update` requires JSON, the custom
+`X-Guide-Action: update-day` header, `date`, `mode: browse` and the expected saved
+`time_cursor`. This unauthenticated personal write action is **loopback-only**, with
+Host and same-origin checks; it is not a public administrative API. The saved
+profile cursor is checked but never advanced. The existing source policy, manual
+collection eligibility and PostgreSQL sports lock remain authoritative. This
+cannot enable sources or override verification, retention or provider failures.
+
+A 202 response returns an opaque job UUID, date and phase. Poll
+`GET /profiles/{profile_id}/guide/update/{job_id}` for collecting, publishing,
+finished or failed. A repeated start while that profile/date runs joins the same
+job; a different concurrent date is rejected. One job per application process,
+40 provider requests, 20 games, and four minutes bound the action. Per-game
+transactions preserve valid captures/ratings when unrelated games fail.
+
+Consumer status deliberately excludes results, rating availability counts,
+completion counts, source payloads and per-game diagnostics. Collection consent
+is not spoiler consent. The completed update refreshes safe cards and clears
+previous disclosures; revealing watch order or results remains a separate action.
+Pending or invalid evidence stays unrated. The collector still skips unfinished
+game summaries; this action does not promise live coverage or a complete schedule.
+
+Only the current job's opaque ID/date is saved in browser storage to reconnect
+GET polling after reload. No POST occurs on reload. Job state is process-local;
+a server restart/replaced job yields an explicit reconnect/retry message. Canonical
+captures, source health and per-game rating snapshots remain durable. Processing
+counts/as-of are retained in the existing collection run's `rating_update`
+metadata for operator inspection. Timeout/interruption can leave useful partial
+work saved. Application shutdown cancels and awaits the job before closing DB
+connections. Time Machine does not expose the fresh-data action; newly collected
+facts cannot become knowledge before their actual observation time.

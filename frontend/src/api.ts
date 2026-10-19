@@ -46,6 +46,22 @@ export function parseTimeline(value: unknown, profileId: string): Timeline {
 }
 
 export class BackendClient {
+  async startDayUpdate(day: string, cursor: string) {
+    if (!validDate(day) || !instant(cursor)) throw new Error("Invalid update date or timeline.");
+    const response = await this.fetcher(`/api/profiles/${this.profileId}/guide/update`, {
+      method: "POST", cache: "no-store", redirect: "error", credentials: "same-origin",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-Guide-Action": "update-day" },
+      body: JSON.stringify({ date: day, mode: "browse", time_cursor: cursor }),
+    });
+    if (!response.ok) throw new ApiError(response.status);
+    const { parseDayUpdate } = await import("./dayUpdate.ts");
+    return parseDayUpdate(await response.json());
+  }
+  async updateStatus(jobId: string, signal?: AbortSignal) {
+    const { parseDayUpdate } = await import("./dayUpdate.ts");
+    return parseDayUpdate(await this.request(`/profiles/${this.profileId}/guide/update/${id(jobId)}`, "GET", undefined, signal));
+  }
+
   async guideGames(day: string, mode: import("./guide").Mode, cursor: string, signal?: AbortSignal): Promise<GameList> {
     if (!validDate(day)) throw new Error("Choose a valid NBA date.");
     const result = parseGameList(await this.request(`/profiles/${this.profileId}/guide?date=${day}&mode=${mode}`, "GET", undefined, signal));

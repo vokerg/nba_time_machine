@@ -789,3 +789,44 @@ h3 {
     scroll-behavior: auto !important;
   }
 }
+
+.fetch-day {
+  background: #244c3c;
+  color: #fffef9;
+  border-color: #244c3c;
+  margin-left: auto;
+}
+.fetch-day:hover:not(:disabled) {
+  background: #386747;
+  color: white;
+}
+.fetch-day + .reveal-all {
+  margin-left: 0;
+}
+.update-status {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border: 1px solid #cbd8b9;
+  background: #edf2e1;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.update-status[role="alert"] {
+  background: #f9ebdc;
+  border-color: #d7b599;
+  color: #7a462d;
+}
+@media (max-width: 850px) {
+  .date-bar {
+    flex-wrap: wrap;
+  }
+  .fetch-day {
+    margin-left: 0;
+  }
+}
+@media (max-width: 650px) {
+  .fetch-day {
+    width: 100%;
+  }
+}
