@@ -56,7 +56,7 @@ async def games(profile_id: UUID, date: date, mode: Mode = "browse", service=Dep
         state, cutoff, slate = await service.list_games(profile_id, date, mode)
         response = game_list_response(slate).model_dump(mode="json")
         response["time_cursor"] = state.time_cursor
-        response["expectations"] = {gid: PregameExpectation.model_validate(value).model_dump(mode="json")
+        response["expectations"] = {gid: PregameExpectation.model_validate(value).model_dump(mode="json", exclude_none=True)
                                     for gid, value in (await service.expectations(slate, cutoff, mode)).items()}
         # Card state must not reveal whether the game has finished.
         for card in response["games"]:

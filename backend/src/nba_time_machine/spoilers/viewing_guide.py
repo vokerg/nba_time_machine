@@ -24,7 +24,7 @@ class FixedKnowledgeClock:
 
 
 LABELS = {
-    "matchup_expectation": "Pregame matchup strength",
+    "matchup_expectation": "Pregame matchup strength", "star_power": "Star power · actual participation",
     "clutch": "Close late-game play", "lead_changes": "Lead changes",
     "comeback": "Comeback", "overtime": "Overtime",
     "individual_performance": "Individual performance", "rarity": "Unusual game",
@@ -108,11 +108,9 @@ class ViewingGuideService:
     async def expectations(self, slate, cutoff, mode):
         if self.pregame is None:
             return {}
-        if mode == "time-machine":
-            return {}
         if self.prepared is not None and self.prepared.expectations is not None:
             return self.prepared.expectations
-        result = await self.pregame.expectations(tuple(g.projection.game_id for g in slate.games), as_of=cutoff)
+        result = await self.pregame.expectations(tuple(g.projection.game_id for g in slate.games), as_of=cutoff, strict=mode == "time-machine")
         if self.prepared is not None:
             self.prepared.expectations = result
         return result
