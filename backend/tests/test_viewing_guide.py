@@ -161,3 +161,25 @@ async def test_future_tip_or_future_final_boundary_cannot_be_revealed():
     result = await svc.disclose(PROFILE, DAY, "browse", CURSOR, "full")
     assert all("result" not in d for d in result["details"].values())
     assert not acks.acknowledged
+
+
+@pytest.mark.asyncio
+async def test_warm_preparation_still_rechecks_cursor_before_result_acknowledgement():
+    from nba_time_machine.spoilers.guide_cache import GuideDayCache
+    svc, clock, _, games, acks, scores = setup()
+    async def get_many(ids, *, time_cursor):
+        return {gid: await games.get(gid, time_cursor=time_cursor) for gid in ids}
+    async def revision(cutoff):
+        return "same committed inputs"
+    games.get_many = get_many
+    svc.cache, svc.revision = GuideDayCache(), revision
+    await svc.disclose(PROFILE, DAY, "browse", CURSOR, "order")
+    reads = len(scores.calls)
+    async def racing_revision(cutoff):
+        clock.cursor += timedelta(hours=1)
+        return "same committed inputs"
+    svc.revision = racing_revision
+    with pytest.raises(RuntimeError, match="timeline changed"):
+        await svc.disclose(PROFILE, DAY, "browse", CURSOR, "full", FIRST)
+    assert len(scores.calls) == reads  # genuinely used the warm entry
+    assert not acks.acknowledged
