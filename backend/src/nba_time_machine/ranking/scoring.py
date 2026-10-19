@@ -42,6 +42,8 @@ class PostgameSignal(str, Enum):
 
 PREGAME_VERSION = "pregame-v1"
 POSTGAME_VERSION = "postgame-v1"
+OVERALL_VERSION = "postgame-records-v2"
+POSTGAME_VERSIONS = (POSTGAME_VERSION, OVERALL_VERSION)
 
 PREGAME_WEIGHTS: Mapping[PregameSignal, int] = MappingProxyType({
     PregameSignal.TEAM_STRENGTH: 15,
@@ -207,6 +209,31 @@ def score_postgame(
     )
 
 
+def add_matchup_expectation(score, magnitude, *, source_ref, observed_at, available_at):
+    """Keep legacy drama and add the shared 0..2 record-strength contribution."""
+    if score.model_version != POSTGAME_VERSION or score.kind is not ScoreKind.POSTGAME or not score_evidence_is_consistent(score):
+        raise ValueError("overall score needs consistent legacy postgame evidence")
+    observation = FeatureObservation(magnitude, source_ref, available_at, observed_at)
+    if max(observation.available_at, observation.observed_at) > score.as_of:
+        raise ValueError("future matchup evidence")
+    part = ScoreComponent("matchup_expectation", magnitude, 2, round(2 * magnitude, 6),
+                          source_ref, available_at, observed_at)
+    return VersionedScore(score.game_id, ScoreKind.POSTGAME, OVERALL_VERSION, score.as_of,
+                          round(min(10, score.value + round(2 * magnitude, 4)), 4),
+                          score.components + (part,))
+
+
+def component_points(score):
+    """Fan-readable contributions, proportionally capped to reconcile to the total."""
+    base = [p for p in score.components if p.signal != "matchup_expectation"]
+    denominator = sum(p.weight for p in base)
+    points = [p.weighted_contribution if p.signal == "matchup_expectation"
+              else 10 * p.weighted_contribution / denominator for p in score.components]
+    uncapped = sum(points)
+    factor = score.value / uncapped if uncapped else 1
+    return [round(p * factor, 4) for p in points]
+
+
 def score_evidence_is_consistent(score: VersionedScore) -> bool:
     """Fail closed if a stored score no longer matches its evidence.
 
@@ -216,6 +243,25 @@ def score_evidence_is_consistent(score: VersionedScore) -> bool:
     """
     if type(score) is not VersionedScore:
         return False
+    if score.model_version == OVERALL_VERSION:
+        if score.kind is not ScoreKind.POSTGAME:
+            return False
+        from dataclasses import replace
+        base = tuple(p for p in score.components if p.signal != "matchup_expectation")
+        extra = tuple(p for p in score.components if p.signal == "matchup_expectation")
+        if not base or len(extra) != 1:
+            return False
+        value = round(10 * sum(p.normalized_value * p.weight for p in base) / sum(p.weight for p in base), 4)
+        legacy = replace(score, model_version=POSTGAME_VERSION, components=base, value=value)
+        if not score_evidence_is_consistent(legacy):
+            return False
+        part = extra[0]
+        try:
+            rebuilt = add_matchup_expectation(legacy, part.normalized_value, source_ref=part.source_ref,
+                                               observed_at=part.observed_at, available_at=part.available_at)
+            return rebuilt == score
+        except (ValueError, TypeError):
+            return False
     if score.kind is ScoreKind.PREGAME:
         weights, version = PREGAME_WEIGHTS, PREGAME_VERSION
     elif score.kind is ScoreKind.POSTGAME:

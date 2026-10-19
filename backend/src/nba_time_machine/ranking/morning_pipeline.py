@@ -68,6 +68,32 @@ class MorningRankingPipeline:
         await batch.load(game_ids, as_of)
         return {gid: await batch.derive(gid, as_of=as_of) for gid in game_ids}
 
+    async def expectations(self, game_ids, *, as_of, strict=False):
+        # Retrospective records are deliberately unavailable in Time Machine.
+        # No dependency on complete PBP or a published postgame rating.
+        if strict or not game_ids:
+            return {}
+        batch = _BatchMorningRankingPipeline(self.session)
+        await batch.load(game_ids, as_of)
+        result = {}
+        for gid in game_ids:
+            latest = await batch._latest_observation(gid, as_of)
+            if latest is None or latest.status != "final":
+                continue
+            primary = await batch._observations(gid, SOURCE_IDS["espn"], as_of)
+            if not primary or (len(primary) == 2 and
+                    (primary[0].observed_at, primary[0].available_at) ==
+                    (primary[1].observed_at, primary[1].available_at)):
+                continue
+            observation = primary[0]
+            if (observation.status, observation.scheduled_tip_at, observation.home_score, observation.away_score) != (
+                    latest.status, latest.scheduled_tip_at, latest.home_score, latest.away_score):
+                continue
+            value = await batch._derive_observation(observation, as_of=as_of, records_only=True)
+            if value is not None:
+                result[str(gid)] = value
+        return result
+
     async def derive(self, game_id: UUID, *, as_of: datetime):
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must include a timezone")
@@ -118,7 +144,7 @@ class MorningRankingPipeline:
             return None
         return result
 
-    async def _derive_observation(self, observation, *, as_of):
+    async def _derive_observation(self, observation, *, as_of, records_only=False):
         game_id = observation.game_id
         rows = await self._facts(game_id, observation.source_id, as_of, valid_from=True)
         if not rows or (len(rows) == 2 and
@@ -148,6 +174,12 @@ class MorningRankingPipeline:
         boundary = max(fact.observed_at, fact.available_at)
         if boundary <= evidence.ref.scheduled_at:
             return None
+        from nba_time_machine.ranking.game_records import game_record_context
+        from nba_time_machine.ranking.pregame import expectation
+        pregame = expectation(game_record_context(evidence), source_ref=PREFIX + str(fact.id),
+                              observed_at=fact.observed_at, available_at=fact.available_at)
+        if records_only:
+            return pregame
         metrics = trajectory_features(evidence)
         if metrics is None:
             return None
@@ -158,6 +190,11 @@ class MorningRankingPipeline:
         # final_at here is a conservative scoring eligibility boundary, never
         # written to game_observations.final_at or claimed as the actual finish.
         score = score_postgame(game_id, features, final_at=boundary, as_of=as_of)
+        if pregame is not None:
+            from nba_time_machine.ranking.scoring import add_matchup_expectation
+            score = add_matchup_expectation(score, pregame["rating"] / 10,
+                                            source_ref=PREFIX + str(fact.id),
+                                            observed_at=fact.observed_at, available_at=fact.available_at)
         return fact, metrics, score
 
     async def process(self, game_id: UUID, *, as_of: datetime, write: bool = False,

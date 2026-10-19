@@ -18,32 +18,8 @@ class ContextSettings(Settings):
     max_bonus: float = Field(default=2, ge=0, le=10)
 
 
-class RecordSettings(Settings):
-    prior_games: float = Field(default=10, ge=0, le=82)
-    minimum_games: int = Field(default=3, ge=1, le=82)
-    confidence_games: float = Field(default=20, gt=0, le=82)
-    win_pct_floor: float = Field(default=.5, ge=0, lt=1)
-    win_pct_peak: float = Field(default=.75, gt=0, le=1)
-    max_bonus: float = Field(default=2, ge=0, le=10)
-
-
-def record_preview(context, settings):
-    detail = {**context, "bonus": None, "calculation": None}
-    if context["status"] != "available":
-        return detail
-    h, a = context["home"], context["away"]
-    gp = min(h["games_played"], a["games_played"])
-    if gp < settings.minimum_games:
-        return {**detail, "status":"insufficient_sample", "reason":"Too few earlier games for the selected minimum; importance bonus unavailable."}
-    smoothed = [(r["wins"] + settings.prior_games/2)/(r["games_played"] + settings.prior_games) for r in (h,a)]
-    strengths = [ramp(v, settings.win_pct_floor, settings.win_pct_peak) for v in smoothed]
-    confidence = clamp(gp/settings.confidence_games)
-    magnitude = min(strengths) * confidence
-    return {**detail, "bonus":round(settings.max_bonus*magnitude,4), "calculation":{
-        "home_smoothed_win_pct":smoothed[0], "away_smoothed_win_pct":smoothed[1],
-        "home_strength_magnitude":strengths[0], "away_strength_magnitude":strengths[1],
-        "strength_magnitude":min(strengths), "sample_games":gp, "sample_confidence":confidence,
-        "matchup_magnitude":magnitude, "combined_magnitude":magnitude, "max_bonus":settings.max_bonus}}
+# One implementation feeds pregame expectations and overall workbench ratings.
+from nba_time_machine.ranking.pregame import RecordSettings, record_preview
 
 
 def context_preview(context, settings):
