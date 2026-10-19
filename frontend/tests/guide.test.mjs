@@ -79,3 +79,24 @@ test('open expectation is allowlisted, slate-scoped, reconstructed and isolated 
   }
   assert.throws(() => parseGuideList({...slate, expectations:{'unknown-game':expectation}}, 'browse'));
 });
+
+test('known pre-tip star potential survives missing records and rejects minutes, later rosters and cross-cutoff inputs', async () => {
+  const {parseGuideList} = await import('../src/guide.ts');
+  const tip='2026-10-14T00:00:00Z', known='2026-10-13T10:00:00Z';
+  const value={...slate,games:[{...slate.games[0],scheduled_tip:tip}],expectations:{[id]:{
+    model:'pregame-context-v2',rating:6.4516,overall_points:.9677,coverage:'stars-only',basis:'known-pre-tip',
+    explanation:'Roster potential; availability unconfirmed.',missing:['Regular-season record strength'],
+    teams:[{team:'BOS'},{team:'NYK'}],formula:'Shared rank/slot/team formula',source_ref:'ranking:fixture',observed_at:known,available_at:known,
+    star_power:{rating:6.4516,overall_points:.9677,explanation:'Unconfirmed availability',
+      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Fixture '+i,rank:i+1,slot_weight:1,contribution:1}]})),
+      evidence:[0,1,2].map(i=>({source_ref:'fixture:'+i,observed_at:known,available_at:known}))}
+  }}};
+  assert.equal(parseGuideList(value,'browse').expectations[id].coverage,'stars-only');
+  assert.equal(parseGuideList(value,'time-machine').expectations[id].rating,6.4516);
+  const badMinutes=structuredClone(value);badMinutes.expectations[id].star_power.teams[0].players[0].minutes=48;
+  assert.throws(()=>parseGuideList(badMinutes,'browse'));
+  const badTip=structuredClone(value);badTip.expectations[id].star_power.evidence[0].observed_at=tip;
+  assert.throws(()=>parseGuideList(badTip,'browse'));
+  const badCutoff=structuredClone(value);badCutoff.time_cursor='2026-10-13T09:00:00Z';
+  assert.throws(()=>parseGuideList(badCutoff,'time-machine'));
+});

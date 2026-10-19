@@ -236,7 +236,7 @@ class MorningRankingPipeline:
             await self.session.execute(text("SELECT pg_advisory_xact_lock(734387)"))
             # Coordinate registry revocation with feature/archive writes too.
             await self.session.execute(select(SourceRecord).where(
-                SourceRecord.id.in_(SOURCE_IDS.values())).order_by(SourceRecord.id).with_for_update())
+                SourceRecord.id.in_((*SOURCE_IDS.values(), "ringer-nba-top100-manual"))).order_by(SourceRecord.id).with_for_update())
         result = await self.derive(game_id, as_of=as_of)
         if result is None:
             return False

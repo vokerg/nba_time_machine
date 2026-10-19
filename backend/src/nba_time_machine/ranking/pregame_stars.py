@@ -2,7 +2,7 @@
 from types import SimpleNamespace
 from sqlalchemy import select, func
 
-from nba_time_machine.db import SeasonRecord, SourceRecord, SportsExternalIdentityRecord, TemporalFactRecord
+from nba_time_machine.db import SeasonRecord, SourceRecord, SportsExternalIdentityRecord, TemporalFactRecord, TeamRecord
 from nba_time_machine.ranking.player_rankings import SOURCE_ID, FACT_TYPE
 from nba_time_machine.ranking.player_ranking_store import approved, read_snapshot
 from nba_time_machine.ranking.star_power import StarSettings, team_star_power, matchup_star_power
@@ -46,8 +46,9 @@ class PregameStarReader:
         for rows in self.rosters.values():
             rows.sort(key=lambda r: (r.observed_at, r.available_at), reverse=True)
         m = SportsExternalIdentityRecord
-        self.team_mappings = {row.external_id: row.team_id for row in (await self.session.scalars(
-            select(m).where(m.provider_key == 'espn', m.entity_type == 'team'))).all()}
+        self.team_mappings = {row.external_id: (row.team_id, name) for row, name in (await self.session.execute(
+            select(m, TeamRecord.name).join(TeamRecord, TeamRecord.id == m.team_id)
+            .where(m.provider_key == 'espn', m.entity_type == 'team'))).all()}
         self.ready = True
 
     async def read(self, gid, tip):
@@ -73,7 +74,9 @@ class PregameStarReader:
                 continue
             try:
                 roster = Roster.model_validate(row.value)
-                if row.subject_type != 'team' or self.team_mappings.get(roster.team_id) != tid:
+                from nba_time_machine.sports.morning_models import TEAM_NAMES
+                if (row.subject_type != 'team' or not row.fact_metadata.get('identity_only')
+                        or self.team_mappings.get(roster.team_id) != (tid, TEAM_NAMES[roster.team])):
                     continue
                 eligible[tid] = (row, roster)
             except ValueError:

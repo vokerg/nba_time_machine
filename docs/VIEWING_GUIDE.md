@@ -173,3 +173,17 @@ workbench bonus and new `postgame-records-v2` production ratings; archived v1
 ratings remain immutable. Both supported production versions require current
 verified evidence and explicit postgame consent. See
 [Pregame expectation](PREGAME_EXPECTATION.md) for coverage, formulas and timing.
+
+
+### Shared pregame Star Power (#10 owner follow-up)
+
+The fan guide now includes an independent, openly explained roster-star potential
+component, including preseason and upcoming observed games. Missing team records
+do not suppress eligible stars. Only ranking/roster evidence genuinely known
+before tip is admitted; confirmed availability remains unknown. Time Machine
+also requires that evidence before its saved cutoff. The same rank/slot/team
+functions serve the workbench and new `postgame-stars-v3` archive model, which
+uses actual verified minutes instead of adding potential and realized stars twice.
+The earlier record-only limitation is superseded for this component. No
+first-snapshot consumer backfill, new collection, old-archive rewrite or global
+media exception is introduced. See [Pregame expectation](PREGAME_EXPECTATION.md).

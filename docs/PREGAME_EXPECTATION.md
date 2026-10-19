@@ -1,8 +1,8 @@
 # Shared pregame expectation (#10)
 
-The fan guide openly shows a **record-based matchup expectation**, its entering
-W–L records, explanation and missing inputs. This first slice reuses the existing
-schema-4 workbench formula; it does not claim a calibrated prediction of winning,
+The fan guide openly shows a **partial pregame expectation** from independently
+available team records and roster star potential, with names, ranks, explanations
+and missing inputs. It reuses the existing workbench formulas; it does not claim a calibrated prediction of winning,
 closeness or entertainment. The weak-team floor can produce zero with valid data.
 Missing or insufficient records produce no score, never zero.
 
@@ -17,6 +17,10 @@ is multiplied by sample confidence: the smaller games-played count divided by
 20, capped at one. Both teams need at least three earlier games.
 
 `pregame-records-v1` displays ten times that magnitude, on a 0–10 scale.
+With pre-tip stars, `pregame-context-v2` combines available component ratings
+using their existing maximum bonuses as weights: records 2, stars 1.5. A stars-only
+expectation remains available when preseason records are ineligible; no missing
+record term is imputed as zero.
 The exact existing workbench bonus, up to **2 points**, also enters the new
 production `postgame-records-v2` model: legacy trajectory/drama score plus the
 shared matchup bonus, capped at ten. The model and source fact reference are
@@ -49,14 +53,14 @@ records, removed win/loss, score, winner, game trajectory, box stats and actual
 participation never enter this response. The expectation can exist even when
 PBP is unusable or the game has no published overall rating.
 
-**Time Machine withholds this reconstruction**, even at later cursors. This
-slice does not manufacture a historically archived pre-tip prediction or connect
-an upcoming-game collector. The legacy genuine pregame fields remain subject to
-the existing policy. Future work can feed genuinely observed pre-tip records,
-lineups and rankings into the same shared arithmetic; it must preserve the
-explicit distinction between expected participation and actual minutes played.
+**Time Machine withholds record reconstruction**, even at later cursors. It can
+show genuinely known-before-tip roster star potential when the schedule, ranking
+and both rosters are known by the saved cutoff. Upcoming observed matchups can
+therefore receive a stars-only expectation without completed-game evidence. No
+new collector or timestamp backdating is introduced. Genuine pre-tip team records
+and lineups remain future work.
 
-No injuries, expected star availability, roster assumptions, expected closeness,
+No injuries, confirmed star availability, expected closeness,
 rest, rivalry, seeding or playoff leverage are invented. Those are listed as
 missing. Ringer first-snapshot backfill and actual participation stay confined
 to their existing retrospective/postgame use.
@@ -84,3 +88,41 @@ open response field isolation, strict-mode withholding, independent PBP failure,
 new revision masking, source revocation, additive/cap arithmetic, immutable
 archives, shared workbench contribution, browser DOM behavior and safe parsing.
 No live provider collection or owner database changes are part of verification.
+
+## Shared Star Power, including preseason
+
+`team_star_power` and `matchup_star_power` now serve both the existing workbench
+and the pregame/production paths. Rank values use the existing nonlinear curve.
+The top three ranked roster players receive slot weights 1, .4 and .15; team
+strength is their sum divided by 1.55, capped at one. The two-team metric is
+`.4 × max(home, away) + .6 × sqrt(home × away)`. Star potential is that metric
+on a ten-point scale. Its 1.5-point potential bonus is not a promise that all
+stars will play. The UI explicitly labels injuries, lineups and playing time
+unconfirmed and lists only the top three contributing roster stars per team.
+
+Only a complete, signature-validated same-season Ringer snapshot genuinely
+observed before tip is eligible. Existing permission and retention checks apply;
+no publisher request or first-snapshot backfill is used. ESPN identity-only team
+facts must also predate tip and the knowledge cutoff, match the canonical ESPN
+team identity/name and pass validity/schema checks. Duplicate player membership,
+missing rosters, invalid latest revisions and revoked sources withhold the star
+component. Snapshot and roster reads are batched and revision-signature cache
+invalidation now includes those season/team facts. No game box or actual minutes
+enters the public expectation.
+
+`postgame-stars-v3` adds up to 1.5 points of **realized** Star Power to the existing
+v1 drama or v2 drama-plus-records model. It uses the same pre-tip ranking, curve,
+slots and two-team metric, but applies the existing verified actual-minutes factor.
+It replaces the conceptual roster-potential contribution; potential and realized
+stars are never summed. Missing or inconsistent participation withholds this
+family rather than assuming full minutes. The existing archive retains the exact
+ranking/box fact references and re-verifies every displayed score. All three
+production versions remain readable with their own validated arithmetic. No
+old row is rewritten, and reads never publish ratings.
+
+Read-only verification for October 16, 2026 TOR–DET found a complete pre-tip ranking
+and both pre-tip rosters. The shared reader returns 7.6/10 star potential, with
+three contributing players per team (Toronto has a fourth ranked roster player,
+excluded by the existing top-three rule), despite ineligible preseason records.
+This is roster reputation potential, not a verified lineup or calibrated game
+quality prediction. No provider collection or owner-database writes were performed.

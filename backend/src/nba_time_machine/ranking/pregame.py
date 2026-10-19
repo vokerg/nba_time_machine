@@ -125,7 +125,7 @@ def combine_expectation(records, stars):
     if records:
         observed, available = max(observed, stamp(records['observed_at'])), max(available, stamp(records['available_at']))
     return {
-        'model':'pregame-context-v2', 'rating':round(10 * points / weight, 4), 'overall_points':round(points, 4),
+        'model':'pregame-context-v2', 'rating':round((stars['rating'] * 1.5 + (records['rating'] * 2 if records else 0)) / weight, 4), 'overall_points':round(points, 4),
         'coverage':'records-and-stars' if records else 'stars-only',
         'basis':'mixed' if records else 'known-pre-tip',
         'explanation': ('Entering team records and roster star potential. ' if records else 'Roster star potential; team record strength is unavailable. ') + stars['explanation'],
