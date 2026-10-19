@@ -297,3 +297,11 @@ The running browser/API now show a corrected proposal and its explicit provenanc
 label. The remaining game-importance gap is the existing preseason exclusion.
 Owner archived-rating counts stayed 21 before/after; no ratings were materialized.
 See the [sanitized verification record](evidence/workbench-free-throw-2026-10-18.json).
+
+## Shared expectation calculation (#10)
+
+Record-based importance now imports `ranking.pregame.record_preview`; the fan
+pregame expectation and production `postgame-records-v2` use that same arithmetic.
+No duplicate formula is maintained. Other experimental workbench terms and saved
+configurations remain unchanged. [Pregame expectation](PREGAME_EXPECTATION.md)
+describes the open reconstructed display and newly adopted record bonus.

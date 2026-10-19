@@ -13,7 +13,7 @@ from nba_time_machine.ranking.recommendations import (
     ViewingCandidate, rank_postgame, recommend_for_budget,
 )
 from nba_time_machine.ranking.scoring import (
-    POSTGAME_VERSION, ScoreKind, VersionedScore,
+    POSTGAME_VERSIONS, ScoreKind, VersionedScore,
     score_evidence_is_consistent,
 )
 from nba_time_machine.spoilers.game_list import SafeGameList
@@ -128,7 +128,7 @@ class WatchabilityRecommendationService:
                     or score.game_id not in allowed
                     or row_counts[score.game_id] != 1
                     or score.kind is not ScoreKind.POSTGAME
-                    or score.model_version != POSTGAME_VERSION
+                    or score.model_version not in POSTGAME_VERSIONS
                     or score.as_of.tzinfo is None or score.as_of.utcoffset() is None
                     or score.as_of > cursor
                     or not score_evidence_is_consistent(score)):

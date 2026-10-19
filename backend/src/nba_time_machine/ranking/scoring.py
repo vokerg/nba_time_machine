@@ -247,6 +247,10 @@ def score_evidence_is_consistent(score: VersionedScore) -> bool:
         if score.kind is not ScoreKind.POSTGAME:
             return False
         from dataclasses import replace
+        if any(type(p) is not ScoreComponent or type(p.weight) is not int
+               or p.weight <= 0 or type(p.normalized_value) not in (int, float)
+               or not isfinite(p.normalized_value) for p in score.components):
+            return False
         base = tuple(p for p in score.components if p.signal != "matchup_expectation")
         extra = tuple(p for p in score.components if p.signal == "matchup_expectation")
         if not base or len(extra) != 1:

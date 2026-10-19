@@ -162,3 +162,14 @@ preferences. Matchup names stay 24px on mobile as well as desktop. Do not restor
 the original 9–12px labels, compact hint text or mobile type reductions. Let
 controls, metadata and section headings wrap as needed; provide roomier line
 spacing and touch targets instead of squeezing text to fit.
+
+## Open pregame expectation (#10)
+
+The guide now exposes an independently allowlisted `expectations` map in Browse.
+It shows record-only reconstructed expectations and reasons openly, including
+entering W–L, sample confidence and missing families. Time Machine never admits
+this reconstruction. The same shared record-strength calculation supplies the
+workbench bonus and new `postgame-records-v2` production ratings; archived v1
+ratings remain immutable. Both supported production versions require current
+verified evidence and explicit postgame consent. See
+[Pregame expectation](PREGAME_EXPECTATION.md) for coverage, formulas and timing.

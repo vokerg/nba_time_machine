@@ -321,3 +321,13 @@ Social breadth, advanced personalization, large-scale transcript processing and 
 The architecture should not assume NBA-specific semantics below the sports-domain layer.
 
 The general abstraction is a sports information time machine. Soccer, NFL, F1 and tennis have different entities and scoring logic, but the temporal provenance, spoiler policy, ingestion and recommendation boundaries are reusable.
+
+### Record-only pregame expectation (#10 implementation slice)
+
+Browse openly shows a record-based matchup expectation and its explanation,
+reusing the workbench's entering-record strength calculation. Historical source
+records collected later are explicitly labeled reconstructed and excluded from
+Time Machine. The same calculation adds up to two points to a separately gated,
+versioned overall rating; missing inputs stay unavailable and favorites do not
+change ratings. This partial expectation excludes unverified lineup, star,
+closeness and playoff assumptions. See [Pregame expectation](PREGAME_EXPECTATION.md).

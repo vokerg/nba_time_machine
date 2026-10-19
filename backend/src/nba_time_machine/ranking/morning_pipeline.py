@@ -1,6 +1,7 @@
 """Stored evidence -> versioned feature bundle -> existing hidden score archive.
 
-No fetches, inferred actual final time, pregame inputs, or public serialization.
+No fetches or inferred actual final time. Shared entering-record expectation is
+separate from outcomes and only its allowlisted reconstruction is public.
 Caller owns the transaction; the sports advisory lock serializes writes.
 """
 from dataclasses import asdict
@@ -66,15 +67,22 @@ class MorningRankingPipeline:
             return {}
         batch = _BatchMorningRankingPipeline(self.session)
         await batch.load(game_ids, as_of)
+        self._loaded_batch = (tuple(game_ids), as_of, batch)
         return {gid: await batch.derive(gid, as_of=as_of) for gid in game_ids}
 
     async def expectations(self, game_ids, *, as_of, strict=False):
         # Retrospective records are deliberately unavailable in Time Machine.
         # No dependency on complete PBP or a published postgame rating.
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("as_of must include a timezone")
         if strict or not game_ids:
             return {}
-        batch = _BatchMorningRankingPipeline(self.session)
-        await batch.load(game_ids, as_of)
+        loaded = getattr(self, "_loaded_batch", None)
+        if loaded and loaded[0] == tuple(game_ids) and loaded[1] == as_of:
+            batch = loaded[2]
+        else:
+            batch = _BatchMorningRankingPipeline(self.session)
+            await batch.load(game_ids, as_of)
         result = {}
         for gid in game_ids:
             latest = await batch._latest_observation(gid, as_of)
@@ -192,7 +200,7 @@ class MorningRankingPipeline:
         score = score_postgame(game_id, features, final_at=boundary, as_of=as_of)
         if pregame is not None:
             from nba_time_machine.ranking.scoring import add_matchup_expectation
-            score = add_matchup_expectation(score, pregame["rating"] / 10,
+            score = add_matchup_expectation(score, pregame["overall_points"] / 2,
                                             source_ref=PREFIX + str(fact.id),
                                             observed_at=fact.observed_at, available_at=fact.available_at)
         return fact, metrics, score

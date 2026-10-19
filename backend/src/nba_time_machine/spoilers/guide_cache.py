@@ -50,6 +50,7 @@ class PreparedDay:
     slate: object
     snapshots: dict
     scores: dict | None = None
+    expectations: dict | None = None
 
 
 class GuideDayCache:

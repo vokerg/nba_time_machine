@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nba_time_machine.db.ranking_models import RecommendationScoreRecord
 from nba_time_machine.ranking.scoring import (
-    POSTGAME_VERSION, POSTGAME_VERSIONS, ScoreComponent, ScoreKind, VersionedScore,
+    POSTGAME_VERSIONS, OVERALL_VERSION, ScoreComponent, ScoreKind, VersionedScore,
     score_evidence_is_consistent,
 )
 
@@ -75,7 +75,7 @@ class SqlAlchemyPostgameScoreRepository:
                 r.id.label("id"),
                 func.row_number().over(
                     partition_by=r.game_id,
-                    order_by=(r.as_of.desc(), r.model_version.desc(), r.id.desc()),
+                    order_by=(r.as_of.desc(), (r.model_version == OVERALL_VERSION).desc(), r.id.desc()),
                 ).label("position"),
             )
             .where(

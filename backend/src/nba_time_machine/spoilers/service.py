@@ -14,7 +14,7 @@ from uuid import UUID
 
 from nba_time_machine.ranking.disclosure import VerdictBands, ranking_fields
 from nba_time_machine.ranking.scoring import (
-    POSTGAME_VERSION, ScoreKind, VersionedScore, score_evidence_is_consistent,
+    POSTGAME_VERSIONS, ScoreKind, VersionedScore, score_evidence_is_consistent,
 )
 
 from nba_time_machine.spoilers.policy import (
@@ -141,7 +141,7 @@ class GameDisclosureService:
             if len(matching) == 1:
                 score = matching[0]
                 if (score.kind is ScoreKind.POSTGAME
-                        and score.model_version == POSTGAME_VERSION
+                        and score.model_version in POSTGAME_VERSIONS
                         and score_evidence_is_consistent(score)
                         and score.as_of <= timeline.time_cursor):
                     fields += ranking_fields(score, bands=self._verdict_bands)

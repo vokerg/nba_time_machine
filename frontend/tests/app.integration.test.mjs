@@ -770,3 +770,30 @@ test("finishing a day update clears loaded disclosure answers", async () => {
     assert.equal(posts, 2);
   } finally { await unmount(root); }
 });
+
+test('pregame expectation and entering records are open without postgame consent; strict mode removes reconstruction', async () => {
+  const calls = [];
+  const expectation = {
+    model:'pregame-records-v1',rating:4,overall_points:.8,coverage:'records-only',basis:'reconstructed',
+    explanation:'Both teams entering win rates; the weaker team and smaller sample limit strength.',
+    missing:['Expected lineups and injuries'], teams:[{team:'BOS',wins:20,losses:5,smoothed_win_pct:.714},
+      {team:'NYK',wins:18,losses:7,smoothed_win_pct:.657}], sample_confidence:1,
+    formula:'10 × both-team strength × sample confidence',source_ref:'fact:1',observed_at:cursor,available_at:cursor,
+  };
+  const root = await mount(async (url, options = {}) => {
+    calls.push({url,options});
+    if (url.includes('/timeline/')) return response(timeline);
+    return response({...slate,expectations:url.includes('mode=time-machine') ? {} : {[game]:expectation}});
+  });
+  try {
+    await until(() => document.body.textContent.includes('Pregame expectation · 4.0 / 10'));
+    assert.ok(document.body.textContent.includes('BOS 20–5'));
+    assert.ok(document.body.textContent.includes('Reconstructed from records collected later'));
+    assert.ok(document.body.textContent.includes('Overall rating contribution: +0.80'));
+    assert.ok(document.body.textContent.includes('Expected lineups and injuries'));
+    assert.equal(calls.some(c => c.url.endsWith('/disclose')), false);
+    await click('Time Machine');
+    await until(() => document.body.textContent.includes('No verified pre-tip expectation at this cutoff.'));
+    assert.ok(!document.body.textContent.includes('BOS 20–5'));
+  } finally { await unmount(root); }
+});

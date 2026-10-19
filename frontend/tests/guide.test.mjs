@@ -61,3 +61,21 @@ test("guide rejects off-slate, duplicate, cross-layer, inconsistent and future e
     8,
   );
 });
+
+const expectation = {
+  model: 'pregame-records-v1', rating: 4, overall_points: .8, coverage: 'records-only', basis: 'reconstructed',
+  explanation: 'Entering records with conservative sample confidence.', missing: ['Injuries'],
+  teams: [{team:'BOS',wins:20,losses:5,smoothed_win_pct:.714}, {team:'NYK',wins:18,losses:7,smoothed_win_pct:.657}],
+  sample_confidence: 1, formula: 'Shared record-strength formula', source_ref: 'fact:1', observed_at: cursor, available_at: cursor,
+};
+test('open expectation is allowlisted, slate-scoped, reconstructed and isolated from Time Machine', async () => {
+  const { parseGuideList } = await import('../src/guide.ts');
+  const value = {...slate, expectations:{[id]:expectation}};
+  assert.equal(parseGuideList(value, 'browse').expectations[id].rating, 4);
+  assert.throws(() => parseGuideList(value, 'time-machine'));
+  for (const extra of [{home_score:110}, {removed_result:'win'}, {rating:11}, {overall_points:2},
+      {teams:[{...expectation.teams[0],provider_after_wins:21}, expectation.teams[1]]}]) {
+    assert.throws(() => parseGuideList({...slate, expectations:{[id]:{...expectation,...extra}}}, 'browse'));
+  }
+  assert.throws(() => parseGuideList({...slate, expectations:{'unknown-game':expectation}}, 'browse'));
+});

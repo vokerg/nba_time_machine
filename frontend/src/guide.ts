@@ -167,3 +167,43 @@ export function parseDisclosure(
   return data as GuideDisclosure;
 }
 export { parseGameList };
+
+export type Expectation = {
+  model: string; rating: number; overall_points: number; coverage: "records-only";
+  basis: "reconstructed"; explanation: string; missing: string[];
+  teams: { team: string; wins: number; losses: number; smoothed_win_pct: number }[];
+  sample_confidence: number; formula: string; source_ref: string;
+  observed_at: string; available_at: string;
+};
+export type GuideList = GameList & { expectations?: Record<string, Expectation> };
+export function parseGuideList(value: unknown, mode: Mode): GuideList {
+  const data = record(value);
+  keys(data, ["time_cursor", "games", "expectations"]);
+  const slate = parseGameList({ time_cursor: data.time_cursor, games: data.games });
+  const expectations = record(data.expectations ?? {});
+  const ids = new Set(slate.games.map(g => g.game_id));
+  if (mode === "time-machine" && Object.keys(expectations).length)
+    throw new Error("Reconstructed expectations unavailable in Time Machine.");
+  const number = (v: unknown, max: number) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
+  for (const [id, raw] of Object.entries(expectations)) {
+    const e = record(raw);
+    keys(e, ["model", "rating", "overall_points", "coverage", "basis", "explanation", "missing", "teams",
+      "sample_confidence", "formula", "source_ref", "observed_at", "available_at"]);
+    if (!ids.has(id) || e.model !== "pregame-records-v1" || e.coverage !== "records-only" || e.basis !== "reconstructed" ||
+        !number(e.rating, 10) || !number(e.overall_points, 2) || !number(e.sample_confidence, 1) ||
+        Math.abs(Number(e.rating) / 5 - Number(e.overall_points)) > .0002 ||
+        ![e.explanation, e.formula, e.source_ref].every(v => typeof v === "string" && v.length > 0) ||
+        !instant(e.observed_at) || !instant(e.available_at) ||
+        !Array.isArray(e.missing) || !e.missing.every(v => typeof v === "string") ||
+        !Array.isArray(e.teams) || e.teams.length !== 2)
+      throw new Error("Invalid pregame expectation.");
+    for (const rawTeam of e.teams) {
+      const t = record(rawTeam);
+      keys(t, ["team", "wins", "losses", "smoothed_win_pct"]);
+      if (typeof t.team !== "string" || !number(t.wins, 82) || !Number.isInteger(t.wins) ||
+          !number(t.losses, 82) || !Number.isInteger(t.losses) || !number(t.smoothed_win_pct, 1))
+        throw new Error("Invalid entering record.");
+    }
+  }
+  return { ...slate, expectations: expectations as Record<string, Expectation> };
+}

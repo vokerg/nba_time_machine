@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import UUID
 
-from nba_time_machine.ranking.scoring import POSTGAME_VERSION, POSTGAME_VERSIONS, component_points, ScoreKind, score_evidence_is_consistent
+from nba_time_machine.ranking.scoring import POSTGAME_VERSIONS, component_points, ScoreKind, score_evidence_is_consistent
 from nba_time_machine.spoilers.game_list import GameListService
 from nba_time_machine.spoilers.guide_cache import PreparedDay
 from nba_time_machine.spoilers.policy import DisclosureLayer, GameContext, project_game
@@ -108,8 +108,14 @@ class ViewingGuideService:
     async def expectations(self, slate, cutoff, mode):
         if self.pregame is None:
             return {}
-        return await self.pregame.expectations(tuple(g.projection.game_id for g in slate.games),
-                                               as_of=cutoff, strict=mode == "time-machine")
+        if mode == "time-machine":
+            return {}
+        if self.prepared is not None and self.prepared.expectations is not None:
+            return self.prepared.expectations
+        result = await self.pregame.expectations(tuple(g.projection.game_id for g in slate.games), as_of=cutoff)
+        if self.prepared is not None:
+            self.prepared.expectations = result
+        return result
 
     async def disclose(self, profile_id, day, mode, expected_cursor, level, game_id=None):
         state, cutoff, slate = await self.context(profile_id, day, mode, expected_cursor)
@@ -125,6 +131,8 @@ class ViewingGuideService:
             async with self.cache.lock:
                 if self.prepared.scores is None:
                     self.prepared.scores = await self._eligible_scores(ids, cutoff)
+                    if self.pregame is not None and mode == "browse" and self.prepared.expectations is None:
+                        self.prepared.expectations = await self.pregame.expectations(ids, as_of=cutoff)
             eligible = {gid: self.prepared.scores[gid] for gid in selected
                         if gid in self.prepared.scores}
         details = {}

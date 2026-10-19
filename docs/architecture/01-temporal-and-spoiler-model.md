@@ -401,3 +401,14 @@ uses replay to fake pre-tip knowledge. Its full-result path filters all fields
 by the selected knowledge cutoff before projection, even for acknowledged games.
 Exact ratings and traceable component fields are available only through explicit
 POST consent; ordinary cards and general media never receive these fields.
+
+### Open reconstructed expectation (#10)
+
+Browse's explicitly labeled record-only expectation is a separate allowlisted
+response beside safe cards, using entering W–L reconstructed from validated
+completed-game records. No result, removed result, final record, participation,
+trajectory or later player ranking is exposed. This is not historical pre-tip
+knowledge; Time Machine withholds the reconstruction entirely. The shared
+calculation also supplies a versioned overall-rating contribution behind existing
+postgame consent. Actual provenance, source revocation and revision checks remain
+mandatory. See [Pregame expectation](../PREGAME_EXPECTATION.md).

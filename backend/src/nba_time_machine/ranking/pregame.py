@@ -1,8 +1,34 @@
 """Shared record-based expectation. No outcomes or player participation in its output."""
-from pydantic import Field
-from nba_time_machine.workbench.enrichment import Settings, clamp, ramp
+from typing import Literal
+from pydantic import Field, BaseModel, ConfigDict, AwareDatetime
+from nba_time_machine.ranking.settings import Settings, clamp, ramp
 
 VERSION = "pregame-records-v1"
+
+
+class EnteringTeam(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    team: str
+    wins: int = Field(ge=0, le=82)
+    losses: int = Field(ge=0, le=82)
+    smoothed_win_pct: float = Field(ge=0, le=1)
+
+
+class PregameExpectation(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    model: Literal["pregame-records-v1"]
+    rating: float = Field(ge=0, le=10)
+    overall_points: float = Field(ge=0, le=2)
+    coverage: Literal["records-only"]
+    basis: Literal["reconstructed"]
+    explanation: str
+    missing: list[str]
+    teams: list[EnteringTeam] = Field(min_length=2, max_length=2)
+    sample_confidence: float = Field(ge=0, le=1)
+    formula: str
+    source_ref: str
+    observed_at: AwareDatetime
+    available_at: AwareDatetime
 
 
 class RecordSettings(Settings):

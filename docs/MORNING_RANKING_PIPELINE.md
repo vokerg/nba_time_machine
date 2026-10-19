@@ -147,3 +147,12 @@ The local workbench's [CBS-corroborated free-throw preview](SCORING_WORKBENCH.md
 is a separate tuning interpretation. It does not change this producer, scoring
 weights, original input evidence or archive eligibility. A recovered local proposal
 therefore does not imply that a production rating exists for the game.
+
+## Shared record expectation (#10)
+
+The pipeline now emits `postgame-records-v2` when validated entering records meet
+the existing workbench sample rules: v1 drama plus the shared record-strength
+bonus, capped at ten. Without usable records it retains v1. Both archives are
+immutable and verified against current evidence. See
+[Pregame expectation](PREGAME_EXPECTATION.md) for the openly visible Browse
+reconstruction, strict-mode exclusion, reprocessing and contribution arithmetic.

@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, AwareDatetime, StrictBool
 
 from nba_time_machine.api.game_list import game_list_response
 from nba_time_machine.api.timeline import _session_factory
-from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
+from nba_time_machine.ranking.pregame import PregameExpectation
 from nba_time_machine.ranking.config import RankingDisclosureSettings
 from nba_time_machine.ranking.verification import RequestScoreVerifier
 from nba_time_machine.ranking.queries import SqlAlchemyPostgameScoreRepository
@@ -37,7 +37,7 @@ async def get_viewing_guide(request: Request):
             SqlAlchemyGameAcknowledgementRepository(session),
             SqlAlchemyPostgameScoreRepository(session, verifier=verify), verify, RankingDisclosureSettings().bands(),
             cache=request.app.state.guide_day_cache, revision=revision,
-            pregame=MorningRankingPipeline(session))
+            pregame=verify.pipeline)
 
 
 class DisclosureRequest(BaseModel):
@@ -56,7 +56,8 @@ async def games(profile_id: UUID, date: date, mode: Mode = "browse", service=Dep
         state, cutoff, slate = await service.list_games(profile_id, date, mode)
         response = game_list_response(slate).model_dump(mode="json")
         response["time_cursor"] = state.time_cursor
-        response["expectations"] = await service.expectations(slate, cutoff, mode)
+        response["expectations"] = {gid: PregameExpectation.model_validate(value).model_dump(mode="json")
+                                    for gid, value in (await service.expectations(slate, cutoff, mode)).items()}
         # Card state must not reveal whether the game has finished.
         for card in response["games"]:
             card["state"] = "sealed"

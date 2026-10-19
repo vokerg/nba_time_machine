@@ -2,7 +2,7 @@ import { useDayUpdate } from "./useDayUpdate";
 import { savedUpdate, updateFailure } from "./dayUpdate";
 import { useEffect, useRef, useState } from "react";
 import { BackendClient, nbaDate, profileIdentity, type Timeline } from "./api";
-import type { GameCard, GameList, MediaFeed } from "./dashboard";
+import type { GameCard, MediaFeed } from "./dashboard";
 import type { Detail, Level, Mode } from "./guide";
 import {
   NBA_TEAMS,
@@ -43,7 +43,7 @@ export function App() {
   const [cutoff, setCutoff] = useState(() =>
     new Date().toISOString().slice(0, 16),
   );
-  const [slate, setSlate] = useState<GameList | null>(null);
+  const [slate, setSlate] = useState<import("./guide").GuideList | null>(null);
   const [details, setDetails] = useState<Record<string, Detail>>({});
   const [order, setOrder] = useState<string[] | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -277,8 +277,9 @@ export function App() {
     slate?.games.filter((g) => isFavoriteGame(g, favorites)) ?? [];
   const before = visibleWatchOrder(
     (slate?.games ?? [])
-      .filter((g) => g.pregame_interest !== undefined)
-      .sort((a, b) => b.pregame_interest! - a.pregame_interest!),
+      .filter((g) => slate?.expectations?.[g.game_id] !== undefined || g.pregame_interest !== undefined)
+      .sort((a, b) => (slate?.expectations?.[b.game_id]?.rating ?? b.pregame_interest ?? 0) -
+        (slate?.expectations?.[a.game_id]?.rating ?? a.pregame_interest ?? 0)),
     favorites,
     include,
   );
@@ -488,6 +489,7 @@ export function App() {
             <div className="game-list">
               {slate?.games.map((g) => {
                 const d = details[g.game_id];
+                const expectation = slate.expectations?.[g.game_id];
                 return (
                   <article
                     className={
@@ -512,12 +514,26 @@ export function App() {
                       <small>at</small>
                       <span>{g.home_team}</span>
                     </h3>
-                    <p className="pregame-label">
-                      Before tip-off ·{" "}
-                      {g.pregame_interest !== undefined
-                        ? `${g.pregame_interest.toFixed(1)} / 10`
-                        : "No trustworthy prediction available"}
-                    </p>
+                    <div className="pregame-expectation">
+                      <p className="pregame-label">
+                        Pregame expectation · {expectation ? `${expectation.rating.toFixed(1)} / 10` :
+                          g.pregame_interest !== undefined ? `${g.pregame_interest.toFixed(1)} / 10` : "Not available"}
+                      </p>
+                      {expectation ? <>
+                        <p>{expectation.teams.map(t => `${t.team} ${t.wins}–${t.losses}`).join(" · ")} entering the game</p>
+                        <p>{expectation.explanation}</p>
+                        <p className="muted-note">Reconstructed from records collected later. Records only; not an archived pre-tip prediction.</p>
+                        <details>
+                          <summary>How this expectation is calculated</summary>
+                          <p>{expectation.formula}</p>
+                          <p>Sample confidence: {Math.round(expectation.sample_confidence * 100)}%. Overall rating contribution: +{expectation.overall_points.toFixed(2)} before the total cap.</p>
+                          <p>Not included: {expectation.missing.join(", ")}.</p>
+                          <p className="muted-note">Model: {expectation.model}. Collected: {new Date(expectation.observed_at).toLocaleString()}. Available: {new Date(expectation.available_at).toLocaleString()}.</p>
+                        </details>
+                      </> : <p className="muted-note">{mode === "time-machine" ?
+                        "No verified pre-tip expectation at this cutoff." :
+                        "Requires validated regular-season entering records and at least three earlier games per team."}</p>}
+                    </div>
                     <div className="game-actions">
                       <button
                         disabled={busy || loading}
