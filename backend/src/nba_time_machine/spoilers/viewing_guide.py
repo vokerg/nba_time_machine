@@ -111,7 +111,10 @@ class ViewingGuideService:
                 item.update(rating_detail(eligible[gid], self.bands, level))
             if level == "full":
                 snapshot = await self.games.get(gid, time_cursor=cutoff)
-                if snapshot is not None:
+                if (snapshot is not None and snapshot.full_available
+                        and snapshot.tip_at is not None and snapshot.tip_at < cutoff
+                        and snapshot.protection_ends_at is not None
+                        and snapshot.tip_at < snapshot.protection_ends_at <= cutoff):
                     # Filter BEFORE projection: explicit reveal/old acknowledgements
                     # cannot grant Time Machine a post-cursor exception.
                     known = tuple(f for f in snapshot.fields

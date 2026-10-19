@@ -428,3 +428,73 @@ test("backend errors show no synthetic games or raw server exception", async () 
     await unmount(root);
   }
 });
+
+test("choosing the same day keeps the slate; direct date input changes requests without moving cutoff", async () => {
+  const calls = [];
+  const root = await mount(fake(calls));
+  try {
+    await until(() => document.querySelector(".game-card"));
+    await click("Today");
+    assert.ok(document.querySelector(".game-card"));
+    assert.equal(calls.length, 2);
+    const input = document.getElementById("nba-date");
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      ).set.call(input, "2026-10-14");
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await until(
+      () =>
+        calls.some((c) => c.url.includes("date=2026-10-14")) &&
+        document.querySelector(".game-card"),
+    );
+    assert.equal(
+      calls.some((c) => c.options.method === "PUT"),
+      false,
+    );
+  } finally {
+    await unmount(root);
+  }
+});
+
+test("late responses from a previous date cannot overwrite the current slate", async () => {
+  let release;
+  let reads = 0;
+  const root = await mount(async (url) => {
+    if (url.includes("/timeline/")) return response(timeline);
+    reads++;
+    if (reads === 1)
+      return new Promise((resolve) => {
+        release = () =>
+          resolve(
+            response({ ...slate, games: [{ ...card, away_team: "Old date" }] }),
+          );
+      });
+    return response({
+      ...slate,
+      games: [{ ...card, away_team: "Current date" }],
+    });
+  });
+  try {
+    await until(() => reads === 1);
+    await click("←");
+    await until(() =>
+      document
+        .querySelector(".game-card")
+        ?.textContent.includes("Current date"),
+    );
+    await act(async () => release());
+    assert.match(
+      document.querySelector(".game-card").textContent,
+      /Current date/,
+    );
+    assert.doesNotMatch(
+      document.querySelector(".game-card").textContent,
+      /Old date/,
+    );
+  } finally {
+    await unmount(root);
+  }
+});

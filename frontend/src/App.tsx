@@ -141,7 +141,7 @@ export function App() {
     setError(null);
   }
   function selectDate(value: string) {
-    if (value >= FIRST && value <= LAST) {
+    if (value !== day && value >= FIRST && value <= LAST) {
       reset();
       setDay(value);
     }
@@ -203,7 +203,7 @@ export function App() {
     )
       return;
     setBusy(true);
-    reset();
+    setError(null);
     try {
       setTimeline(
         await client.advance(
@@ -345,6 +345,7 @@ export function App() {
                 max={LAST}
                 value={day}
                 disabled={busy}
+                onInput={(e) => selectDate(e.currentTarget.value)}
                 onChange={(e) => selectDate(e.target.value)}
               />
               <button

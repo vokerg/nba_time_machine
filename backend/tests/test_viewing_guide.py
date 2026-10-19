@@ -147,3 +147,17 @@ def test_http_consent_checked_before_service_and_strict_request_shape():
             assert client.post(path, json={**body, "consent": True, "level": "rating"}).status_code == 422
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_future_tip_or_future_final_boundary_cannot_be_revealed():
+    svc, _, _, games, acks, _ = setup()
+    original = games.get
+    async def future(gid, *, time_cursor):
+        value = await original(gid, time_cursor=time_cursor)
+        return replace(value, protection_ends_at=NOW + timedelta(days=2))
+    games.get = future
+    # A known matchup with a future final boundary cannot authorize a result.
+    result = await svc.disclose(PROFILE, DAY, "browse", CURSOR, "full")
+    assert all("result" not in d for d in result["details"].values())
+    assert not acks.acknowledged
