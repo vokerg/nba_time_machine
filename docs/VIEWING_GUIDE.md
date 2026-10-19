@@ -118,3 +118,12 @@ metadata for operator inspection. Timeout/interruption can leave useful partial
 work saved. Application shutdown cancels and awaits the job before closing DB
 connections. Time Machine does not expose the fresh-data action; newly collected
 facts cannot become knowledge before their actual observation time.
+
+## Typography (owner readability revision)
+
+Use 18px-equivalent body text, 17px controls, 16px secondary content and no text
+below 15px-equivalent metadata. Shared rem-based sizes follow browser font
+preferences. Matchup names stay 24px on mobile as well as desktop. Do not restore
+the original 9–12px labels, compact hint text or mobile type reductions. Let
+controls, metadata and section headings wrap as needed; provide roomier line
+spacing and touch targets instead of squeezing text to fit.
