@@ -345,3 +345,13 @@ uses actual verified minutes instead of adding potential and realized stars twic
 The earlier record-only limitation is superseded for this component. No
 first-snapshot consumer backfill, new collection, old-archive rewrite or global
 media exception is introduced. See [Pregame expectation](PREGAME_EXPECTATION.md).
+
+### Genuine scheduled records (#10 continuation)
+
+Explicit day collection can now preserve validated ESPN regular-season W–L
+before tip. Those genuinely observed records are allowed in Time Machine when
+known by its cutoff, remain available after final, and take precedence over
+later reconstructed totals in both pregame and overall record strength. This
+extends the earlier final-only record path without changing its formula, adding
+a scheduler, or relaxing publication/observation provenance. See
+[Pregame expectation](PREGAME_EXPECTATION.md#genuine-scheduled-game-records-10-continuation).

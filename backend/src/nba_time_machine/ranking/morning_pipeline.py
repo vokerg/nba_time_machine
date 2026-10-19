@@ -84,14 +84,15 @@ class MorningRankingPipeline:
         else:
             batch = _BatchMorningRankingPipeline(self.session)
             await batch.load(game_ids, as_of)
+        pretip, known_records = await batch.record_inputs(game_ids, as_of=as_of)
+        batch.open_records = dict(known_records)
         result = {}
-        batch.open_records = {}
         for gid in game_ids:
             latest = await batch._latest_observation(gid, as_of)
             if latest is None:
                 continue
-            records = None
-            if not strict and latest.status == "final":
+            records = pretip.get(str(gid))
+            if records is None and str(gid) not in batch.open_records and not strict and latest.status == "final":
                 primary = await batch._observations(gid, SOURCE_IDS["espn"], as_of)
                 ambiguous = len(primary) == 2 and (primary[0].observed_at, primary[0].available_at) == (primary[1].observed_at, primary[1].available_at)
                 if primary and not ambiguous:
@@ -106,6 +107,16 @@ class MorningRankingPipeline:
                 result[str(gid)] = value
         self.open_records = batch.open_records
         return result
+
+    async def record_inputs(self, game_ids, *, as_of):
+        from nba_time_machine.ranking.pregame_records import read_pregame_records
+        if isinstance(self, _BatchMorningRankingPipeline):
+            if not hasattr(self, '_known_records'):
+                self._known_records = await read_pregame_records(self, tuple(self.game_rows), as_of)
+            return self._known_records
+        batch = _BatchMorningRankingPipeline(self.session)
+        await batch.load(game_ids, as_of)
+        return await batch.record_inputs(game_ids, as_of=as_of)
 
     async def star_inputs(self, game_id, *, as_of, tip):
         if isinstance(self, _BatchMorningRankingPipeline):
@@ -214,6 +225,9 @@ class MorningRankingPipeline:
                              for side in ('home','away')],
                     'observed_at':fact.observed_at, 'available_at':fact.available_at}
             return pregame
+        known, known_records = await self.record_inputs((game_id,), as_of=as_of)
+        if str(game_id) in known_records:
+            pregame = known.get(str(game_id))
         metrics = trajectory_features(evidence)
         if metrics is None:
             return None
@@ -227,8 +241,8 @@ class MorningRankingPipeline:
         if pregame is not None:
             from nba_time_machine.ranking.scoring import add_matchup_expectation
             score = add_matchup_expectation(score, pregame["overall_points"] / 2,
-                                            source_ref=PREFIX + str(fact.id),
-                                            observed_at=fact.observed_at, available_at=fact.available_at)
+                                            source_ref=pregame["source_ref"],
+                                            observed_at=pregame["observed_at"], available_at=pregame["available_at"])
         star_inputs = await self.star_inputs(game_id, as_of=as_of, tip=evidence.ref.scheduled_at)
         from nba_time_machine.ranking.star_power import star_preview, StarSettings
         realized = star_preview(evidence, star_inputs['snapshot'], StarSettings())

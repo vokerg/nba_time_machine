@@ -181,7 +181,7 @@ export type Expectation = {
   sample_confidence?: number; formula: string; source_ref: string;
   observed_at: string; available_at: string; star_power?: StarPotential;
 };
-export type EnteringRecords = { basis: "reconstructed"; teams: {team:string; wins:number; losses:number}[]; observed_at:string; available_at:string };
+export type EnteringRecords = { basis: "reconstructed" | "known-pre-tip"; teams: {team:string; wins:number; losses:number}[]; observed_at:string; available_at:string };
 export type GuideList = GameList & { expectations?: Record<string, Expectation>; entering_records?: Record<string, EnteringRecords> };
 export function parseGuideList(value: unknown, mode: Mode): GuideList {
   const data = record(value);
@@ -198,7 +198,7 @@ export function parseGuideList(value: unknown, mode: Mode): GuideList {
     const hasStars = e.coverage === "stars-only" || e.coverage === "records-and-stars";
     const maximum = (hasRecords ? 2 : 0) + (hasStars ? 1.5 : 0);
     if (!card || !maximum || e.model !== (hasStars ? "pregame-context-v2" : "pregame-records-v1") ||
-        e.basis !== (hasRecords ? hasStars ? "mixed" : "reconstructed" : "known-pre-tip") ||
+        (e.basis !== "known-pre-tip" && e.basis !== (hasRecords ? hasStars ? "mixed" : "reconstructed" : "known-pre-tip")) ||
         !number(e.rating, 10) || !number(e.overall_points, maximum) ||
         (hasRecords ? !number(e.sample_confidence, 1) : e.sample_confidence !== undefined) ||
         Math.abs(Number(e.rating) * maximum / 10 - Number(e.overall_points)) > .0002 ||
@@ -206,8 +206,11 @@ export function parseGuideList(value: unknown, mode: Mode): GuideList {
         !instant(e.observed_at) || !instant(e.available_at) ||
         !Array.isArray(e.missing) || !e.missing.every(v => typeof v === "string") ||
         !Array.isArray(e.teams) || e.teams.length !== 2 ||
-        mode === "time-machine" && (hasRecords || Date.parse(e.observed_at) > Date.parse(slate.time_cursor) || Date.parse(e.available_at) > Date.parse(slate.time_cursor)))
+        mode === "time-machine" && (e.basis !== "known-pre-tip" || Date.parse(e.observed_at) > Date.parse(slate.time_cursor) || Date.parse(e.available_at) > Date.parse(slate.time_cursor)))
       throw new Error("Invalid pregame expectation.");
+    if (e.basis === "known-pre-tip" && (!card.scheduled_tip ||
+        Date.parse(e.observed_at) >= Date.parse(card.scheduled_tip) || Date.parse(e.available_at) >= Date.parse(card.scheduled_tip)))
+      throw new Error("Pregame evidence must be known before tip-off.");
     for (const rawTeam of e.teams) {
       const t = record(rawTeam);
       keys(t, ["team", "wins", "losses", "smoothed_win_pct"]);
@@ -249,13 +252,16 @@ export function parseGuideList(value: unknown, mode: Mode): GuideList {
     } else if (e.star_power !== undefined) throw new Error("Unexpected star evidence.");
   }
   const enteringRecords = record(data.entering_records ?? {});
-  if (mode === "time-machine" && Object.keys(enteringRecords).length)
-    throw new Error("Reconstructed records unavailable in Time Machine.");
   for (const [id, raw] of Object.entries(enteringRecords)) {
     const r = record(raw);
     keys(r, ["basis", "teams", "observed_at", "available_at"]);
-    if (!cards.has(id) || r.basis !== "reconstructed" || !instant(r.observed_at) || !instant(r.available_at) ||
+    const card = cards.get(id);
+    if (!card || (r.basis !== "reconstructed" && r.basis !== "known-pre-tip") || !instant(r.observed_at) || !instant(r.available_at) ||
         !Array.isArray(r.teams) || r.teams.length !== 2) throw new Error("Invalid entering records.");
+    if (r.basis === "known-pre-tip" && (!card.scheduled_tip || Date.parse(r.observed_at) >= Date.parse(card.scheduled_tip) ||
+        Date.parse(r.available_at) >= Date.parse(card.scheduled_tip)) || mode === "time-machine" && (r.basis !== "known-pre-tip" ||
+        Date.parse(r.observed_at) > Date.parse(slate.time_cursor) || Date.parse(r.available_at) > Date.parse(slate.time_cursor)))
+      throw new Error("Records must be known before tip-off and the selected cutoff.");
     for (const rawTeam of r.teams) {
       const team = record(rawTeam);
       keys(team, ["team", "wins", "losses"]);

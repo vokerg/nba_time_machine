@@ -74,7 +74,7 @@ class EnteringRecord(BaseModel):
 
 class EnteringRecords(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    basis: Literal["reconstructed"]
+    basis: Literal["reconstructed", "known-pre-tip"]
     teams: list[EnteringRecord] = Field(min_length=2, max_length=2)
     observed_at: AwareDatetime
     available_at: AwareDatetime
@@ -117,7 +117,7 @@ def expectation(context, *, source_ref, observed_at, available_at):
     return {
         "model": VERSION, "rating": round(10 * calc["matchup_magnitude"], 4),
         "overall_points": measured["bonus"], "coverage": "records-only",
-        "basis": "reconstructed",
+        "basis": "known-pre-tip" if context.get("basis") == "known-pre-tip" else "reconstructed",
         "explanation": "Both teams' entering win rates, smoothed toward .500; the weaker team and the smaller sample limit the matchup strength. This is not a win probability.",
         "missing": ["Expected lineups and injuries", "Expected competitiveness", "Rest and recent form", "Rivalry and playoff stakes"],
         "teams": [{"team": context[side]["team"], "wins": context[side]["wins"],
@@ -144,7 +144,7 @@ def combine_expectation(records, stars):
     return {
         'model':'pregame-context-v2', 'rating':round((stars['rating'] * 1.5 + (records['rating'] * 2 if records else 0)) / weight, 4), 'overall_points':round(points, 4),
         'coverage':'records-and-stars' if records else 'stars-only',
-        'basis':'mixed' if records else 'known-pre-tip',
+        'basis':('mixed' if records['basis'] == 'reconstructed' else 'known-pre-tip') if records else 'known-pre-tip',
         'explanation': ('Entering team records and roster star potential. ' if records else 'Roster star potential; team record strength is unavailable. ') + stars['explanation'],
         'missing':['Confirmed star availability and lineups', 'Expected competitiveness', 'Rest and recent form', 'Rivalry and playoff stakes'] + ([] if records else ['Regular-season record strength']),
         'teams':records['teams'] if records else [{'team':t['team']} for t in stars['teams']],

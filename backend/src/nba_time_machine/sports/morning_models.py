@@ -77,6 +77,12 @@ class MatchupRecords(Model):
     basis: Literal["espn_completed_game_total"] = "espn_completed_game_total"
 
 
+class PregameRecords(Model):
+    home: SeasonRecord
+    away: SeasonRecord
+    basis: Literal["espn_scheduled_game_total"] = "espn_scheduled_game_total"
+
+
 class GameRef(Model):
     provider: Literal["espn", "cbs"]
     external_id: str = Field(min_length=1, max_length=64)
@@ -85,6 +91,7 @@ class GameRef(Model):
     away: str
     scheduled_at: AwareDatetime | None = None
     final: bool | None = None
+    pregame: bool = False
     season_type: int | None = Field(default=None, strict=True)
     competition_type: str | None = Field(default=None, max_length=32)
     home_record: SeasonRecord | None = None
@@ -159,7 +166,7 @@ class Evidence(Model):
     observed_at: AwareDatetime
     season: str
     game_type: Literal["preseason", "regular_season", "playoffs"]
-    status: Literal["final", "pending"]
+    status: Literal["final", "pending", "scheduled"]
     home: Team
     away: Team
     plays: tuple[Play, ...] = ()
@@ -170,6 +177,7 @@ class Evidence(Model):
     notes: tuple[str, ...] = ()
     source_end_at: AwareDatetime | None = None
     source_updated_at: AwareDatetime | None = None
+    entering_records: PregameRecords | None = None
     records: MatchupRecords | None = None
     record_errors: tuple[str, ...] = ()
     trajectory_basis: Literal["provider_scores", "scoring_actions_v1"] = "provider_scores"

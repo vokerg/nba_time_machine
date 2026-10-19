@@ -110,3 +110,22 @@ test('entering records are independent of rating coverage and cannot carry resul
   const bad=structuredClone(value);bad.entering_records[id].teams[0].home_score=100;
   assert.throws(()=>parseGuideList(bad,'browse'));
 });
+
+test('genuine pre-tip records and expectations pass Time Machine only before both boundaries', async()=>{
+  const {parseGuideList}=await import('../src/guide.ts');
+  const known='2026-10-13T10:00:00Z', tip='2026-10-14T00:00:00Z';
+  const value={...slate,games:[{...slate.games[0],scheduled_tip:tip}],
+    expectations:{[id]:{...expectation,basis:'known-pre-tip',observed_at:known,available_at:known}},
+    entering_records:{[id]:{basis:'known-pre-tip',teams:[{team:'BOS',wins:20,losses:5},{team:'NYK',wins:18,losses:7}],
+      observed_at:known,available_at:known}}};
+  assert.equal(parseGuideList(value,'time-machine').entering_records[id].teams[0].wins,20);
+  assert.equal(parseGuideList(value,'time-machine').expectations[id].basis,'known-pre-tip');
+  for(const field of ['observed_at','available_at']) {
+    for(const section of ['expectations','entering_records']) {
+      const atTip=structuredClone(value);atTip[section][id][field]=tip;
+      assert.throws(()=>parseGuideList(atTip,'browse'));
+      const afterCutoff=structuredClone(value);afterCutoff.time_cursor='2026-10-13T09:00:00Z';
+      assert.throws(()=>parseGuideList(afterCutoff,'time-machine'));
+    }
+  }
+});

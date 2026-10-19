@@ -426,3 +426,13 @@ uses actual verified minutes instead of adding potential and realized stars twic
 The earlier record-only limitation is superseded for this component. No
 first-snapshot consumer backfill, new collection, old-archive rewrite or global
 media exception is introduced. See [Pregame expectation](../PREGAME_EXPECTATION.md).
+
+### Genuine pre-tip record expectation (#10 continuation)
+
+The guide may expose scheduled-game W–L and record expectations marked
+`known-pre-tip` when both observation and availability precede the matching tip
+and, in Time Machine, do not exceed the saved cutoff. Latest historical revisions
+are selected before schema/identity/validity checks. Later reconstructed final
+records remain excluded from Time Machine. The same safe record calculation and
+provenance feed overall ratings behind their existing consent boundary. See
+[Pregame expectation](../PREGAME_EXPECTATION.md) for selection and fallback rules.

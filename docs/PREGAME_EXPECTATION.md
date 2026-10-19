@@ -142,3 +142,39 @@ Ranked players outside the three scoring slots are not labeled unranked. Names
 are available on expansion to keep ordinary cards compact. Missing ranking
 entries do not receive invented ranks or change scoring. The same roster/ranking
 provenance and Time Machine cutoff apply to this list.
+
+### Genuine scheduled-game records (#10 continuation)
+
+The existing explicit day collector now captures ESPN scheduled summaries as well
+as finals. Both scoreboard and summary must identify a scheduled, unstarted game;
+the summary period must be zero, with no scores, plays, winner or period totals,
+and actual collection must precede the matching scheduled tip. Regular-season
+scope, supported season, Cup Championship exclusion and matching total W–L claims
+remain required. Preseason totals never substitute for regular-season records.
+
+Scheduled evidence stores `entering_records` separately from completed-game
+`records`. Its canonical observation is `scheduled`, with null scores. Captures,
+facts, deduplication, source permissions and timestamps use the existing storage
+path. No scheduler or backdating is introduced; operators must collect before tip
+to preserve genuine pre-tip knowledge. Later collection cannot recreate it.
+
+Browse and Time Machine prefer validated genuine pre-tip records. Time Machine
+also bounds both observation and availability by its saved cutoff. The reader
+selects the latest pre-tip observation before validating its matching fact; a
+missing, ambiguous, expired or corrupt latest fact does not resurrect an older
+record. Canonical game/team/season identities and the current scheduled tip must
+agree. Canceled, postponed and suspended current states suppress the context.
+Records remain usable after final when those checks pass. Later reconstructed
+records remain Browse-only fallback when no genuine records are available.
+
+The existing formula and weights are unchanged. Genuine records display even
+below the three-game scoring minimum. When they support a rating, the very same
+record component and its pre-tip provenance feed the overall rating; later final
+totals do not replace it. Stars still use roster potential pregame and verified
+actual minutes postgame. API `basis: known-pre-tip` now applies to records-only
+and combined expectations, as well as stars-only expectations. Consumer card
+layout and disclosure controls are unchanged.
+
+Pre-tip record reads add one bounded batch query, shared by expectation and
+archive verification; the cold guide budget is now sixteen SELECTs on the
+existing fixture, with the same three-read warm disclosure and two-read warm GET.

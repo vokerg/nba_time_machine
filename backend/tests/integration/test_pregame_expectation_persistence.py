@@ -143,3 +143,113 @@ async def test_entering_records_are_visible_before_scoring_minimum_and_withheld_
             await pipeline.expectations((gid,),as_of=observed+timedelta(hours=1),strict=True)
             assert pipeline.open_records=={}
     finally:await engine.dispose()
+
+
+async def test_genuine_pretip_records_survive_final_and_supply_same_overall_strength():
+    from test_scheduled_records import scheduled_evidence
+    from nba_time_machine.db import GameObservationRecord, TemporalFactRecord
+    from nba_time_machine.sports.morning_models import PregameRecords
+    engine,factory=await setup()
+    e=scheduled_evidence(str(uuid4().int)[:12])
+    # A separate day avoids the fixture's canonical matchup from other tests.
+    day=date(2026,3,7)
+    delta=timedelta(days=(day-e.ref.day).days)
+    strong=SeasonRecord(wins=20,losses=5)
+    e=e.model_copy(update={'observed_at':e.observed_at+delta,
+        'entering_records':PregameRecords(home=strong,away=strong),
+        'ref':e.ref.model_copy(update={'day':day,'scheduled_at':e.ref.scheduled_at+delta,
+            'home_record':strong,'away_record':strong})})
+    try:
+        first=await MorningStore(factory,manual=True).collect(FixtureCollector([e]),day)
+        assert first.captures_written==1
+        async with factory() as session:
+            gid=await session.scalar(select(SportsExternalIdentityRecord.game_id).where(
+                SportsExternalIdentityRecord.provider_key=='espn',SportsExternalIdentityRecord.entity_type=='game',
+                SportsExternalIdentityRecord.external_id==e.external_id))
+            observation=await session.scalar(select(GameObservationRecord).where(GameObservationRecord.game_id==gid))
+            assert observation.status=='scheduled' and observation.home_score is None and observation.away_score is None
+            pipeline=MorningRankingPipeline(session)
+            assert await pipeline.expectations((gid,),as_of=e.observed_at-timedelta(seconds=1),strict=True)=={}
+            known=(await pipeline.expectations((gid,),as_of=e.observed_at,strict=True))[str(gid)]
+            assert known['basis']=='known-pre-tip' and known['teams'][0]['wins']==20 and known['overall_points']>0
+            assert pipeline.open_records[str(gid)]['basis']=='known-pre-tip'
+        # Later final totals are deliberately different: archived pre-tip evidence wins.
+        final=evidence_with_records(e.external_id)
+        final=final.model_copy(update={'observed_at':e.ref.scheduled_at+timedelta(hours=4),
+            'ref':final.ref.model_copy(update={'day':day,'scheduled_at':e.ref.scheduled_at})})
+        await MorningStore(factory,manual=True).collect(FixtureCollector([final]),day)
+        cutoff=final.observed_at+timedelta(hours=1)
+        async with factory() as session:
+            pipeline=MorningRankingPipeline(session)
+            assert (await pipeline.expectations((gid,),as_of=cutoff,strict=True))[str(gid)]==known
+            score=(await pipeline.derive(gid,as_of=cutoff))[2]
+            part=next(p for p in score.components if p.signal=='matchup_expectation')
+            assert part.weighted_contribution==known['overall_points']
+            assert part.source_ref==known['source_ref'] and part.observed_at==e.observed_at
+        profile=uuid4()
+        async with factory.begin() as session:
+            await TimelineService(SqlAlchemyTimelineRepository(session)).initialize(profile,cutoff)
+        app=FastAPI(); app.state.session_factory=factory; app.include_router(router)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://test') as client:
+            response=await client.get(f'/profiles/{profile}/guide',params={'date':str(day),'mode':'time-machine'})
+            assert response.status_code==200,response.text
+            body=response.json()
+            assert body['expectations'][str(gid)]['basis']=='known-pre-tip'
+            assert body['entering_records'][str(gid)]['teams'][0]['wins']==20
+            assert all('home_score' not in g and 'rating' not in g for g in body['games'])
+        # Latest pre-tip correction masks old records even if invalid, with no resurrection.
+        correction=e.model_copy(update={'observed_at':e.observed_at+timedelta(minutes=10),'entering_records':None})
+        await MorningStore(factory,manual=True).collect(FixtureCollector([correction]),day)
+        async with factory() as session:
+            assert await MorningRankingPipeline(session).expectations((gid,),as_of=cutoff,strict=True)=={}
+        # Restoring the newest capture allows expiry and schedule-correction checks.
+        restored=e.model_copy(update={'observed_at':e.observed_at+timedelta(minutes=20), 'notes':('revision',)})
+        await MorningStore(factory,manual=True).collect(FixtureCollector([restored]),day)
+        async with factory.begin() as session:
+            fact=await session.scalar(select(TemporalFactRecord).where(TemporalFactRecord.game_id==gid,
+                TemporalFactRecord.observed_at==restored.observed_at))
+            fact.valid_to=cutoff
+        async with factory() as session:
+            assert await MorningRankingPipeline(session).expectations((gid,),as_of=cutoff,strict=True)=={}
+    finally:await engine.dispose()
+
+
+@pytest.mark.parametrize('fault',['rescheduled','policy','missing_fact','wrong_mapping','future_availability','ambiguous_fact'])
+async def test_scheduled_record_reader_fails_closed(fault):
+    from test_scheduled_records import scheduled_evidence
+    from nba_time_machine.db import GameObservationRecord, TemporalFactRecord
+    engine,factory=await setup()
+    e=scheduled_evidence(str(uuid4().int)[:12])
+    day=date(2026,11,20)+timedelta(days=['rescheduled','policy','missing_fact','wrong_mapping','future_availability','ambiguous_fact'].index(fault))
+    delta=timedelta(days=(day-e.ref.day).days)
+    e=e.model_copy(update={'season':'2026-2027','observed_at':e.observed_at+delta,
+        'ref':e.ref.model_copy(update={'day':day,'scheduled_at':e.ref.scheduled_at+delta})})
+    cutoff=e.observed_at+timedelta(minutes=30)
+    try:
+        assert (await MorningStore(factory,manual=True).collect(FixtureCollector([e]),day)).captures_written==1
+        async with factory.begin() as session:
+            gid=await session.scalar(select(SportsExternalIdentityRecord.game_id).where(
+                SportsExternalIdentityRecord.provider_key=='espn',SportsExternalIdentityRecord.entity_type=='game',
+                SportsExternalIdentityRecord.external_id==e.external_id))
+            assert str(gid) in await MorningRankingPipeline(session).expectations((gid,),as_of=cutoff,strict=True)
+            f=await session.scalar(select(TemporalFactRecord).where(TemporalFactRecord.game_id==gid))
+            o=await session.scalar(select(GameObservationRecord).where(GameObservationRecord.game_id==gid))
+            if fault=='rescheduled': o.scheduled_tip_at+=timedelta(hours=1)
+            if fault=='policy': (await session.get(SourceRecord,'espn-nba-games')).verification_status='unverified'
+            if fault=='missing_fact': await session.delete(f)
+            if fault=='wrong_mapping':
+                value={**f.value,'home':{**f.value['home'],'external_id':'nonexistent'}}
+                f.value=value
+            if fault=='future_availability': f.available_at=cutoff+timedelta(minutes=1)
+            if fault=='ambiguous_fact':
+                session.add(TemporalFactRecord(subject_type=f.subject_type,game_id=f.game_id,source_id=f.source_id,
+                    fact_type=f.fact_type,value=f.value,observed_at=f.observed_at,available_at=f.available_at,valid_from=f.valid_from))
+        async with factory() as session:
+            pipeline=MorningRankingPipeline(session)
+            assert await pipeline.expectations((gid,),as_of=cutoff,strict=True)=={}
+            assert pipeline.open_records=={}
+    finally:
+        if fault=='policy':
+            async with factory.begin() as session:
+                (await session.get(SourceRecord,'espn-nba-games')).verification_status='verified'
+        await engine.dispose()
