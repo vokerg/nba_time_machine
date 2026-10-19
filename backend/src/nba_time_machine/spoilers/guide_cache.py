@@ -32,8 +32,9 @@ UNION ALL
 SELECT 'fact:' || id::text || ':' || xmin::text || ':' ||
        (valid_from <= :cutoff)::text || ':' || (valid_to IS NULL OR valid_to > :cutoff)::text
 FROM temporal_facts
-WHERE game_id IS NOT NULL AND available_at <= :cutoff AND observed_at <= :cutoff
-  AND (fact_type = 'provider_game_evidence' OR fact_type LIKE 'ranking.postgame.%')
+WHERE available_at <= :cutoff AND observed_at <= :cutoff
+  AND (fact_type = 'provider_game_evidence' OR fact_type LIKE 'ranking.postgame.%'
+       OR fact_type = 'player_rankings.ringer-v1' OR fact_type = 'provider_player_identities.espn-v1')
 UNION ALL
 SELECT 'score:' || id::text || ':' || xmin::text FROM recommendation_scores
 WHERE as_of <= :cutoff
@@ -50,6 +51,8 @@ class PreparedDay:
     slate: object
     snapshots: dict
     scores: dict | None = None
+    expectations: dict | None = None
+    entering_records: dict | None = None
 
 
 class GuideDayCache:

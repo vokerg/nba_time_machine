@@ -42,6 +42,9 @@ class PostgameSignal(str, Enum):
 
 PREGAME_VERSION = "pregame-v1"
 POSTGAME_VERSION = "postgame-v1"
+OVERALL_VERSION = "postgame-records-v2"
+STAR_OVERALL_VERSION = "postgame-stars-v3"
+POSTGAME_VERSIONS = (POSTGAME_VERSION, OVERALL_VERSION, STAR_OVERALL_VERSION)
 
 PREGAME_WEIGHTS: Mapping[PregameSignal, int] = MappingProxyType({
     PregameSignal.TEAM_STRENGTH: 15,
@@ -207,6 +210,44 @@ def score_postgame(
     )
 
 
+def add_matchup_expectation(score, magnitude, *, source_ref, observed_at, available_at):
+    """Keep legacy drama and add the shared 0..2 record-strength contribution."""
+    if score.model_version != POSTGAME_VERSION or score.kind is not ScoreKind.POSTGAME or not score_evidence_is_consistent(score):
+        raise ValueError("overall score needs consistent legacy postgame evidence")
+    observation = FeatureObservation(magnitude, source_ref, available_at, observed_at)
+    if max(observation.available_at, observation.observed_at) > score.as_of:
+        raise ValueError("future matchup evidence")
+    part = ScoreComponent("matchup_expectation", magnitude, 2, round(2 * magnitude, 6),
+                          source_ref, available_at, observed_at)
+    return VersionedScore(score.game_id, ScoreKind.POSTGAME, OVERALL_VERSION, score.as_of,
+                          round(min(10, score.value + round(2 * magnitude, 4)), 4),
+                          score.components + (part,))
+
+
+def add_star_power(score, magnitude, *, source_ref, observed_at, available_at):
+    if score.model_version not in (POSTGAME_VERSION, OVERALL_VERSION) or score.kind is not ScoreKind.POSTGAME or not score_evidence_is_consistent(score):
+        raise ValueError("realized star power needs consistent postgame evidence")
+    observation = FeatureObservation(magnitude, source_ref, available_at, observed_at)
+    if max(observation.available_at, observation.observed_at) > score.as_of:
+        raise ValueError("future star evidence")
+    part = ScoreComponent("star_power", magnitude, 15, round(15 * magnitude, 6),
+                          source_ref, available_at, observed_at)
+    return VersionedScore(score.game_id, ScoreKind.POSTGAME, STAR_OVERALL_VERSION, score.as_of,
+                          round(min(10, score.value + round(1.5 * magnitude, 4)), 4), score.components + (part,))
+
+
+def component_points(score):
+    """Fan-readable contributions, proportionally capped to reconcile to the total."""
+    base = [p for p in score.components if p.signal not in ("matchup_expectation", "star_power")]
+    denominator = sum(p.weight for p in base)
+    points = [p.weighted_contribution if p.signal == "matchup_expectation"
+              else p.weighted_contribution / 10 if p.signal == "star_power"
+              else 10 * p.weighted_contribution / denominator for p in score.components]
+    uncapped = sum(points)
+    factor = score.value / uncapped if uncapped else 1
+    return [round(p * factor, 4) for p in points]
+
+
 def score_evidence_is_consistent(score: VersionedScore) -> bool:
     """Fail closed if a stored score no longer matches its evidence.
 
@@ -216,6 +257,55 @@ def score_evidence_is_consistent(score: VersionedScore) -> bool:
     """
     if type(score) is not VersionedScore:
         return False
+    if score.model_version == STAR_OVERALL_VERSION:
+        from dataclasses import replace
+        if score.kind is not ScoreKind.POSTGAME or any(type(p) is not ScoreComponent
+                or type(p.weight) is not int or p.weight <= 0
+                or type(p.normalized_value) not in (int, float) or not isfinite(p.normalized_value)
+                or not 0 <= p.normalized_value <= 1 for p in score.components):
+            return False
+        base = tuple(p for p in score.components if p.signal != "star_power")
+        extra = tuple(p for p in score.components if p.signal == "star_power")
+        drama = tuple(p for p in base if p.signal != "matchup_expectation")
+        matchup = tuple(p for p in base if p.signal == "matchup_expectation")
+        if not drama or len(extra) != 1 or len(matchup) > 1:
+            return False
+        value = round(10 * sum(p.normalized_value * p.weight for p in drama) / sum(p.weight for p in drama), 4)
+        value = round(min(10, value + (round(2 * matchup[0].normalized_value, 4) if matchup else 0)), 4)
+        try:
+            underlying = replace(score, model_version=OVERALL_VERSION if matchup else POSTGAME_VERSION,
+                                 value=value, components=base)
+            if not score_evidence_is_consistent(underlying):
+                return False
+            rebuilt = add_star_power(underlying, extra[0].normalized_value, source_ref=extra[0].source_ref,
+                                      observed_at=extra[0].observed_at, available_at=extra[0].available_at)
+            return rebuilt == score
+        except (ValueError, TypeError):
+            return False
+    if score.model_version == OVERALL_VERSION:
+        if score.kind is not ScoreKind.POSTGAME:
+            return False
+        from dataclasses import replace
+        if any(type(p) is not ScoreComponent or type(p.weight) is not int
+               or p.weight <= 0 or type(p.normalized_value) not in (int, float)
+               or not isfinite(p.normalized_value) or not 0 <= p.normalized_value <= 1
+               for p in score.components):
+            return False
+        base = tuple(p for p in score.components if p.signal != "matchup_expectation")
+        extra = tuple(p for p in score.components if p.signal == "matchup_expectation")
+        if not base or len(extra) != 1:
+            return False
+        value = round(10 * sum(p.normalized_value * p.weight for p in base) / sum(p.weight for p in base), 4)
+        legacy = replace(score, model_version=POSTGAME_VERSION, components=base, value=value)
+        if not score_evidence_is_consistent(legacy):
+            return False
+        part = extra[0]
+        try:
+            rebuilt = add_matchup_expectation(legacy, part.normalized_value, source_ref=part.source_ref,
+                                               observed_at=part.observed_at, available_at=part.available_at)
+            return rebuilt == score
+        except (ValueError, TypeError):
+            return False
     if score.kind is ScoreKind.PREGAME:
         weights, version = PREGAME_WEIGHTS, PREGAME_VERSION
     elif score.kind is ScoreKind.POSTGAME:

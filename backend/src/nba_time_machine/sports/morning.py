@@ -138,6 +138,7 @@ class MorningReport:
                     "observed_at": e.observed_at.isoformat(), "status": e.status,
                     "plays": len(e.plays), "players": len(e.players),
                     "has_game_records": e.records is not None,
+                    "has_entering_records": e.entering_records is not None,
                     "record_errors": list(e.record_errors),
                     "trajectory_basis": e.trajectory_basis,
                     "reported_pbp_errors": list(e.reported_pbp_errors),
@@ -173,7 +174,7 @@ class MorningCollector:
             return []
 
     async def _game(self, ref: GameRef, result: GameResult, report: MorningReport):
-        if ref.final is False:
+        if ref.final is False and not ref.pregame:
             return
         if ref.provider == "espn":
             try:
@@ -182,10 +183,12 @@ class MorningCollector:
                     "summary", ref.external_id)
                 evidence = espn.summary(json.loads(text), ref, datetime.now(timezone.utc))
                 result.evidence.append(evidence)
-                if evidence.pbp_usable and evidence.box_usable:
+                if ref.pregame or (evidence.pbp_usable and evidence.box_usable):
                     return
             except (ValueError, KeyError, TypeError, IndexError, OverflowError, AttributeError):
                 report.errors.append("espn_game_failed:" + ref.external_id)
+        if ref.pregame:
+            return  # No postgame fallback for a scheduled-game capture.
         try:
             game_abbr = ref.external_id if ref.provider == "cbs" else ref.cbs_abbr
             text = await self.client.fetch("cbs",

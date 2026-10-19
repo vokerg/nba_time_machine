@@ -80,7 +80,8 @@ async def test_guide_read_queries_do_not_grow_per_game_or_repeat_derivation():
                     assert response.status_code == 200, response.text
                     assert derive.call_count == expected_derivations  # archive + guide share verification
                 assert len(statements) == (one_reads if expected_derivations else 3)
-                assert one_reads <= 15
+                # One additional batched read preserves genuine pre-tip records.
+                assert one_reads <= 16
                 data = response.json()
                 if level == "order":
                     assert len(data["game_ids"]) == 8 and data["details"] == {}

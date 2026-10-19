@@ -321,3 +321,37 @@ Social breadth, advanced personalization, large-scale transcript processing and 
 The architecture should not assume NBA-specific semantics below the sports-domain layer.
 
 The general abstraction is a sports information time machine. Soccer, NFL, F1 and tennis have different entities and scoring logic, but the temporal provenance, spoiler policy, ingestion and recommendation boundaries are reusable.
+
+### Record-only pregame expectation (#10 implementation slice)
+
+Browse openly shows a record-based matchup expectation and its explanation,
+reusing the workbench's entering-record strength calculation. Historical source
+records collected later are explicitly labeled reconstructed and excluded from
+Time Machine. The same calculation adds up to two points to a separately gated,
+versioned overall rating; missing inputs stay unavailable and favorites do not
+change ratings. This partial expectation excludes unverified lineup, star,
+closeness and playoff assumptions. See [Pregame expectation](PREGAME_EXPECTATION.md).
+
+
+### Shared pregame Star Power (#10 owner follow-up)
+
+The fan guide now includes an independent, openly explained roster-star potential
+component, including preseason and upcoming observed games. Missing team records
+do not suppress eligible stars. Only ranking/roster evidence genuinely known
+before tip is admitted; confirmed availability remains unknown. Time Machine
+also requires that evidence before its saved cutoff. The same rank/slot/team
+functions serve the workbench and new `postgame-stars-v3` archive model, which
+uses actual verified minutes instead of adding potential and realized stars twice.
+The earlier record-only limitation is superseded for this component. No
+first-snapshot consumer backfill, new collection, old-archive rewrite or global
+media exception is introduced. See [Pregame expectation](PREGAME_EXPECTATION.md).
+
+### Genuine scheduled records (#10 continuation)
+
+Explicit day collection can now preserve validated ESPN regular-season W–L
+before tip. Those genuinely observed records are allowed in Time Machine when
+known by its cutoff, remain available after final, and take precedence over
+later reconstructed totals in both pregame and overall record strength. This
+extends the earlier final-only record path without changing its formula, adding
+a scheduler, or relaxing publication/observation provenance. See
+[Pregame expectation](PREGAME_EXPECTATION.md#genuine-scheduled-game-records-10-continuation).

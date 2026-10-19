@@ -167,3 +167,108 @@ export function parseDisclosure(
   return data as GuideDisclosure;
 }
 export { parseGameList };
+
+export type StarPotential = {
+  rating: number; overall_points: number; explanation: string;
+  teams: {team: string; normalized: number; unranked_players?: string[]; players: {name: string; rank: number; slot_weight: number; contribution: number}[]}[];
+  evidence: {source_ref: string; observed_at: string; available_at: string}[];
+};
+export type Expectation = {
+  model: "pregame-records-v1" | "pregame-context-v2"; rating: number; overall_points: number;
+  coverage: "records-only" | "stars-only" | "records-and-stars";
+  basis: "reconstructed" | "known-pre-tip" | "mixed"; explanation: string; missing: string[];
+  teams: { team: string; wins?: number; losses?: number; smoothed_win_pct?: number }[];
+  sample_confidence?: number; formula: string; source_ref: string;
+  observed_at: string; available_at: string; star_power?: StarPotential;
+};
+export type EnteringRecords = { basis: "reconstructed" | "known-pre-tip"; teams: {team:string; wins:number; losses:number}[]; observed_at:string; available_at:string };
+export type GuideList = GameList & { expectations?: Record<string, Expectation>; entering_records?: Record<string, EnteringRecords> };
+export function parseGuideList(value: unknown, mode: Mode): GuideList {
+  const data = record(value);
+  keys(data, ["time_cursor", "games", "expectations", "entering_records"]);
+  const slate = parseGameList({ time_cursor: data.time_cursor, games: data.games });
+  const expectations = record(data.expectations ?? {});
+  const cards = new Map(slate.games.map(g => [g.game_id, g]));
+  const number = (v: unknown, max: number) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= max;
+  for (const [id, raw] of Object.entries(expectations)) {
+    const e = record(raw), card = cards.get(id);
+    keys(e, ["model", "rating", "overall_points", "coverage", "basis", "explanation", "missing", "teams",
+      "sample_confidence", "formula", "source_ref", "observed_at", "available_at", "star_power"]);
+    const hasRecords = e.coverage === "records-only" || e.coverage === "records-and-stars";
+    const hasStars = e.coverage === "stars-only" || e.coverage === "records-and-stars";
+    const maximum = (hasRecords ? 2 : 0) + (hasStars ? 1.5 : 0);
+    if (!card || !maximum || e.model !== (hasStars ? "pregame-context-v2" : "pregame-records-v1") ||
+        (e.basis !== "known-pre-tip" && e.basis !== (hasRecords ? hasStars ? "mixed" : "reconstructed" : "known-pre-tip")) ||
+        !number(e.rating, 10) || !number(e.overall_points, maximum) ||
+        (hasRecords ? !number(e.sample_confidence, 1) : e.sample_confidence !== undefined) ||
+        Math.abs(Number(e.rating) * maximum / 10 - Number(e.overall_points)) > .0002 ||
+        ![e.explanation, e.formula, e.source_ref].every(v => typeof v === "string" && v.length > 0) ||
+        !instant(e.observed_at) || !instant(e.available_at) ||
+        !Array.isArray(e.missing) || !e.missing.every(v => typeof v === "string") ||
+        !Array.isArray(e.teams) || e.teams.length !== 2 ||
+        mode === "time-machine" && (e.basis !== "known-pre-tip" || Date.parse(e.observed_at) > Date.parse(slate.time_cursor) || Date.parse(e.available_at) > Date.parse(slate.time_cursor)))
+      throw new Error("Invalid pregame expectation.");
+    if (e.basis === "known-pre-tip" && (!card.scheduled_tip ||
+        Date.parse(e.observed_at) >= Date.parse(card.scheduled_tip) || Date.parse(e.available_at) >= Date.parse(card.scheduled_tip)))
+      throw new Error("Pregame evidence must be known before tip-off.");
+    for (const rawTeam of e.teams) {
+      const t = record(rawTeam);
+      keys(t, ["team", "wins", "losses", "smoothed_win_pct"]);
+      if (typeof t.team !== "string" || (hasRecords ? !number(t.wins, 82) || !Number.isInteger(t.wins) ||
+          !number(t.losses, 82) || !Number.isInteger(t.losses) || !number(t.smoothed_win_pct, 1) :
+          t.wins !== undefined || t.losses !== undefined || t.smoothed_win_pct !== undefined))
+        throw new Error("Invalid entering record.");
+    }
+    if (hasStars) {
+      const star = record(e.star_power);
+      keys(star, ["rating", "overall_points", "explanation", "teams", "evidence"]);
+      if (!number(star.rating, 10) || !number(star.overall_points, 1.5) || typeof star.explanation !== "string" ||
+          Math.abs(Number(star.rating) * .15 - Number(star.overall_points)) > .0002 ||
+          !Array.isArray(star.teams) || star.teams.length !== 2 || !Array.isArray(star.evidence) || star.evidence.length !== 3)
+        throw new Error("Invalid star potential.");
+      for (const rawTeam of star.teams) {
+        const team = record(rawTeam);
+        keys(team, ["team", "normalized", "players", "unranked_players"]);
+        if (typeof team.team !== "string" || !number(team.normalized, 1) || !Array.isArray(team.players) || team.players.length > 3)
+          throw new Error("Invalid roster star team.");
+        if (team.unranked_players !== undefined && (!Array.isArray(team.unranked_players) ||
+            team.unranked_players.length > 40 || team.unranked_players.some(name => typeof name !== "string" || !name.trim())))
+          throw new Error("Invalid unranked roster players.");
+        for (const rawPlayer of team.players) {
+          const p = record(rawPlayer);
+          keys(p, ["name", "rank", "slot_weight", "contribution"]);
+          if (typeof p.name !== "string" || !number(p.rank, 100) || !Number.isInteger(p.rank) || Number(p.rank) < 1 || !number(p.slot_weight, 1) || !number(p.contribution, 1))
+            throw new Error("Invalid roster star.");
+        }
+      }
+      for (const rawEvidence of star.evidence) {
+        const proof = record(rawEvidence);
+        keys(proof, ["source_ref", "observed_at", "available_at"]);
+        if (typeof proof.source_ref !== "string" || !instant(proof.observed_at) || !instant(proof.available_at) || !card.scheduled_tip ||
+            Date.parse(proof.observed_at) >= Date.parse(card.scheduled_tip) || Date.parse(proof.available_at) >= Date.parse(card.scheduled_tip) ||
+            mode === "time-machine" && (Date.parse(proof.observed_at) > Date.parse(slate.time_cursor) || Date.parse(proof.available_at) > Date.parse(slate.time_cursor)))
+          throw new Error("Star evidence must be known before tip-off and the selected cutoff.");
+      }
+    } else if (e.star_power !== undefined) throw new Error("Unexpected star evidence.");
+  }
+  const enteringRecords = record(data.entering_records ?? {});
+  for (const [id, raw] of Object.entries(enteringRecords)) {
+    const r = record(raw);
+    keys(r, ["basis", "teams", "observed_at", "available_at"]);
+    const card = cards.get(id);
+    if (!card || (r.basis !== "reconstructed" && r.basis !== "known-pre-tip") || !instant(r.observed_at) || !instant(r.available_at) ||
+        !Array.isArray(r.teams) || r.teams.length !== 2) throw new Error("Invalid entering records.");
+    if (r.basis === "known-pre-tip" && (!card.scheduled_tip || Date.parse(r.observed_at) >= Date.parse(card.scheduled_tip) ||
+        Date.parse(r.available_at) >= Date.parse(card.scheduled_tip)) || mode === "time-machine" && (r.basis !== "known-pre-tip" ||
+        Date.parse(r.observed_at) > Date.parse(slate.time_cursor) || Date.parse(r.available_at) > Date.parse(slate.time_cursor)))
+      throw new Error("Records must be known before tip-off and the selected cutoff.");
+    for (const rawTeam of r.teams) {
+      const team = record(rawTeam);
+      keys(team, ["team", "wins", "losses"]);
+      if (typeof team.team !== "string" || !number(team.wins, 82) || !Number.isInteger(team.wins) ||
+          !number(team.losses, 82) || !Number.isInteger(team.losses) || Number(team.wins) + Number(team.losses) > 82)
+        throw new Error("Invalid entering record.");
+    }
+  }
+  return { ...slate, expectations: expectations as Record<string, Expectation>, entering_records: enteringRecords as Record<string, EnteringRecords> };
+}

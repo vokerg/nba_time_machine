@@ -1,6 +1,13 @@
 """Matchup records from one stored game capture, without rebuilding standings."""
+from datetime import date
+
 from nba_time_machine.sports.morning_models import TEAM_NAMES
 from nba_time_machine.sports.standings_history import CONFERENCES, SEASON, START, END
+
+
+# These bound supported seasons, not claims about the actual opening/closing day.
+# Provider season/competition types remain authoritative for regular-season scope.
+RECORD_WINDOWS = {SEASON: (START, END), "2026-2027": (date(2026, 10, 1), date(2027, 6, 30))}
 
 
 def game_record_context(evidence, provenance=None):
@@ -10,11 +17,12 @@ def game_record_context(evidence, provenance=None):
         "missing_days": [], "source_method": "game_records",
         "basis": "ESPN records attached to this completed game, with this game's result removed. Collected later; not archived pre-tip knowledge.",
         "ranking_note": "These two records do not establish league/conference ranks or playoff stakes; those inputs are unavailable."}
+    window = RECORD_WINDOWS.get(evidence.season)
     if (evidence.provider != "espn" or evidence.game_type != "regular_season" or evidence.status != "final"
-            or evidence.season != SEASON or not START <= evidence.ref.day <= END
+            or window is None or not window[0] <= evidence.ref.day <= window[1]
             or evidence.ref.season_type != 2 or evidence.ref.competition_type is None
             or evidence.ref.competition_type == "39"):
-        return {**result, "status":"not_applicable", "reason":"Game-supplied context currently requires a reviewed 2025–26 ESPN regular-season final; Cup Championship is excluded."}
+        return {**result, "status":"not_applicable", "reason":"Game-supplied context currently requires a supported ESPN regular-season final; Cup Championship is excluded."}
     if evidence.records is None or evidence.record_errors or evidence.ref.record_errors:
         result["record_errors"] = list(evidence.record_errors) or ["missing_record_claims"]
         return result
@@ -29,7 +37,7 @@ def game_record_context(evidence, provenance=None):
     for team, after in ((evidence.home, evidence.records.home_after), (evidence.away, evidence.records.away_after)):
         won = team.score > (evidence.away.score if team == evidence.home else evidence.home.score)
         wins, losses = after.wins - int(won), after.losses - int(not won)
-        if min(wins, losses) < 0 or after.wins + after.losses > (evidence.ref.day - START).days + 1:
+        if min(wins, losses) < 0 or after.wins + after.losses > (evidence.ref.day - window[0]).days + 1:
             result["reason"] = "Supplied record cannot represent this game in the reviewed season."
             return result
         gp = wins + losses

@@ -401,3 +401,38 @@ uses replay to fake pre-tip knowledge. Its full-result path filters all fields
 by the selected knowledge cutoff before projection, even for acknowledged games.
 Exact ratings and traceable component fields are available only through explicit
 POST consent; ordinary cards and general media never receive these fields.
+
+### Open reconstructed expectation (#10)
+
+Browse's explicitly labeled record-only expectation is a separate allowlisted
+response beside safe cards, using entering W–L reconstructed from validated
+completed-game records. No result, removed result, final record, participation,
+trajectory or later player ranking is exposed. This is not historical pre-tip
+knowledge; Time Machine withholds the reconstruction entirely. The shared
+calculation also supplies a versioned overall-rating contribution behind existing
+postgame consent. Actual provenance, source revocation and revision checks remain
+mandatory. See [Pregame expectation](../PREGAME_EXPECTATION.md).
+
+
+### Shared pregame Star Power (#10 owner follow-up)
+
+The fan guide now includes an independent, openly explained roster-star potential
+component, including preseason and upcoming observed games. Missing team records
+do not suppress eligible stars. Only ranking/roster evidence genuinely known
+before tip is admitted; confirmed availability remains unknown. Time Machine
+also requires that evidence before its saved cutoff. The same rank/slot/team
+functions serve the workbench and new `postgame-stars-v3` archive model, which
+uses actual verified minutes instead of adding potential and realized stars twice.
+The earlier record-only limitation is superseded for this component. No
+first-snapshot consumer backfill, new collection, old-archive rewrite or global
+media exception is introduced. See [Pregame expectation](../PREGAME_EXPECTATION.md).
+
+### Genuine pre-tip record expectation (#10 continuation)
+
+The guide may expose scheduled-game W–L and record expectations marked
+`known-pre-tip` when both observation and availability precede the matching tip
+and, in Time Machine, do not exceed the saved cutoff. Latest historical revisions
+are selected before schema/identity/validity checks. Later reconstructed final
+records remain excluded from Time Machine. The same safe record calculation and
+provenance feed overall ratings behind their existing consent boundary. See
+[Pregame expectation](../PREGAME_EXPECTATION.md) for selection and fallback rules.

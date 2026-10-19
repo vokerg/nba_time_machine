@@ -111,3 +111,14 @@ independent PBP issue. Read-only inspection changed no fact/score counts, all
 score arithmetic reconciles and no standings ranks/race terms are invented.
 Sanitized [verification](evidence/game-record-importance-2025-11-10.json) contains
 counts and checks, not full game results or ratings.
+
+
+## Current-season display (#10 owner follow-up)
+
+Validated game-specific regular-season records now support 2026–27 as well as
+2025–26. The former uses a generous October-to-June calendar guard, with source
+season/competition types establishing actual regular-season scope. No game phase
+is inferred from date. Existing pair agreement, result subtraction, canonical
+identity and observation/availability checks remain mandatory. Entering W–L may
+be displayed before the three-game scoring minimum; the bonus remains unavailable
+until that minimum. Preseason, playoffs and Cup Championship stay excluded.

@@ -6,7 +6,7 @@ import re
 
 from nba_time_machine.sports.morning_models import (
     EASTERN, TEAM_NAMES, Evidence, GameRef, Play, PlayerBox, Team, abbreviation,
-    assess, clock_ms, stamp, SeasonRecord, MatchupRecords, reconcile_score_states,
+    assess, clock_ms, stamp, SeasonRecord, MatchupRecords, PregameRecords, reconcile_score_states,
 )
 
 
@@ -48,6 +48,9 @@ def scoreboard(payload: dict, day: date) -> list[GameRef]:
             home=abbreviation(teams["home"]["team"]["abbreviation"]),
             away=abbreviation(teams["away"]["team"]["abbreviation"]),
             scheduled_at=tip, final=event["status"]["type"]["completed"],
+            pregame=(event["status"]["type"].get("name") == "STATUS_SCHEDULED"
+                     and event["status"]["type"].get("state") == "pre"
+                     and event["status"]["type"]["completed"] is False),
             season_type=event.get("season", {}).get("type"),
             competition_type=str(comp["type"]["id"]) if comp.get("type", {}).get("id") is not None else None,
             record_errors=tuple(record_errors), **records))
@@ -87,6 +90,8 @@ def minutes(value: str) -> tuple[float, str]:
 
 
 def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
+    if ref.pregame:
+        return pregame_summary(payload, ref, observed_at)
     header = payload["header"]
     comp = header["competitions"][0]
     if str(header["id"]) != ref.external_id or str(comp["id"]) != ref.external_id:
@@ -225,3 +230,47 @@ def summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
         notes=("source_timestamps_are_not_publication_or_trusted_final",),
         records=records, record_errors=tuple(sorted(set(record_errors))),
         source_end_at=optional_stamp("lastPlayWallClock"), source_updated_at=optional_stamp("lastUpdatedAt"))))
+
+
+def pregame_summary(payload: dict, ref: GameRef, observed_at: datetime) -> Evidence:
+    """Retain scheduled totals only when both endpoints agree before tip."""
+    header = payload['header']
+    comp = header['competitions'][0]
+    status = comp['status']['type']
+    tip = stamp(comp['date'])
+    if (not ref.pregame or ref.final is not False or tip != ref.scheduled_at or observed_at >= tip
+            or str(header['id']) != ref.external_id or str(comp['id']) != ref.external_id
+            or status.get('name') != 'STATUS_SCHEDULED' or status.get('state') != 'pre'
+            or status.get('completed') is not False or comp['status'].get('period') != 0
+            or payload.get('plays')):
+        raise ValueError('not_verified_scheduled_game')
+    year = header['season']['year']
+    phase = header['season']['type']
+    if type(year) is not int or year != ref.day.year + (ref.day.month >= 7) or phase != ref.season_type:
+        raise ValueError('wrong_espn_season')
+    game_type = {1:'preseason', 2:'regular_season', 3:'playoffs'}[phase]
+    rows = competitors(comp)
+    teams = {}
+    for side, row in rows.items():
+        abbr = abbreviation(row['team']['abbreviation'])
+        if (abbr != getattr(ref, side) or str(row['id']) != str(row['team']['id'])
+                or row.get('score') not in (None, '', '0', 0) or row.get('linescores')
+                or row.get('winner') is not None):
+            raise ValueError('invalid_scheduled_team')
+        teams[side] = Team(external_id=str(row['id']), abbreviation=abbr,
+                           name=TEAM_NAMES[abbr], score=0, periods=())
+    records, errors = None, list(ref.record_errors)
+    if phase == 2 and ref.competition_type is not None and ref.competition_type != '39':
+        try:
+            totals = {side:total_record(row, 'record') for side,row in rows.items()}
+            if errors or any(totals[side] != getattr(ref, side + '_record') for side in rows):
+                raise ValueError('scoreboard_summary_record_mismatch')
+            records = PregameRecords(**totals)
+        except (ValueError, KeyError, TypeError, AttributeError):
+            errors.append('invalid_or_inconsistent_scheduled_game_records')
+    else:
+        errors.append('record_scope_not_verified_regular_season')
+    return Evidence(provider='espn', external_id=ref.external_id, ref=ref,
+        observed_at=observed_at, season=f'{year-1}-{year}', game_type=game_type,
+        status='scheduled', home=teams['home'], away=teams['away'], entering_records=records,
+        record_errors=tuple(sorted(set(errors))), pbp_errors=('not_final',), box_errors=('not_final',))

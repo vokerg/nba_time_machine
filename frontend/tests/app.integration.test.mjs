@@ -770,3 +770,90 @@ test("finishing a day update clears loaded disclosure answers", async () => {
     assert.equal(posts, 2);
   } finally { await unmount(root); }
 });
+
+test('pregame expectation and entering records are open without postgame consent; strict mode removes reconstruction', async () => {
+  const calls = [];
+  const expectation = {
+    model:'pregame-records-v1',rating:4,overall_points:.8,coverage:'records-only',basis:'reconstructed',
+    explanation:'Both teams entering win rates; the weaker team and smaller sample limit strength.',
+    missing:['Expected lineups and injuries'], teams:[{team:'BOS',wins:20,losses:5,smoothed_win_pct:.714},
+      {team:'NYK',wins:18,losses:7,smoothed_win_pct:.657}], sample_confidence:1,
+    formula:'10 × both-team strength × sample confidence',source_ref:'fact:1',observed_at:cursor,available_at:cursor,
+  };
+  const root = await mount(async (url, options = {}) => {
+    calls.push({url,options});
+    if (url.includes('/timeline/')) return response(timeline);
+    return response({...slate,expectations:url.includes('mode=time-machine') ? {} : {[game]:expectation}});
+  });
+  try {
+    await until(() => document.body.textContent.includes('Pregame expectation · 4.0 / 10'));
+    assert.ok(document.body.textContent.includes('BOS 20–5'));
+    assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
+    assert.ok(!document.body.textContent.includes('Sample confidence'));
+    assert.ok(!document.body.textContent.includes('Overall rating contribution'));
+    assert.ok(!document.body.textContent.includes('smaller sample limit strength'));
+    assert.equal(calls.some(c => c.url.endsWith('/disclose')), false);
+    await click('Time Machine');
+    await until(() => document.body.textContent.includes('No pregame rating at this cutoff.'));
+    assert.ok(!document.body.textContent.includes('BOS 20–5'));
+  } finally { await unmount(root); }
+});
+
+test('stars-only preseason expectation shows named ranked players openly even without team records', async () => {
+  const known='2026-10-13T10:00:00Z',calls=[];
+  const expectation={model:'pregame-context-v2',rating:6.4516,overall_points:.9677,coverage:'stars-only',basis:'known-pre-tip',
+    explanation:'Roster star potential; team record strength is unavailable.',missing:['Regular-season record strength'],
+    teams:[{team:'BOS'},{team:'NYK'}],formula:'Shared star formula',source_ref:'fixture:ranking',observed_at:known,available_at:known,
+    star_power:{rating:6.4516,overall_points:.9677,explanation:'Availability unconfirmed.',
+      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Known Star '+i,rank:i+1,slot_weight:1,contribution:1}]})),
+      evidence:[0,1,2].map(i=>({source_ref:'fixture:'+i,observed_at:known,available_at:known}))}};
+  const root=await mount(async(url,options={})=>{
+    calls.push({url,options});
+    return response(url.includes('/timeline/')?timeline:{...slate,expectations:{[game]:expectation}});
+  });
+  try{
+    await until(()=>document.body.textContent.includes('Pregame expectation · 6.5 / 10'));
+    assert.ok(document.body.textContent.includes('Known Star 0'));
+    assert.ok(!document.body.textContent.includes('Star availability is unconfirmed'));
+    assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
+    assert.ok(!document.body.textContent.includes('Roster star potential;'));
+    assert.ok(!document.body.textContent.includes('undefined–undefined'));
+    assert.ok(!document.body.textContent.includes('Sample confidence: 100%'));
+    assert.equal(calls.some(c=>c.url.endsWith('/disclose')),false);
+    await click('Time Machine');
+    await until(()=>document.body.textContent.includes('Pregame expectation · 6.5 / 10'));
+  }finally{await unmount(root);}
+});
+
+test('entering records remain visible when there are too few games for a pregame rating', async()=>{
+  const root=await mount(async(url)=>response(url.includes('/timeline/')?timeline:{...slate,expectations:{},
+    entering_records:{[game]:{basis:'reconstructed',teams:[{team:'BOS',wins:1,losses:0},{team:'NYK',wins:0,losses:1}],
+      observed_at:cursor,available_at:cursor}}}));
+  try{
+    await until(()=>document.body.textContent.includes('BOS 1–0 · NYK 0–1'));
+    assert.ok(document.body.textContent.includes('No pregame rating yet.'));
+    assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
+  }finally{await unmount(root);}
+});
+
+test('missing ranking entries have compact counts and names without claiming injury or absence from the game', async()=>{
+  const known='2026-10-13T10:00:00Z';
+  const expectation={model:'pregame-context-v2',rating:6.4516,overall_points:.9677,coverage:'stars-only',basis:'known-pre-tip',
+    explanation:'Roster potential',missing:[],teams:[{team:'BOS'},{team:'NYK'}],formula:'Shared star formula',
+    source_ref:'fixture:ranking',observed_at:known,available_at:known,
+    star_power:{rating:6.4516,overall_points:.9677,explanation:'Roster potential',
+      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Ranked '+i,rank:i+1,slot_weight:1,contribution:1}],
+        unranked_players:['Unranked '+i]})),
+      evidence:[0,1,2].map(i=>({source_ref:'fixture:'+i,observed_at:known,available_at:known}))}};
+  const root=await mount(async(url)=>response(url.includes('/timeline/')?timeline:{...slate,expectations:{[game]:expectation}}));
+  try{
+    await until(()=>document.body.textContent.includes('Not in Top 100 · BOS 1 · NYK 1'));
+    const disclosure=document.querySelector('.unranked-players');
+    assert.equal(disclosure.open,false);
+    await act(async()=>disclosure.querySelector('summary').click());
+    assert.equal(disclosure.open,true);
+    assert.ok(disclosure.textContent.includes('BOS: Unranked 0'));
+    assert.ok(disclosure.textContent.includes('NYK: Unranked 1'));
+    assert.ok(!disclosure.textContent.match(/injured|not playing|absent/i));
+  }finally{await unmount(root);}
+});

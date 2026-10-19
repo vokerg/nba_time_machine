@@ -85,3 +85,15 @@ def test_stored_claim_revalidation_and_actual_strength_are_separate_from_standin
     assert 'leaders_magnitude' not in strong['calculation'] and 'race_magnitude' not in strong['calculation']
     inconsistent=e.model_copy(update={'records':MatchupRecords(home_after=stronger,away_after=e.records.away_after)})
     assert game_record_context(inconsistent)['status']=='missing'
+
+
+def test_current_supported_season_records_are_validated_without_reusing_last_season():
+    from datetime import timedelta
+    e = evidence_with_records()
+    day = date(2026, 11, 10)
+    e = e.model_copy(update={'season':'2026-2027', 'ref':e.ref.model_copy(update={
+        'day':day, 'scheduled_at':e.ref.scheduled_at + timedelta(days=(day-e.ref.day).days)})})
+    context = game_record_context(e)
+    assert context['status']=='available' and context['home']['wins']==6
+    assert game_record_context(e.model_copy(update={'season':'2025-2026'}))['status']=='not_applicable'
+    assert game_record_context(e.model_copy(update={'game_type':'preseason'}))['status']=='not_applicable'

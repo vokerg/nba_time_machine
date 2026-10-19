@@ -849,3 +849,8 @@ h3 {
     width: 100%;
   }
 }
+
+.pregame-expectation { margin-block: 1rem; }
+.pregame-expectation p { margin-block: .5rem; }
+.pregame-expectation summary { cursor: pointer; font-size: 1rem; }
+.pregame-expectation details { overflow-wrap: anywhere; margin-block: .75rem; }

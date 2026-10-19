@@ -1,6 +1,7 @@
 """Stored evidence -> versioned feature bundle -> existing hidden score archive.
 
-No fetches, inferred actual final time, pregame inputs, or public serialization.
+No fetches or inferred actual final time. Shared entering-record expectation is
+separate from outcomes and only its allowlisted reconstruction is public.
 Caller owns the transaction; the sports advisory lock serializes writes.
 """
 from dataclasses import asdict
@@ -66,7 +67,70 @@ class MorningRankingPipeline:
             return {}
         batch = _BatchMorningRankingPipeline(self.session)
         await batch.load(game_ids, as_of)
+        self._loaded_batch = (tuple(game_ids), as_of, batch)
         return {gid: await batch.derive(gid, as_of=as_of) for gid in game_ids}
+
+    async def expectations(self, game_ids, *, as_of, strict=False):
+        # Retrospective records are deliberately unavailable in Time Machine.
+        # No dependency on complete PBP or a published postgame rating.
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("as_of must include a timezone")
+        if not game_ids:
+            self.open_records = {}
+            return {}
+        loaded = getattr(self, "_loaded_batch", None)
+        if loaded and loaded[0] == tuple(game_ids) and loaded[1] == as_of:
+            batch = loaded[2]
+        else:
+            batch = _BatchMorningRankingPipeline(self.session)
+            await batch.load(game_ids, as_of)
+        pretip, known_records = await batch.record_inputs(game_ids, as_of=as_of)
+        batch.open_records = dict(known_records)
+        result = {}
+        for gid in game_ids:
+            latest = await batch._latest_observation(gid, as_of)
+            if latest is None:
+                continue
+            records = pretip.get(str(gid))
+            if records is None and str(gid) not in batch.open_records and not strict and latest.status == "final":
+                primary = await batch._observations(gid, SOURCE_IDS["espn"], as_of)
+                ambiguous = len(primary) == 2 and (primary[0].observed_at, primary[0].available_at) == (primary[1].observed_at, primary[1].available_at)
+                if primary and not ambiguous:
+                    observation = primary[0]
+                    if (observation.status, observation.scheduled_tip_at, observation.home_score, observation.away_score) == (
+                            latest.status, latest.scheduled_tip_at, latest.home_score, latest.away_score):
+                        records = await batch._derive_observation(observation, as_of=as_of, records_only=True)
+            stars = await batch.star_inputs(gid, as_of=as_of, tip=latest.scheduled_tip_at)
+            from nba_time_machine.ranking.pregame import combine_expectation
+            value = combine_expectation(records, stars['potential'])
+            if value is not None:
+                result[str(gid)] = value
+        self.open_records = batch.open_records
+        return result
+
+    async def record_inputs(self, game_ids, *, as_of):
+        from nba_time_machine.ranking.pregame_records import read_pregame_records
+        if isinstance(self, _BatchMorningRankingPipeline):
+            if not hasattr(self, '_known_records'):
+                self._known_records = await read_pregame_records(self, tuple(self.game_rows), as_of)
+            return self._known_records
+        batch = _BatchMorningRankingPipeline(self.session)
+        await batch.load(game_ids, as_of)
+        return await batch.record_inputs(game_ids, as_of=as_of)
+
+    async def star_inputs(self, game_id, *, as_of, tip):
+        if isinstance(self, _BatchMorningRankingPipeline):
+            batch = self
+        else:
+            batch = _BatchMorningRankingPipeline(self.session)
+            await batch.load((game_id,), as_of)
+        if not hasattr(batch, "star_reader"):
+            from nba_time_machine.ranking.pregame_stars import PregameStarReader
+            tips = [row.scheduled_tip_at for rows in batch.observations.values() for row in rows]
+            batch.star_reader = PregameStarReader(self.session, batch.game_rows, batch.sources, as_of,
+                                                  latest_tip=max(tips) if tips else as_of)
+            await batch.star_reader.load()
+        return await batch.star_reader.read(game_id, tip)
 
     async def derive(self, game_id: UUID, *, as_of: datetime):
         if as_of.tzinfo is None or as_of.utcoffset() is None:
@@ -118,7 +182,7 @@ class MorningRankingPipeline:
             return None
         return result
 
-    async def _derive_observation(self, observation, *, as_of):
+    async def _derive_observation(self, observation, *, as_of, records_only=False):
         game_id = observation.game_id
         rows = await self._facts(game_id, observation.source_id, as_of, valid_from=True)
         if not rows or (len(rows) == 2 and
@@ -148,6 +212,22 @@ class MorningRankingPipeline:
         boundary = max(fact.observed_at, fact.available_at)
         if boundary <= evidence.ref.scheduled_at:
             return None
+        from nba_time_machine.ranking.game_records import game_record_context
+        from nba_time_machine.ranking.pregame import expectation
+        record_context = game_record_context(evidence)
+        pregame = expectation(record_context, source_ref=PREFIX + str(fact.id),
+                              observed_at=fact.observed_at, available_at=fact.available_at)
+        if records_only:
+            if record_context['status'] == 'available':
+                self.open_records[str(game_id)] = {
+                    'basis':'reconstructed',
+                    'teams':[{key:record_context[side][key] for key in ('team','wins','losses')}
+                             for side in ('home','away')],
+                    'observed_at':fact.observed_at, 'available_at':fact.available_at}
+            return pregame
+        known, known_records = await self.record_inputs((game_id,), as_of=as_of)
+        if str(game_id) in known_records:
+            pregame = known.get(str(game_id))
         metrics = trajectory_features(evidence)
         if metrics is None:
             return None
@@ -158,6 +238,20 @@ class MorningRankingPipeline:
         # final_at here is a conservative scoring eligibility boundary, never
         # written to game_observations.final_at or claimed as the actual finish.
         score = score_postgame(game_id, features, final_at=boundary, as_of=as_of)
+        if pregame is not None:
+            from nba_time_machine.ranking.scoring import add_matchup_expectation
+            score = add_matchup_expectation(score, pregame["overall_points"] / 2,
+                                            source_ref=pregame["source_ref"],
+                                            observed_at=pregame["observed_at"], available_at=pregame["available_at"])
+        star_inputs = await self.star_inputs(game_id, as_of=as_of, tip=evidence.ref.scheduled_at)
+        from nba_time_machine.ranking.star_power import star_preview, StarSettings
+        realized = star_preview(evidence, star_inputs['snapshot'], StarSettings())
+        if realized['bonus'] is not None:
+            from nba_time_machine.ranking.scoring import add_star_power
+            score = add_star_power(score, realized['bonus'] / 1.5,
+                source_ref='star-power-v1:' + star_inputs['snapshot']['fact_id'] + ':' + str(fact.id),
+                observed_at=max(fact.observed_at, datetime.fromisoformat(star_inputs['snapshot']['observed_at'])),
+                available_at=max(fact.available_at, datetime.fromisoformat(star_inputs['snapshot']['available_at'])))
         return fact, metrics, score
 
     async def process(self, game_id: UUID, *, as_of: datetime, write: bool = False,
@@ -166,7 +260,7 @@ class MorningRankingPipeline:
             await self.session.execute(text("SELECT pg_advisory_xact_lock(734387)"))
             # Coordinate registry revocation with feature/archive writes too.
             await self.session.execute(select(SourceRecord).where(
-                SourceRecord.id.in_(SOURCE_IDS.values())).order_by(SourceRecord.id).with_for_update())
+                SourceRecord.id.in_((*SOURCE_IDS.values(), "ringer-nba-top100-manual"))).order_by(SourceRecord.id).with_for_update())
         result = await self.derive(game_id, as_of=as_of)
         if result is None:
             return False
@@ -225,17 +319,19 @@ class _BatchMorningRankingPipeline(MorningRankingPipeline):
 
     async def load(self, game_ids, as_of):
         from nba_time_machine.db import GameRecord, SeasonRecord
+        from nba_time_machine.ranking.player_rankings import SOURCE_ID as RANKING_SOURCE
         self.observations = await self._latest_two(GameObservationRecord, game_ids, as_of)
         f = TemporalFactRecord
         self.facts = await self._latest_two(f, game_ids, as_of, f.fact_type == "provider_game_evidence")
         self.valid_facts = await self._latest_two(f, game_ids, as_of,
             f.fact_type == "provider_game_evidence", f.subject_type == "game", f.valid_from <= as_of)
-        source_ids = {source for _, source in self.observations} | {source for _, source in self.facts}
+        source_ids = {source for _, source in self.observations} | {source for _, source in self.facts} | {RANKING_SOURCE, SOURCE_IDS["espn"]}
         self.sources = {row.id: row for row in (await self.session.scalars(
             select(SourceRecord).where(SourceRecord.id.in_(source_ids)))).all()}
-        self.nba_games = set((await self.session.scalars(select(GameRecord.id)
-            .join(SeasonRecord, GameRecord.season_id == SeasonRecord.id)
-            .where(GameRecord.id.in_(game_ids), SeasonRecord.league == "NBA"))).all())
+        self.game_rows = {row.id: (row, label) for row, label in (await self.session.execute(
+            select(GameRecord, SeasonRecord.label).join(SeasonRecord, GameRecord.season_id == SeasonRecord.id)
+            .where(GameRecord.id.in_(game_ids), SeasonRecord.league == "NBA"))).all()}
+        self.nba_games = set(self.game_rows)
         # Match asserted IDs independently of the candidate game mapping. A wrong
         # canonical mapping must fail verification rather than disappear from it.
         external_ids = {row.value.get("external_id") for rows in self.valid_facts.values()

@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import UUID
 
-from nba_time_machine.ranking.scoring import POSTGAME_VERSION, ScoreKind, score_evidence_is_consistent
+from nba_time_machine.ranking.scoring import POSTGAME_VERSIONS, component_points, ScoreKind, score_evidence_is_consistent
 from nba_time_machine.spoilers.game_list import GameListService
 from nba_time_machine.spoilers.guide_cache import PreparedDay
 from nba_time_machine.spoilers.policy import DisclosureLayer, GameContext, project_game
@@ -24,6 +24,7 @@ class FixedKnowledgeClock:
 
 
 LABELS = {
+    "matchup_expectation": "Pregame matchup strength", "star_power": "Star power · actual participation",
     "clutch": "Close late-game play", "lead_changes": "Lead changes",
     "comeback": "Comeback", "overtime": "Overtime",
     "individual_performance": "Individual performance", "rarity": "Unusual game",
@@ -49,22 +50,23 @@ def rating_detail(score, bands, level):
     result["clue"] = clues[0] if clues else None
     if level == "clue":
         return result
-    total = sum(p.weight for p in score.components)
+    points = component_points(score)
     result.update(rating=score.value, model=score.model_version, as_of=score.as_of,
                   components=[{"label": LABELS[p.signal],
-                               "points": round(10 * p.weighted_contribution / total, 4),
+                               "points": points[index],
                                "normalized": p.normalized_value,
                                "source_ref": p.source_ref,
                                "observed_at": p.observed_at,
-                               "available_at": p.available_at} for p in score.components])
+                               "available_at": p.available_at} for index, p in enumerate(score.components)])
     return result
 
 
 class ViewingGuideService:
-    def __init__(self, timeline, slates, games, acknowledgements, scores, verifier, bands, now=None, *, cache=None, revision=None):
+    def __init__(self, timeline, slates, games, acknowledgements, scores, verifier, bands, now=None, *, cache=None, revision=None, pregame=None):
         self.timeline, self.slates, self.games = timeline, slates, games
         self.acks, self.scores, self.verifier, self.bands = acknowledgements, scores, verifier, bands
         self.cache, self.revision, self.prepared = cache, revision, None
+        self.pregame = pregame
         self.now = now or (lambda: datetime.now(timezone.utc))
 
     async def context(self, profile_id, day, mode, expected_cursor=None):
@@ -103,6 +105,22 @@ class ViewingGuideService:
         state, cutoff, slate = await self.context(profile_id, day, mode)
         return state, cutoff, slate
 
+    async def expectations(self, slate, cutoff, mode):
+        if self.pregame is None:
+            return {}
+        if self.prepared is not None and self.prepared.expectations is not None:
+            return self.prepared.expectations
+        result = await self.pregame.expectations(tuple(g.projection.game_id for g in slate.games), as_of=cutoff, strict=mode == "time-machine")
+        if self.prepared is not None:
+            self.prepared.expectations = result
+            self.prepared.entering_records = getattr(self.pregame, 'open_records', {})
+        return result
+
+    def entering_records(self):
+        if self.prepared is not None:
+            return self.prepared.entering_records or {}
+        return getattr(self.pregame, 'open_records', {})
+
     async def disclose(self, profile_id, day, mode, expected_cursor, level, game_id=None):
         state, cutoff, slate = await self.context(profile_id, day, mode, expected_cursor)
         ids = tuple(g.projection.game_id for g in slate.games)
@@ -117,6 +135,9 @@ class ViewingGuideService:
             async with self.cache.lock:
                 if self.prepared.scores is None:
                     self.prepared.scores = await self._eligible_scores(ids, cutoff)
+                    if self.pregame is not None and mode == "browse" and self.prepared.expectations is None:
+                        self.prepared.expectations = await self.pregame.expectations(ids, as_of=cutoff)
+                        self.prepared.entering_records = getattr(self.pregame, 'open_records', {})
             eligible = {gid: self.prepared.scores[gid] for gid in selected
                         if gid in self.prepared.scores}
         details = {}
@@ -160,7 +181,7 @@ class ViewingGuideService:
             if len(matches) != 1 or not score_evidence_is_consistent(matches[0]):
                 continue
             score = matches[0]
-            if score.kind is not ScoreKind.POSTGAME or score.model_version != POSTGAME_VERSION or score.as_of > cutoff:
+            if score.kind is not ScoreKind.POSTGAME or score.model_version not in POSTGAME_VERSIONS or score.as_of > cutoff:
                 continue
             # Re-derive only for integrity, never to introduce a new score/model.
             # Current revoked, revised or incomplete evidence withholds the archive.

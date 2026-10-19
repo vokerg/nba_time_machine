@@ -116,22 +116,28 @@ async def import_snapshot(session, payload: RankingImport, *, write=False, autom
     return {**report, 'written': written, 'run_id': str(run.id), 'observed_at': now.isoformat()}
 
 
-async def read_snapshot(session, evidence, as_of, *, fallback_to_first=False):
+async def read_snapshot(session, evidence, as_of, *, fallback_to_first=False, known_rows=None, known_source=None):
     missing = {'status': 'unavailable', 'players': [], 'reason': 'No ranking snapshot genuinely observed before tipoff.'}
     if evidence is None or evidence.ref.scheduled_at is None:
         return missing
     try:
-        approved(await session.get(SourceRecord, SOURCE_ID))
+        approved(known_source if known_source is not None else await session.get(SourceRecord, SOURCE_ID))
     except ValueError:
         return {**missing, 'reason': 'Ranking source permission/retention is not approved.'}
     tip = evidence.ref.scheduled_at
-    rows = (await session.scalars(select(TemporalFactRecord).join(SeasonRecord,
-        SeasonRecord.id == TemporalFactRecord.season_id).where(
-        TemporalFactRecord.source_id == SOURCE_ID, TemporalFactRecord.fact_type == FACT_TYPE,
-        SeasonRecord.label == evidence.season, SeasonRecord.league == 'NBA',
-        TemporalFactRecord.observed_at < tip, TemporalFactRecord.available_at < tip,
-        TemporalFactRecord.observed_at <= as_of, TemporalFactRecord.available_at <= as_of,
-    ).order_by(TemporalFactRecord.observed_at.desc(), TemporalFactRecord.available_at.desc()).limit(2))).all()
+    if known_rows is None:
+        rows = (await session.scalars(select(TemporalFactRecord).join(SeasonRecord,
+            SeasonRecord.id == TemporalFactRecord.season_id).where(
+            TemporalFactRecord.source_id == SOURCE_ID, TemporalFactRecord.fact_type == FACT_TYPE,
+            SeasonRecord.label == evidence.season, SeasonRecord.league == 'NBA',
+            TemporalFactRecord.observed_at < tip, TemporalFactRecord.available_at < tip,
+            TemporalFactRecord.observed_at <= as_of, TemporalFactRecord.available_at <= as_of,
+        ).order_by(TemporalFactRecord.observed_at.desc(), TemporalFactRecord.available_at.desc()).limit(2))).all()
+    else:
+        rows = sorted((fact for label, fact in known_rows if label == evidence.season
+                       and fact.observed_at < tip and fact.available_at < tip
+                       and fact.observed_at <= as_of and fact.available_at <= as_of),
+                      key=lambda fact: (fact.observed_at, fact.available_at), reverse=True)[:2]
     retrospective = False
     if not rows and fallback_to_first:
         # Explicit tuning assumption: the first COMPLETE snapshot can stand in
@@ -160,7 +166,7 @@ async def read_snapshot(session, evidence, as_of, *, fallback_to_first=False):
         original['players'] = [{**{k: v for k, v in p.items() if k in RankedPlayer.model_fields},
                                 'espn_id': p.get('requested_espn_id')} for p in data['players']]
         RankingImport.model_validate(original)
-        approved(await session.get(SourceRecord, SOURCE_ID), data['permission_reference'])
+        approved(known_source if known_source is not None else await session.get(SourceRecord, SOURCE_ID), data['permission_reference'])
         signature = digest({**data, 'players': [{k: v for k, v in p.items() if k != 'mapping_fact_ids'} for p in data['players']]})
         matched = [p for p in data['players'] if p['mapping_status'] == 'matched']
         if (signature != fact.fact_metadata.get('revision_hash')

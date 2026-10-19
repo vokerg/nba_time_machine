@@ -61,9 +61,10 @@ export class BackendClient {
     return parseDayUpdate(await this.request(`/profiles/${this.profileId}/guide/update/${id(jobId)}`, "GET", undefined, signal));
   }
 
-  async guideGames(day: string, mode: import("./guide").Mode, cursor: string, signal?: AbortSignal): Promise<GameList> {
+  async guideGames(day: string, mode: import("./guide").Mode, cursor: string, signal?: AbortSignal): Promise<import("./guide").GuideList> {
     if (!validDate(day)) throw new Error("Choose a valid NBA date.");
-    const result = parseGameList(await this.request(`/profiles/${this.profileId}/guide?date=${day}&mode=${mode}`, "GET", undefined, signal));
+    const { parseGuideList } = await import("./guide");
+    const result = parseGuideList(await this.request(`/profiles/${this.profileId}/guide?date=${day}&mode=${mode}`, "GET", undefined, signal), mode);
     if (Date.parse(result.time_cursor) !== Date.parse(cursor)) throw new Error("Timeline changed. Reload saved state.");
     return result;
   }

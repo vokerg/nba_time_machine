@@ -96,9 +96,10 @@ class MorningStore:
                         season_label=evidence.season,
                         home_team=NormalizedProviderTeam(evidence.home.external_id, evidence.home.name),
                         away_team=NormalizedProviderTeam(evidence.away.external_id, evidence.away.name),
-                        status="final" if evidence.status == "final" else "in_progress",
+                        status=evidence.status if evidence.status in ("final", "scheduled") else "in_progress",
                         scheduled_tip_at=evidence.ref.scheduled_at,
-                        home_score=evidence.home.score, away_score=evidence.away.score,
+                        home_score=None if evidence.status == "scheduled" else evidence.home.score,
+                        away_score=None if evidence.status == "scheduled" else evidence.away.score,
                         metadata={"provider": provider, "game_type": evidence.game_type,
                                   "pbp_usable": evidence.pbp_usable, "box_usable": evidence.box_usable})
                     store = StructuredSportsStore(source_id=source_id, provider_key=provider, reconcile_existing=True)
@@ -123,7 +124,8 @@ class MorningStore:
         report.captures_written += written
         failures = [a for a in attempts if a.status not in ("ok", "redirected")]
         source_errors = [err for err in report.errors if err.startswith(provider + "_")]
-        partial = any(not e.pbp_usable or not e.box_usable for e in values)
+        partial = any((e.entering_records is None or bool(e.record_errors)) if e.status == "scheduled"
+                      else (not e.pbp_usable or not e.box_usable) for e in values)
         if changed_policy:
             status = "skipped_config"
             report.persistence_errors.append(provider + ":source_policy_changed")

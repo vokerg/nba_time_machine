@@ -162,3 +162,40 @@ preferences. Matchup names stay 24px on mobile as well as desktop. Do not restor
 the original 9–12px labels, compact hint text or mobile type reductions. Let
 controls, metadata and section headings wrap as needed; provide roomier line
 spacing and touch targets instead of squeezing text to fit.
+
+## Open pregame expectation (#10)
+
+The guide now exposes an independently allowlisted `expectations` map in Browse.
+It shows record-only reconstructed expectations and reasons openly, including
+entering W–L, sample confidence and missing families. Time Machine never admits
+this reconstruction. The same shared record-strength calculation supplies the
+workbench bonus and new `postgame-records-v2` production ratings; archived v1
+ratings remain immutable. Both supported production versions require current
+verified evidence and explicit postgame consent. See
+[Pregame expectation](PREGAME_EXPECTATION.md) for coverage, formulas and timing.
+
+
+### Shared pregame Star Power (#10 owner follow-up)
+
+The fan guide now includes an independent, openly explained roster-star potential
+component, including preseason and upcoming observed games. Missing team records
+do not suppress eligible stars. Only ranking/roster evidence genuinely known
+before tip is admitted; confirmed availability remains unknown. Time Machine
+also requires that evidence before its saved cutoff. The same rank/slot/team
+functions serve the workbench and new `postgame-stars-v3` archive model, which
+uses actual verified minutes instead of adding potential and realized stars twice.
+The earlier record-only limitation is superseded for this component. No
+first-snapshot consumer backfill, new collection, old-archive rewrite or global
+media exception is introduced. See [Pregame expectation](PREGAME_EXPECTATION.md).
+
+
+### Consumer card cleanup (owner follow-up)
+
+Show one pregame score, contributing star names and entering W–L when available.
+Remove the pregame formula accordion, rank/debug labels, duplicate star score,
+collection/model metadata and repeated coverage/availability paragraphs. Admin
+tooling retains the detailed calculations. Entering records are independent of the
+three-game scoring minimum, support validated 2025–26 and 2026–27 regular-season
+captures, and remain excluded from strict Time Machine when reconstructed.
+Pregame counts ranked roster players without filtering for injury or actual
+participation; actual minutes remain a postgame input.

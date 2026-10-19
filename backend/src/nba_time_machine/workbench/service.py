@@ -16,7 +16,7 @@ from nba_time_machine.ranking.context_reader import read_context
 from nba_time_machine.ranking.game_records import game_record_context
 from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
 from nba_time_machine.ranking.queries import _score_from_row
-from nba_time_machine.ranking.scoring import POSTGAME_VERSION
+from nba_time_machine.ranking.scoring import POSTGAME_VERSIONS, OVERALL_VERSION, STAR_OVERALL_VERSION
 from nba_time_machine.sports.morning_models import EASTERN, Evidence, assess
 from nba_time_machine.sports.morning_store import source_policy
 from nba_time_machine.workbench.calculations import MISSING, TuningConfig, preview, candidate_preview
@@ -194,9 +194,9 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
     row = await session.scalar(select(RecommendationScoreRecord).where(
         RecommendationScoreRecord.game_id == game_id,
         RecommendationScoreRecord.score_kind == "postgame",
-        RecommendationScoreRecord.model_version == POSTGAME_VERSION,
+        RecommendationScoreRecord.model_version.in_(POSTGAME_VERSIONS),
         RecommendationScoreRecord.as_of <= as_of,
-    ).order_by(RecommendationScoreRecord.as_of.desc(), RecommendationScoreRecord.id.desc()).limit(1))
+    ).order_by(RecommendationScoreRecord.as_of.desc(), (RecommendationScoreRecord.model_version == STAR_OVERALL_VERSION).desc(), (RecommendationScoreRecord.model_version == OVERALL_VERSION).desc(), RecommendationScoreRecord.id.desc()).limit(1))
     if row:
         archived = _score_from_row(row)
         eligible = archived is not None and derived is not None and archived.components == derived[2].components

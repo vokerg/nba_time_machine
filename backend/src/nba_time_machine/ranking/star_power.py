@@ -42,6 +42,35 @@ def rank_value(rank, s):
     raise ValueError('rank out of range')
 
 
+def team_star_power(players, settings):
+    """One rank/slot formula for roster potential and actual participation.
+
+    Callers supply the participation factor; expected roster potential uses 1,
+    while postgame uses measured minutes. Missing participation is never 1.
+    """
+    active = sorted(players, key=lambda p: p['rank'])[:3]
+    weighted = [{**p, 'slot_weight': weight,
+                 'contribution': rank_value(p['rank'], settings) * p['factor'] * weight}
+                for p, weight in zip(active, (1., settings.second_weight, settings.third_weight))]
+    total = sum(p['contribution'] for p in weighted)
+    return weighted, total, min(1., total / settings.team_normalizer)
+
+
+def matchup_star_power(home, away, settings):
+    return ((1 - settings.both_teams_weight) * max(home, away)
+            + settings.both_teams_weight * sqrt(home * away))
+
+
+def star_formula(settings):
+    s = settings
+    return (f"Rank values: top {s.top5_end} = {s.top5_value:g}; linear interpolation through "
+            f"#{s.top20_end} = {s.top20_value:g}, #{s.top50_end} = {s.top50_value:g}, #100 = {s.top100_value:g}. "
+            f"Top three weights: 1, {s.second_weight:g}, {s.third_weight:g}. "
+            f"Each team = min(1, weighted sum / {s.team_normalizer:g}). "
+            f"Matchup = {1-s.both_teams_weight:g} × stronger team + {s.both_teams_weight:g} × sqrt(home × away). "
+            f"Star expectation = 10 × matchup; potential bonus = {s.max_bonus:g} × matchup.")
+
+
 def star_preview(evidence, snapshot, settings, *, allow_first_snapshot=False):
     s = settings
     result = {'measurement_version': 'star-power-v1', 'status': 'unavailable', 'metric': None,
@@ -113,15 +142,17 @@ def star_preview(evidence, snapshot, settings, *, allow_first_snapshot=False):
                     'raw_contribution': None if factor is None else value * factor,
                     'slot_weight': 0., 'contribution': None if unknown else 0.})
         # Established rank chooses slots; DNP/zero/unknown never consumes a slot.
-        active = sorted((p for p in players if p['participation'] == 'played'), key=lambda p: p['rank'])[:3]
-        for p, weight in zip(active, (1., s.second_weight, s.third_weight)):
-            p.update(slot_weight=weight, contribution=p['raw_contribution'] * weight)
-        total = sum(p['contribution'] for p in active)
+        active, total, normalized = team_star_power([
+            {**p, 'factor': p['minutes_factor']} for p in players if p['participation'] == 'played'], s)
+        slots = {p['espn_id']: p for p in active}
+        for p in players:
+            if p['espn_id'] in slots:
+                p.update(slot_weight=slots[p['espn_id']]['slot_weight'], contribution=slots[p['espn_id']]['contribution'])
         result['teams'].append({'team': team.abbreviation, 'coverage': 'incomplete' if errors else 'complete',
             'errors': sorted(set(errors)), 'players': sorted(players, key=lambda p: p['rank']),
             'observed_team_minutes': total_minutes, 'expected_team_minutes': 5 * period_minutes,
             'minutes_rounding_tolerance': tolerance,
-            'raw_total': total if ranking and not errors else None, 'normalized': None if errors or not snapshot or snapshot.get('status') != 'available' else min(1., total / s.team_normalizer)})
+            'raw_total': total if ranking and not errors else None, 'normalized': None if errors or not snapshot or snapshot.get('status') != 'available' else normalized})
     if not snapshot or snapshot.get('status') != 'available':
         result['reason'] = (snapshot or {}).get('reason', result['reason'])
         return result
@@ -129,7 +160,7 @@ def star_preview(evidence, snapshot, settings, *, allow_first_snapshot=False):
         result['reason'] = 'Unresolved ranking identities or incomplete team participation; no missing data extrapolation.'
         return result
     h, a = [t['normalized'] for t in result['teams']]
-    metric = (1 - s.both_teams_weight) * max(h, a) + s.both_teams_weight * sqrt(h * a)
+    metric = matchup_star_power(h, a, s)
     result.update(status='available', reason='Top three participating ranked players per team; reputation is independent of game statistics.',
                   metric=metric, bonus=round(s.max_bonus * metric, 4))
     if snapshot.get('retrospective'):

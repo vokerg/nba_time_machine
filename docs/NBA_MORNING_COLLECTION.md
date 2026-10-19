@@ -246,3 +246,26 @@ corrections or provider play IDs. Original score states and collection times are
 unchanged. The [local workbench recovery](SCORING_WORKBENCH.md#cbs-corroborated-free-throw-previews-109)
 uses these fields for a bounded, separately labeled preview interpretation.
 Collection reports and production ranking continue to report original coverage.
+
+### Scheduled summaries and entering records (#10)
+
+Explicit day collection also requests one summary for each ESPN game whose
+scoreboard state is `STATUS_SCHEDULED` / `pre`. It uses the existing public
+scoreboard and summary endpoints, authentication-free access, request budget,
+rate-limit host stop, timeout, response-size limit and manual source-policy gate.
+There is no CBS fallback for a scheduled summary. Unknown or in-progress states
+are skipped; a summary already live or collected at/after tip is rejected.
+
+Matching regular-season total records become normalized `entering_records`
+claims, distinct from final totals. Identity/deduplication remains provider game
+ID plus normalized capture hash, with revisions in the existing temporal facts.
+Collection/availability retain actual observation time, never scheduled tip or a
+provider publication claim. Only approved `normalized_full` retention is used;
+raw ESPN payloads are not stored. Diagnostics expose `has_entering_records` and
+record error codes; missing postgame PBP/box data alone does not mark a valid
+scheduled record capture partial. Synthetic source-shaped fixtures and bounded
+mock transport coverage live in `test_scheduled_records.py`; PostgreSQL tests
+exercise scheduled observations, historical read selection and policy revocation.
+The ordinary explicit Fetch games action is the collection trigger; no automatic
+cadence or daily scheduler is added. A live pre-tip provider smoke has not been
+performed for this extension.
