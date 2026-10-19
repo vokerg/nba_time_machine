@@ -58,8 +58,9 @@ def _score_from_row(row: RecommendationScoreRecord) -> VersionedScore | None:
 
 
 class SqlAlchemyPostgameScoreRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, *, verifier=None) -> None:
         self._session = session
+        self._verifier = verifier
 
     async def postgame_scores_as_of(
         self, game_ids: tuple[UUID, ...], *, as_of: datetime,
@@ -91,18 +92,21 @@ class SqlAlchemyPostgameScoreRepository:
             .where(latest.c.position == 1)
             .order_by(r.game_id)
         )).all()
-        from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline, PREFIX
+        from nba_time_machine.ranking.morning_pipeline import PREFIX
+        from nba_time_machine.ranking.verification import RequestScoreVerifier
 
+        decoded = [score for row in rows if (score := _score_from_row(row)) is not None]
+        morning_ids = tuple(score.game_id for score in decoded
+                            if any(part.source_ref.startswith(PREFIX) for part in score.components))
+        verifier = self._verifier or RequestScoreVerifier(self._session)
+        current_scores = await verifier.morning_many(morning_ids, as_of)
         scores = []
-        for row in rows:
-            score = _score_from_row(row)
-            if score is None:
-                continue
-            if any(part.source_ref.startswith(PREFIX) for part in score.components):
+        for score in decoded:
+            if score.game_id in current_scores:
                 # New corrections, revoked sources and partial latest traces
                 # invalidate old derived scores without deleting their history.
-                current = await MorningRankingPipeline(self._session).derive(score.game_id, as_of=as_of)
-                if current is None or current[2].components != score.components:
+                current = current_scores[score.game_id]
+                if current is None or current.components != score.components:
                     continue
             scores.append(score)
         return tuple(scores)

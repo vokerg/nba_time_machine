@@ -30,11 +30,49 @@ class MorningRankingPipeline:
     def __init__(self, session):
         self.session = session
 
+    async def _latest_observation(self, game_id, as_of):
+        return await SqlAlchemyRankingEvidenceRepository(self.session).game_observation_as_of(game_id, as_of)
+
+    async def _observations(self, game_id, source_id, as_of):
+        o = GameObservationRecord
+        return (await self.session.scalars(select(o).where(
+            o.game_id == game_id, o.source_id == source_id,
+            o.observed_at <= as_of, o.available_at <= as_of,
+        ).order_by(o.observed_at.desc(), o.available_at.desc()).limit(2))).all()
+
+    async def _facts(self, game_id, source_id, as_of, *, valid_from):
+        f = TemporalFactRecord
+        return (await self.session.scalars(select(f).where(
+            f.game_id == game_id, f.fact_type == "provider_game_evidence",
+            f.source_id == source_id, f.observed_at <= as_of, f.available_at <= as_of,
+            *((f.subject_type == "game", f.valid_from <= as_of) if valid_from else ()),
+        ).order_by(f.observed_at.desc(), f.available_at.desc()).limit(2))).all()
+
+    async def _source(self, source_id):
+        return await self.session.get(SourceRecord, source_id)
+
+    async def _mapping(self, provider, external_id):
+        return await self.session.scalar(select(SportsExternalIdentityRecord.game_id).where(
+            SportsExternalIdentityRecord.provider_key == provider,
+            SportsExternalIdentityRecord.entity_type == "game",
+            SportsExternalIdentityRecord.external_id == external_id,
+        ))
+
+    async def derive_many(self, game_ids, *, as_of):
+        """Batch only database reads; reuse all ordinary derivation/integrity rules."""
+        if as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("as_of must include a timezone")
+        if not game_ids:
+            return {}
+        batch = _BatchMorningRankingPipeline(self.session)
+        await batch.load(game_ids, as_of)
+        return {gid: await batch.derive(gid, as_of=as_of) for gid in game_ids}
+
     async def derive(self, game_id: UUID, *, as_of: datetime):
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must include a timezone")
         # The latest game observation masks older final states, across providers.
-        observation = await SqlAlchemyRankingEvidenceRepository(self.session).game_observation_as_of(game_id, as_of)
+        observation = await self._latest_observation(game_id, as_of)
         if observation is None or observation.status != "final":
             return None
         result = await self._derive_observation(observation, as_of=as_of)
@@ -43,11 +81,7 @@ class MorningRankingPipeline:
         # CBS may have been fetched solely because ESPN's independent box
         # family was incomplete. Try only ESPN's latest revision, never an older
         # clean revision within that provider, and require current state agreement.
-        o = GameObservationRecord
-        primary = (await self.session.scalars(select(o).where(
-            o.game_id == game_id, o.source_id == SOURCE_IDS["espn"],
-            o.observed_at <= as_of, o.available_at <= as_of,
-        ).order_by(o.observed_at.desc(), o.available_at.desc()).limit(2))).all()
+        primary = await self._observations(game_id, SOURCE_IDS["espn"], as_of)
         if not primary or (len(primary) == 2 and
                 (primary[0].observed_at, primary[0].available_at) ==
                 (primary[1].observed_at, primary[1].available_at)):
@@ -63,12 +97,7 @@ class MorningRankingPipeline:
             return None
         # Equal final scores alone do not establish equal OT/quarter history.
         # The backup's current evidence must agree on those period totals too.
-        f = TemporalFactRecord
-        backups = (await self.session.scalars(select(f).where(
-            f.game_id == game_id, f.fact_type == "provider_game_evidence",
-            f.source_id == observation.source_id, f.observed_at <= as_of,
-            f.available_at <= as_of,
-        ).order_by(f.observed_at.desc(), f.available_at.desc()).limit(2))).all()
+        backups = await self._facts(game_id, observation.source_id, as_of, valid_from=False)
         if not backups or (len(backups) == 2 and
                 (backups[0].observed_at, backups[0].available_at) ==
                 (backups[1].observed_at, backups[1].available_at)):
@@ -91,16 +120,7 @@ class MorningRankingPipeline:
 
     async def _derive_observation(self, observation, *, as_of):
         game_id = observation.game_id
-        rows = (await self.session.scalars(select(TemporalFactRecord).where(
-            TemporalFactRecord.subject_type == "game",
-            TemporalFactRecord.game_id == game_id,
-            TemporalFactRecord.fact_type == "provider_game_evidence",
-            TemporalFactRecord.source_id == observation.source_id,
-            TemporalFactRecord.available_at <= as_of,
-            TemporalFactRecord.observed_at <= as_of,
-            TemporalFactRecord.valid_from <= as_of,
-        ).order_by(TemporalFactRecord.observed_at.desc(),
-                   TemporalFactRecord.available_at.desc()).limit(2))).all()
+        rows = await self._facts(game_id, observation.source_id, as_of, valid_from=True)
         if not rows or (len(rows) == 2 and
                 (rows[0].observed_at, rows[0].available_at) == (rows[1].observed_at, rows[1].available_at)):
             return None
@@ -109,7 +129,7 @@ class MorningRankingPipeline:
             return None  # No resurrection of an expired latest revision.
         try:
             evidence = Evidence.model_validate({**fact.value, "observed_at": fact.observed_at})
-            source = await self.session.get(SourceRecord, fact.source_id)
+            source = await self._source(fact.source_id)
             source_policy(source, evidence.provider, manual=True)
         except (ValidationError, ValueError, TypeError):
             return None
@@ -122,11 +142,7 @@ class MorningRankingPipeline:
                 or evidence.away.score != observation.away_score):
             return None
         # Verify the canonical game mapping, not just IDs asserted in JSON.
-        mapped = await self.session.scalar(select(SportsExternalIdentityRecord.game_id).where(
-            SportsExternalIdentityRecord.provider_key == evidence.provider,
-            SportsExternalIdentityRecord.entity_type == "game",
-            SportsExternalIdentityRecord.external_id == evidence.external_id,
-        ))
+        mapped = await self._mapping(evidence.provider, evidence.external_id)
         if mapped != game_id or evidence.ref.external_id != evidence.external_id:
             return None
         boundary = max(fact.observed_at, fact.available_at)
@@ -181,3 +197,74 @@ class MorningRankingPipeline:
                 ))
             await SqlAlchemyRankingStore(self.session).archive(score)
         return True
+
+
+class _BatchMorningRankingPipeline(MorningRankingPipeline):
+    """One cutoff and one bounded candidate set, discarded after derive_many.
+
+    Window each provider independently so CBS fallback still sees the latest
+    two ESPN revisions. Keep ties for the existing ambiguity checks.
+    """
+
+    async def _latest_two(self, model, game_ids, as_of, *criteria):
+        from sqlalchemy import func
+        ranked = select(model.id.label("id"), func.row_number().over(
+            partition_by=(model.game_id, model.source_id),
+            order_by=(model.observed_at.desc(), model.available_at.desc(), model.id.desc()),
+        ).label("position")).where(
+            model.game_id.in_(game_ids), model.observed_at <= as_of,
+            model.available_at <= as_of, *criteria,
+        ).subquery()
+        rows = (await self.session.scalars(select(model).join(ranked, model.id == ranked.c.id)
+            .where(ranked.c.position <= 2)
+            .order_by(model.observed_at.desc(), model.available_at.desc(), model.id.desc()))).all()
+        grouped = {}
+        for row in rows:
+            grouped.setdefault((row.game_id, row.source_id), []).append(row)
+        return grouped
+
+    async def load(self, game_ids, as_of):
+        from nba_time_machine.db import GameRecord, SeasonRecord
+        self.observations = await self._latest_two(GameObservationRecord, game_ids, as_of)
+        f = TemporalFactRecord
+        self.facts = await self._latest_two(f, game_ids, as_of, f.fact_type == "provider_game_evidence")
+        self.valid_facts = await self._latest_two(f, game_ids, as_of,
+            f.fact_type == "provider_game_evidence", f.subject_type == "game", f.valid_from <= as_of)
+        source_ids = {source for _, source in self.observations} | {source for _, source in self.facts}
+        self.sources = {row.id: row for row in (await self.session.scalars(
+            select(SourceRecord).where(SourceRecord.id.in_(source_ids)))).all()}
+        self.nba_games = set((await self.session.scalars(select(GameRecord.id)
+            .join(SeasonRecord, GameRecord.season_id == SeasonRecord.id)
+            .where(GameRecord.id.in_(game_ids), SeasonRecord.league == "NBA"))).all())
+        # Match asserted IDs independently of the candidate game mapping. A wrong
+        # canonical mapping must fail verification rather than disappear from it.
+        external_ids = {row.value.get("external_id") for rows in self.valid_facts.values()
+                        for row in rows if isinstance(row.value, dict)
+                        and isinstance(row.value.get("external_id"), str)}
+        self.mappings = {(row.provider_key, row.external_id): row.game_id for row in
+            (await self.session.scalars(select(SportsExternalIdentityRecord).where(
+                SportsExternalIdentityRecord.entity_type == "game",
+                SportsExternalIdentityRecord.external_id.in_(external_ids)))).all()}
+
+    async def _latest_observation(self, game_id, as_of):
+        if game_id not in self.nba_games:
+            return None
+        rows = [row for (gid, _), values in self.observations.items() if gid == game_id for row in values]
+        rows.sort(key=lambda row: (row.observed_at, row.available_at, row.id), reverse=True)
+        if not rows or (len(rows) > 1 and (rows[0].observed_at, rows[0].available_at) ==
+                       (rows[1].observed_at, rows[1].available_at)):
+            return None
+        source = self.sources.get(rows[0].source_id)
+        return rows[0] if source is not None and source.verification_status == "verified" else None
+
+    async def _observations(self, game_id, source_id, as_of):
+        return self.observations.get((game_id, source_id), [])
+
+    async def _facts(self, game_id, source_id, as_of, *, valid_from):
+        return (self.valid_facts if valid_from else self.facts).get((game_id, source_id), [])
+
+    async def _source(self, source_id):
+        return self.sources.get(source_id)
+
+    async def _mapping(self, provider, external_id):
+        return self.mappings.get((provider, external_id))
