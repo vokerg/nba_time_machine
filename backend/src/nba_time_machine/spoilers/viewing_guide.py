@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import UUID
 
-from nba_time_machine.ranking.scoring import score_evidence_is_consistent
+from nba_time_machine.ranking.scoring import POSTGAME_VERSION, ScoreKind, score_evidence_is_consistent
 from nba_time_machine.spoilers.game_list import GameListService
 from nba_time_machine.spoilers.policy import DisclosureLayer, GameContext, project_game
 
@@ -73,6 +73,8 @@ class ViewingGuideService:
         clock = FixedKnowledgeClock(state, cutoff)
         slate = await GameListService(clock, self.slates, self.games, self.acks,
                                       observed_schedule=True).list_games(profile_id, slate_date=day)
+        slate = replace(slate, games=tuple(sorted(slate.games, key=lambda game: (
+            game.projection.fields.get("scheduled_tip", ""), str(game.projection.game_id)))))
         if len(slate.games) > 32:
             raise RuntimeError("date exceeds disclosure bound")
         return state, cutoff, slate
@@ -94,7 +96,7 @@ class ViewingGuideService:
             if len(matches) != 1 or not score_evidence_is_consistent(matches[0]):
                 continue
             score = matches[0]
-            if score.as_of > cutoff:
+            if score.kind is not ScoreKind.POSTGAME or score.model_version != POSTGAME_VERSION or score.as_of > cutoff:
                 continue
             # Re-derive only for integrity, never to introduce a new score/model.
             # Current revoked, revised or incomplete evidence withholds the archive.

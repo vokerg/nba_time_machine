@@ -4,7 +4,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, AwareDatetime
+from pydantic import BaseModel, ConfigDict, AwareDatetime, StrictBool
 
 from nba_time_machine.api.game_list import game_list_response
 from nba_time_machine.api.timeline import _session_factory
@@ -32,7 +32,7 @@ async def get_viewing_guide(request: Request):
         yield ViewingGuideService(
             TimelineService(SqlAlchemyTimelineRepository(session)),
             SqlAlchemyGameSlateRepository(session, observed_schedule=True),
-            SqlAlchemyGameSnapshotRepository(session, observed_schedule=True),
+            SqlAlchemyGameSnapshotRepository(session, observed_schedule=True, knowledge_bounded=True),
             SqlAlchemyGameAcknowledgementRepository(session),
             SqlAlchemyPostgameScoreRepository(session), verify, RankingDisclosureSettings().bands())
 
@@ -43,7 +43,7 @@ class DisclosureRequest(BaseModel):
     mode: Mode
     time_cursor: AwareDatetime
     level: Literal["verdict", "clue", "rating", "full", "order"]
-    consent: bool = False
+    consent: StrictBool = False
     game_id: UUID | None = None
 
 
@@ -67,6 +67,8 @@ async def games(profile_id: UUID, date: date, mode: Mode = "browse", service=Dep
 async def disclose(profile_id: UUID, body: DisclosureRequest, service=Depends(get_viewing_guide)):
     if body.consent is not True:
         raise HTTPException(403, "Explicit spoiler consent required")
+    if body.level == "order" and body.game_id is not None:
+        raise HTTPException(422, "Watch order is date scoped")
     if body.game_id is None and body.level not in ("order", "full"):
         raise HTTPException(422, "Choose a game for this detail level")
     try:

@@ -1,3 +1,14 @@
+# Current fan disclosure boundary (#111)
+
+The [viewing guide](VIEWING_GUIDE.md) adds a separate consented `/guide/disclose`
+API for Browse and Time Machine. It can return exact archived ratings and
+traceable component contributions only after explicit rating/full disclosure.
+It also supports backfilled-day ranking using actual availability, without
+pretending these games formed a historically observed pregame slate. The legacy
+API and internal core below retain their contracts; statements describing the
+old endpoint as the only HTTP ranking path are superseded by this guide.
+No workbench formula is promoted and no ranking is calibrated by #111.
+
 # Versioned recommendation core (Issue #10)
 
 The first ranking slice lives under

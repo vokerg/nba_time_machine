@@ -1,4 +1,4 @@
-import { parseGameList, type GameList } from "./dashboard";
+import { parseGameList, type GameList } from "./dashboard.ts";
 export type Mode = "browse" | "time-machine";
 export type Level = "verdict" | "clue" | "rating" | "full" | "order";
 export type Detail = {

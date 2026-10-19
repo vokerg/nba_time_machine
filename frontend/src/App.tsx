@@ -74,7 +74,7 @@ export function App() {
       if (!alive) return;
       setClient(connected);
       setTimeline(saved);
-      setCutoff(saved.time_cursor.slice(0, 16));
+      setCutoff(new Date(saved.time_cursor).toISOString().slice(0, 16));
       setFavorites(readFavorites(window.localStorage, connected.profileId));
     })().catch(() => {
       if (alive) {
@@ -123,7 +123,9 @@ export function App() {
     setMediaError(false);
     client
       .media(timeline.time_cursor, undefined, controller.signal)
-      .then(setMedia)
+      .then((data) => {
+        if (!controller.signal.aborted) setMedia(data);
+      })
       .catch(() => {
         if (!controller.signal.aborted) setMediaError(true);
       });
@@ -169,8 +171,7 @@ export function App() {
       if (ticket !== generation.current) return;
       setDetails((prior) => {
         const next = { ...prior };
-        for (const [id, d] of Object.entries(response.details))
-          next[id] = { ...prior[id], ...d };
+        for (const [id, d] of Object.entries(response.details)) next[id] = d;
         return next;
       });
       if (!gameId) setOrder(response.game_ids);

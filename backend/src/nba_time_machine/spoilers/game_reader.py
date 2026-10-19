@@ -20,7 +20,8 @@ def utc(value: datetime | None) -> datetime | None:
 
 
 class SqlAlchemyGameSnapshotRepository:
-    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False, season_replay: bool = False) -> None:
+    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False, season_replay: bool = False, knowledge_bounded: bool = False) -> None:
+        self.knowledge_bounded = knowledge_bounded
         self.session = session
         self.observed_schedule = observed_schedule
         self.season_replay = season_replay
@@ -37,6 +38,12 @@ class SqlAlchemyGameSnapshotRepository:
         cursor = utc(time_cursor)
         if cursor is None:
             raise ValueError("cursor must be timezone-aware")
+
+        if self.knowledge_bounded:
+            # Guide disclosures cannot use legacy explicit-reveal exceptions.
+            observations = [item for item in observations
+                            if utc(item.available_at) is not None and utc(item.observed_at) is not None
+                            and utc(item.available_at) <= cursor and utc(item.observed_at) <= cursor]
 
         pregame = []
         for item in observations:
@@ -64,7 +71,14 @@ class SqlAlchemyGameSnapshotRepository:
             None,
         )
 
-        completed = [item for item in observations
+        result_observations = observations
+        if self.knowledge_bounded:
+            # Select the latest revision before considering its final status.
+            # A later correction must mask an older final result.
+            result_observations = observations[-1:]
+            if len(observations) > 1 and observations[-1].observed_at == observations[-2].observed_at:
+                result_observations = []
+        completed = [item for item in result_observations
                      if item.status == "final" and utc(item.available_at) is not None
                      and utc(item.observed_at) is not None]
         boundaries = []
