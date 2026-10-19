@@ -673,3 +673,100 @@ test("switching dates during a job ignores its late status and leaves the new da
     await unmount(root);
   }
 });
+
+test("loaded order and detail layers make no repeat requests; date and mode changes clear them", async () => {
+  const calls = [];
+  const root = await mount(async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.includes("/timeline/")) return response(timeline);
+    if (!url.endsWith("/disclose")) return response(slate);
+    const body = JSON.parse(options.body);
+    return response(disclosure(body, body.level === "order" ? {} : {
+      verdict: "Worth watching", has_clue: true,
+      ...(body.level === "full" ? { result: { home_score: 110, away_score: 100 } } : {}),
+    }));
+  });
+  const posts = () => calls.filter((c) => c.url.endsWith("/disclose")).length;
+  try {
+    await until(() => document.querySelector(".game-card"));
+    await click("Show after-the-game watch order");
+    const loaded = calls.length;
+    await click("Show after-the-game watch order");
+    assert.equal(calls.length, loaded);
+    assert.equal(document.querySelector(".result-box"), null);
+    await click("Worth watching?");
+    await click("Worth watching?");
+    assert.equal(posts(), 2);
+    await click("Show result");
+    await click("Yes, show result");
+    await until(() => document.querySelector(".result-box"));
+    await click("Worth watching?");
+    await click("Reveal all for this date");
+    assert.equal(posts(), 3);
+    assert.match(document.querySelector(".result-box").textContent, /110/);
+    await click("←");
+    await until(() => document.querySelector(".game-card"));
+    assert.equal(document.querySelector(".result-box"), null);
+    await click("Show after-the-game watch order");
+    assert.equal(posts(), 4);
+    await click("Time Machine");
+    await until(() => document.querySelector(".game-card"));
+    await click("Show after-the-game watch order");
+    assert.equal(posts(), 5);
+  } finally { await unmount(root); }
+});
+
+test("empty order and unrated answers are reused; failed requests can be retried", async () => {
+  let posts = 0;
+  const root = await mount(async (url, options = {}) => {
+    if (url.includes("/timeline/")) return response(timeline);
+    if (!url.endsWith("/disclose")) return response(slate);
+    if (++posts === 1) return response({}, 503);
+    return response({ ...disclosure(JSON.parse(options.body)), game_ids: [] });
+  });
+  try {
+    await until(() => document.querySelector(".game-card"));
+    await click("Show after-the-game watch order");
+    await until(() => document.querySelector('[role="alert"]'));
+    await click("Show after-the-game watch order");
+    await click("Show after-the-game watch order");
+    assert.equal(posts, 2);
+    await click("Worth watching?");
+    await click("Worth watching?");
+    assert.equal(posts, 3);
+    assert.match(document.body.textContent, /Unrated/);
+  } finally { await unmount(root); }
+});
+
+test("finishing a day update clears loaded disclosure answers", async () => {
+  let finish, posts = 0, reads = 0, selectedDay;
+  const root = await mount(async (url, options = {}) => {
+    if (url.includes("/timeline/")) return response(timeline);
+    if (url.endsWith("/guide/update")) {
+      selectedDay = JSON.parse(options.body).date;
+      return response({ job_id: "00000000-0000-0000-0000-000000000077", date: selectedDay, state: "collecting" }, 202);
+    }
+    if (url.includes("/guide/update/")) return new Promise((resolve) => {
+      finish = () => resolve(response({ job_id: "00000000-0000-0000-0000-000000000077", date: selectedDay, state: "finished" }));
+    });
+    if (url.endsWith("/disclose")) {
+      posts++;
+      return response(disclosure(JSON.parse(options.body)));
+    }
+    reads++;
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector(".game-card"));
+    await click("Show after-the-game watch order");
+    await click("Show after-the-game watch order");
+    assert.equal(posts, 1);
+    await click("Fetch games & update ratings");
+    await until(() => finish);
+    await act(async () => finish());
+    await until(() => reads === 2 && document.querySelector(".game-card"));
+    assert.equal(document.querySelector(".guide-results"), null);
+    await click("Show after-the-game watch order");
+    assert.equal(posts, 2);
+  } finally { await unmount(root); }
+});

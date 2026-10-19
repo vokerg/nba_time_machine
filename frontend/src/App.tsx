@@ -58,6 +58,8 @@ export function App() {
   const [confirming, setConfirming] = useState<string | null>(null);
   const update = useDayUpdate(client, day, mode, timeline?.time_cursor);
   const generation = useRef(0);
+  const loadedLevels = useRef<Record<string, number>>({});
+  const loadedOrder = useRef(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const revealTrigger = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
@@ -110,6 +112,8 @@ export function App() {
     setLoading(true);
     setSlate(null);
     setDetails({});
+    loadedLevels.current = {};
+    loadedOrder.current = false;
     setOrder(null);
     setConfirming(null);
     setError(null);
@@ -151,6 +155,8 @@ export function App() {
     generation.current++;
     setSlate(null);
     setDetails({});
+    loadedLevels.current = {};
+    loadedOrder.current = false;
     setOrder(null);
     setConfirming(null);
     setError(null);
@@ -172,6 +178,18 @@ export function App() {
   }
   async function disclose(level: Level, gameId?: string) {
     if (!client || !slate || busy) return;
+    const depth = { verdict: 1, clue: 2, rating: 3, full: 4, order: 0 }[level];
+    const ids = gameId ? [gameId] : slate.games.map((g) => g.game_id);
+    const alreadyLoaded = level === "order"
+      ? loadedOrder.current
+      : (gameId !== undefined || loadedOrder.current) &&
+        ids.every((id) => (loadedLevels.current[id] ?? 0) >= depth);
+    if (alreadyLoaded) {
+      setError(null);
+      setConfirming(null);
+      if (gameId && level === "full") revealTrigger.current?.focus();
+      return;
+    }
     const ticket = generation.current;
     setBusy(true);
     setError(null);
@@ -184,9 +202,13 @@ export function App() {
         gameId,
       );
       if (ticket !== generation.current) return;
+      if (level !== "order") {
+        for (const id of ids) loadedLevels.current[id] = Math.max(loadedLevels.current[id] ?? 0, depth);
+      }
+      if (!gameId) loadedOrder.current = true;
       setDetails((prior) => {
         const next = { ...prior };
-        for (const [id, d] of Object.entries(response.details)) next[id] = d;
+        for (const [id, d] of Object.entries(response.details)) next[id] = { ...prior[id], ...d };
         return next;
       });
       if (!gameId) setOrder(response.game_ids);

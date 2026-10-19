@@ -58,22 +58,40 @@ components must exactly match the archive. A newer correction, revoked policy,
 ambiguous identity or incomplete evidence withholds the stale rating. This read
 performs no collection, calibration, archive write or workbench-formula adoption.
 
-Guide reads batch the date's game snapshots and acknowledgement state. A
-consented disclosure batches current morning evidence across eligible archived
-ratings and shares that derivation between archive and guide integrity checks.
-The full-result projection reuses the same cutoff-specific game snapshot. These
-are request-local optimizations: a new request re-reads current evidence and
-source policy; no cached rating or prior consent bypasses corrections, revocation,
-Time Machine cutoffs or the final saved-cursor recheck. Rating derivation remains
-read-only, with no provider fetch, AI call or archive write.
+Guide reads batch the date's game snapshots and acknowledgement state. After a
+consented disclosure, the server retains the internally prepared day's snapshots
+and verified archived ratings in a bounded process-local cache (32 entries,
+one-hour maximum age). Other games and layers reuse that preparation. Only the
+specifically consented response fields are serialized; loading watch order never
+sends hidden results or exact ratings to the browser.
 
-The disposable-PostgreSQL regression in `test_guide_performance.py` bounds reads
-for one or eight games at 14 SELECTs per disclosure (order, verdict and full),
-compared with the prior eight-game implementation's 124 for order, 54 for a
-single verdict and 58 for a single result. Bulk full disclosure still writes
-one idempotent acknowledgement per returned result. Local query-count evidence
-is not a claim about deployed end-to-end latency. Curated ranking-fact fallback
-still uses the existing per-game reader when a morning derivation is unavailable.
+Every server request still resumes the persisted cursor and checks a PostgreSQL
+revision signature. It contains row IDs and MVCC row versions for structured
+sports identities, schedules, evidence, source policies and archived ratings.
+Inserts, in-place corrections and deletes invalidate preparation. Knowability and
+fact-validity boundaries also change the signature as time advances without any
+write. The signature deliberately covers all structured sports data, so unrelated
+sports updates may invalidate a day too. Profile, mode, date and saved cursor are
+part of the cache key. A disclosure always rechecks the cursor before returning
+or acknowledging results; prior consent and acknowledgements never grant later
+Time Machine access. Permission checks and response layers are not cached.
+
+The browser reuses already disclosed layers (including unavailable answers and
+empty orders) without any request. A newly requested layer still needs consented
+server access but reuses the prepared day. Failures remain retryable. Changing
+date, mode or cursor, reloading the browser, or completing **Fetch games & update
+ratings** clears browser disclosures. This existing action is the explicit master
+day refresh; ordinary spoiler buttons never fetch providers or write new ratings.
+A cold/evicted server entry verifies existing archive evidence once; unchanged
+warm entries perform no trajectory derivation, archive read or snapshot reload.
+
+`test_guide_performance.py` proves warm disclosures use three SELECTs (saved
+cursor, revision signature, final cursor recheck), versus the original eight-game
+implementation's 124 for order, 54 for a single verdict and 58 for a result.
+Initial cold preparation uses at most 15 reads independent of one/eight games.
+Full disclosure additionally writes one idempotent acknowledgement per returned
+result. Browser repeat-click tests require zero requests. These are query counts,
+not a claim about end-to-end latency or database connection cold starts.
 
 The fan breakdown converts each stored weighted contribution into points out of
 ten using the sum of available weights. Source reference, observation,

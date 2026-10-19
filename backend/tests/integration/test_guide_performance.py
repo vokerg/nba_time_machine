@@ -69,8 +69,9 @@ async def test_guide_read_queries_do_not_grow_per_game_or_repeat_derivation():
             assert one.status_code == 200 and one.json()["game_ids"] == [str(first)]
             one_reads = len(statements)
             await seed(7)
-            for level, gid, expected_derivations in [("order", None, 8), ("verdict", first, 1),
-                                                      ("full", first, 1), ("full", None, 8)]:
+            for level, gid, expected_derivations in [("order", None, 8), ("order", None, 0),
+                                                      ("verdict", first, 0), ("full", first, 0),
+                                                      ("full", None, 0)]:
                 statements.clear()
                 with patch("nba_time_machine.ranking.morning_pipeline.trajectory_features",
                            wraps=trajectory_features) as derive:
@@ -78,7 +79,8 @@ async def test_guide_read_queries_do_not_grow_per_game_or_repeat_derivation():
                         **({"game_id": str(gid)} if gid else {})})
                     assert response.status_code == 200, response.text
                     assert derive.call_count == expected_derivations  # archive + guide share verification
-                assert len(statements) == one_reads <= 14
+                assert len(statements) == (one_reads if expected_derivations else 3)
+                assert one_reads <= 15
                 data = response.json()
                 if level == "order":
                     assert len(data["game_ids"]) == 8 and data["details"] == {}
@@ -89,7 +91,7 @@ async def test_guide_read_queries_do_not_grow_per_game_or_repeat_derivation():
             statements.clear()
             safe = await client.get(path, params={"date": str(day), "mode": "browse"})
             assert safe.status_code == 200 and len(safe.json()["games"]) == 8
-            assert len(statements) <= 6
+            assert len(statements) == 2
             assert all("rating" not in g and "result" not in g for g in safe.json()["games"])
         # Cached snapshots remain specific to the cutoff, even inside one reader.
         async with factory() as session:
