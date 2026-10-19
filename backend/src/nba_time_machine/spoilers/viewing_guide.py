@@ -113,7 +113,13 @@ class ViewingGuideService:
         result = await self.pregame.expectations(tuple(g.projection.game_id for g in slate.games), as_of=cutoff, strict=mode == "time-machine")
         if self.prepared is not None:
             self.prepared.expectations = result
+            self.prepared.entering_records = getattr(self.pregame, 'open_records', {})
         return result
+
+    def entering_records(self):
+        if self.prepared is not None:
+            return self.prepared.entering_records or {}
+        return getattr(self.pregame, 'open_records', {})
 
     async def disclose(self, profile_id, day, mode, expected_cursor, level, game_id=None):
         state, cutoff, slate = await self.context(profile_id, day, mode, expected_cursor)
@@ -131,6 +137,7 @@ class ViewingGuideService:
                     self.prepared.scores = await self._eligible_scores(ids, cutoff)
                     if self.pregame is not None and mode == "browse" and self.prepared.expectations is None:
                         self.prepared.expectations = await self.pregame.expectations(ids, as_of=cutoff)
+                        self.prepared.entering_records = getattr(self.pregame, 'open_records', {})
             eligible = {gid: self.prepared.scores[gid] for gid in selected
                         if gid in self.prepared.scores}
         details = {}

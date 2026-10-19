@@ -1,8 +1,8 @@
 # Shared pregame expectation (#10)
 
-The fan guide openly shows a **partial pregame expectation** from independently
-available team records and roster star potential, with names, ranks, explanations
-and missing inputs. It reuses the existing workbench formulas; it does not claim a calibrated prediction of winning,
+The fan guide shows one **pregame expectation**, contributing star names and
+entering season records. Formula accordions, ranks, model metadata, confidence
+and missing-input paragraphs belong in admin tooling, not consumer cards. It reuses the existing workbench formulas; it does not claim a calibrated prediction of winning,
 closeness or entertainment. The weak-team floor can produce zero with valid data.
 Missing or insufficient records produce no score, never zero.
 
@@ -14,7 +14,8 @@ The workbench imports it; it is no longer a separate implementation.
 For each team, smoothed win rate is `(wins + 5) / (earlier games + 10)`.
 Strength ramps from zero at .500 to one at .750. The smaller of the two strengths
 is multiplied by sample confidence: the smaller games-played count divided by
-20, capped at one. Both teams need at least three earlier games.
+20, capped at one. Both teams need at least three earlier games for a record-strength bonus.
+Validated entering W–L records still appear before that minimum is reached.
 
 `pregame-records-v1` displays ten times that magnitude, on a 0–10 scale.
 With pre-tip stars, `pregame-context-v2` combines available component ratings
@@ -41,12 +42,15 @@ The workbench retains its existing explicit cap adjustment.
 
 The available source is validated ESPN **completed-game** records, with that
 specific game's result removed by the existing `game_record_context`. Summary and
-scoreboard claims must agree. The current reviewed scope remains 2025–26 regular
-season; preseason, playoffs and the Cup final remain unavailable. No season
+scoreboard claims must agree. Supported records cover the 2025–26 and 2026–27 regular seasons; preseason,
+playoffs and the Cup final remain unavailable. The 2026–27 calendar guard is a
+generous October-to-June season bound, not an inferred actual opener or closer;
+matching source season/competition types determine regular-season scope. No season
 history is fetched. Actual source availability/observation timestamps remain intact.
 
-In **Browse**, the expectation is explicitly labeled **Reconstructed from records
-collected later; records only, not an archived pre-tip prediction**. It uses an
+In **Browse**, historical entering records retain an explicit reconstructed basis
+and actual timestamps in the API/admin evidence. The consumer card shows only
+W–L, without repeating temporal implementation prose. It uses an
 explicit open allowlist: only entering W–L, smoothed rates, formula, confidence,
 missing families, version, source fact reference and actual timestamps. Final
 records, removed win/loss, score, winner, game trajectory, box stats and actual
@@ -67,8 +71,8 @@ to their existing retrospective/postgame use.
 
 ## Read and integrity contract
 
-The guide GET adds a slate-scoped `expectations` map beside the existing safe
-cards. Dedicated strict backend and frontend schemas reject incidental outcome
+The guide GET adds slate-scoped `expectations` and independent `entering_records`
+maps beside the existing safe cards. Records can be present with no pregame rating. Dedicated strict backend and frontend schemas reject incidental outcome
 fields. The legacy game-list/card API is unchanged. Ordinary card membership,
 completion state and chronological ordering remain unchanged. Only the openly
 labeled pregame recommendation section orders by the public expectation.
@@ -97,8 +101,10 @@ The top three ranked roster players receive slot weights 1, .4 and .15; team
 strength is their sum divided by 1.55, capped at one. The two-team metric is
 `.4 × max(home, away) + .6 × sqrt(home × away)`. Star potential is that metric
 on a ten-point scale. Its 1.5-point potential bonus is not a promise that all
-stars will play. The UI explicitly labels injuries, lineups and playing time
-unconfirmed and lists only the top three contributing roster stars per team.
+stars will play. The card lists the contributing star names without repeating availability or
+formula prose. Pregame includes every ranked roster player regardless of injury;
+there is no injury/availability filter or discount. This does not add a player
+whom the publisher omitted from the ranking; missing rank data is not invented.
 
 Only a complete, signature-validated same-season Ringer snapshot genuinely
 observed before tip is eligible. Existing permission and retention checks apply;

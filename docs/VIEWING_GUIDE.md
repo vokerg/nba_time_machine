@@ -187,3 +187,15 @@ uses actual verified minutes instead of adding potential and realized stars twic
 The earlier record-only limitation is superseded for this component. No
 first-snapshot consumer backfill, new collection, old-archive rewrite or global
 media exception is introduced. See [Pregame expectation](PREGAME_EXPECTATION.md).
+
+
+### Consumer card cleanup (owner follow-up)
+
+Show one pregame score, contributing star names and entering W–L when available.
+Remove the pregame formula accordion, rank/debug labels, duplicate star score,
+collection/model metadata and repeated coverage/availability paragraphs. Admin
+tooling retains the detailed calculations. Entering records are independent of the
+three-game scoring minimum, support validated 2025–26 and 2026–27 regular-season
+captures, and remain excluded from strict Time Machine when reconstructed.
+Pregame counts ranked roster players without filtering for injury or actual
+participation; actual minutes remain a postgame input.

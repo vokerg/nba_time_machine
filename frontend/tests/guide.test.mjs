@@ -100,3 +100,13 @@ test('known pre-tip star potential survives missing records and rejects minutes,
   const badCutoff=structuredClone(value);badCutoff.time_cursor='2026-10-13T09:00:00Z';
   assert.throws(()=>parseGuideList(badCutoff,'time-machine'));
 });
+
+test('entering records are independent of rating coverage and cannot carry results or enter Time Machine', async()=>{
+  const {parseGuideList}=await import('../src/guide.ts');
+  const value={...slate,expectations:{},entering_records:{[id]:{basis:'reconstructed',
+    teams:[{team:'BOS',wins:1,losses:0},{team:'NYK',wins:0,losses:1}],observed_at:cursor,available_at:cursor}}};
+  assert.equal(parseGuideList(value,'browse').entering_records[id].teams[0].wins,1);
+  assert.throws(()=>parseGuideList(value,'time-machine'));
+  const bad=structuredClone(value);bad.entering_records[id].teams[0].home_score=100;
+  assert.throws(()=>parseGuideList(bad,'browse'));
+});

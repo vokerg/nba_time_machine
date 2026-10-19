@@ -64,6 +64,21 @@ class PregameExpectation(BaseModel):
     available_at: AwareDatetime
 
 
+class EnteringRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    team: str
+    wins: int = Field(ge=0, le=82)
+    losses: int = Field(ge=0, le=82)
+
+
+class EnteringRecords(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    basis: Literal["reconstructed"]
+    teams: list[EnteringRecord] = Field(min_length=2, max_length=2)
+    observed_at: AwareDatetime
+    available_at: AwareDatetime
+
+
 class RecordSettings(Settings):
     prior_games: float = Field(default=10, ge=0, le=82)
     minimum_games: int = Field(default=3, ge=1, le=82)

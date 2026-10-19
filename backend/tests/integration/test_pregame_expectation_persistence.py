@@ -116,3 +116,30 @@ async def test_bad_pbp_does_not_hide_independent_entering_records_and_revision_m
             assert await MorningRankingPipeline(session).expectations((gid,), as_of=NOW + timedelta(hours=3)) == {}
     finally:
         await engine.dispose()
+
+
+async def test_entering_records_are_visible_before_scoring_minimum_and_withheld_in_strict_mode():
+    from nba_time_machine.sports.morning_models import SeasonRecord, MatchupRecords
+    engine,factory=await setup()
+    day=date(2026,11,10)
+    e=evidence_with_records(str(uuid4().int)[:12])
+    after_home,after_away=SeasonRecord(wins=2,losses=0),SeasonRecord(wins=0,losses=2)
+    observed=NOW+timedelta(days=30)
+    e=e.model_copy(update={'season':'2026-2027','observed_at':observed,
+        'records':MatchupRecords(home_after=after_home,away_after=after_away),
+        'ref':e.ref.model_copy(update={'day':day,'scheduled_at':e.ref.scheduled_at+timedelta(days=(day-e.ref.day).days),
+            'home_record':after_home,'away_record':after_away})})
+    try:
+        assert (await MorningStore(factory,manual=True).collect(FixtureCollector([e]),day)).captures_written==1
+        async with factory() as session:
+            gid=await session.scalar(select(SportsExternalIdentityRecord.game_id).where(
+                SportsExternalIdentityRecord.provider_key=='espn',SportsExternalIdentityRecord.entity_type=='game',
+                SportsExternalIdentityRecord.external_id==e.external_id))
+            pipeline=MorningRankingPipeline(session)
+            assert await pipeline.expectations((gid,),as_of=observed+timedelta(hours=1))=={}
+            rows=pipeline.open_records[str(gid)]['teams']
+            assert [(r['wins'],r['losses']) for r in rows]==[(1,0),(0,1)]
+            assert all(set(r)=={'team','wins','losses'} for r in rows)
+            await pipeline.expectations((gid,),as_of=observed+timedelta(hours=1),strict=True)
+            assert pipeline.open_records=={}
+    finally:await engine.dispose()

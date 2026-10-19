@@ -76,6 +76,7 @@ class MorningRankingPipeline:
         if as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("as_of must include a timezone")
         if not game_ids:
+            self.open_records = {}
             return {}
         loaded = getattr(self, "_loaded_batch", None)
         if loaded and loaded[0] == tuple(game_ids) and loaded[1] == as_of:
@@ -84,6 +85,7 @@ class MorningRankingPipeline:
             batch = _BatchMorningRankingPipeline(self.session)
             await batch.load(game_ids, as_of)
         result = {}
+        batch.open_records = {}
         for gid in game_ids:
             latest = await batch._latest_observation(gid, as_of)
             if latest is None:
@@ -102,6 +104,7 @@ class MorningRankingPipeline:
             value = combine_expectation(records, stars['potential'])
             if value is not None:
                 result[str(gid)] = value
+        self.open_records = batch.open_records
         return result
 
     async def star_inputs(self, game_id, *, as_of, tip):
@@ -200,9 +203,16 @@ class MorningRankingPipeline:
             return None
         from nba_time_machine.ranking.game_records import game_record_context
         from nba_time_machine.ranking.pregame import expectation
-        pregame = expectation(game_record_context(evidence), source_ref=PREFIX + str(fact.id),
+        record_context = game_record_context(evidence)
+        pregame = expectation(record_context, source_ref=PREFIX + str(fact.id),
                               observed_at=fact.observed_at, available_at=fact.available_at)
         if records_only:
+            if record_context['status'] == 'available':
+                self.open_records[str(game_id)] = {
+                    'basis':'reconstructed',
+                    'teams':[{key:record_context[side][key] for key in ('team','wins','losses')}
+                             for side in ('home','away')],
+                    'observed_at':fact.observed_at, 'available_at':fact.available_at}
             return pregame
         metrics = trajectory_features(evidence)
         if metrics is None:

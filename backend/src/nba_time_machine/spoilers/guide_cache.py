@@ -52,6 +52,7 @@ class PreparedDay:
     snapshots: dict
     scores: dict | None = None
     expectations: dict | None = None
+    entering_records: dict | None = None
 
 
 class GuideDayCache:

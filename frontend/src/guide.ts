@@ -181,10 +181,11 @@ export type Expectation = {
   sample_confidence?: number; formula: string; source_ref: string;
   observed_at: string; available_at: string; star_power?: StarPotential;
 };
-export type GuideList = GameList & { expectations?: Record<string, Expectation> };
+export type EnteringRecords = { basis: "reconstructed"; teams: {team:string; wins:number; losses:number}[]; observed_at:string; available_at:string };
+export type GuideList = GameList & { expectations?: Record<string, Expectation>; entering_records?: Record<string, EnteringRecords> };
 export function parseGuideList(value: unknown, mode: Mode): GuideList {
   const data = record(value);
-  keys(data, ["time_cursor", "games", "expectations"]);
+  keys(data, ["time_cursor", "games", "expectations", "entering_records"]);
   const slate = parseGameList({ time_cursor: data.time_cursor, games: data.games });
   const expectations = record(data.expectations ?? {});
   const cards = new Map(slate.games.map(g => [g.game_id, g]));
@@ -244,5 +245,21 @@ export function parseGuideList(value: unknown, mode: Mode): GuideList {
       }
     } else if (e.star_power !== undefined) throw new Error("Unexpected star evidence.");
   }
-  return { ...slate, expectations: expectations as Record<string, Expectation> };
+  const enteringRecords = record(data.entering_records ?? {});
+  if (mode === "time-machine" && Object.keys(enteringRecords).length)
+    throw new Error("Reconstructed records unavailable in Time Machine.");
+  for (const [id, raw] of Object.entries(enteringRecords)) {
+    const r = record(raw);
+    keys(r, ["basis", "teams", "observed_at", "available_at"]);
+    if (!cards.has(id) || r.basis !== "reconstructed" || !instant(r.observed_at) || !instant(r.available_at) ||
+        !Array.isArray(r.teams) || r.teams.length !== 2) throw new Error("Invalid entering records.");
+    for (const rawTeam of r.teams) {
+      const team = record(rawTeam);
+      keys(team, ["team", "wins", "losses"]);
+      if (typeof team.team !== "string" || !number(team.wins, 82) || !Number.isInteger(team.wins) ||
+          !number(team.losses, 82) || !Number.isInteger(team.losses) || Number(team.wins) + Number(team.losses) > 82)
+        throw new Error("Invalid entering record.");
+    }
+  }
+  return { ...slate, expectations: expectations as Record<string, Expectation>, entering_records: enteringRecords as Record<string, EnteringRecords> };
 }

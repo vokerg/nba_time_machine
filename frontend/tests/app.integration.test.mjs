@@ -788,12 +788,13 @@ test('pregame expectation and entering records are open without postgame consent
   try {
     await until(() => document.body.textContent.includes('Pregame expectation · 4.0 / 10'));
     assert.ok(document.body.textContent.includes('BOS 20–5'));
-    assert.ok(document.body.textContent.includes('Reconstructed from records collected later'));
-    assert.ok(document.body.textContent.includes('Overall rating contribution: +0.80'));
-    assert.ok(document.body.textContent.includes('Expected lineups and injuries'));
+    assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
+    assert.ok(!document.body.textContent.includes('Sample confidence'));
+    assert.ok(!document.body.textContent.includes('Overall rating contribution'));
+    assert.ok(!document.body.textContent.includes('smaller sample limit strength'));
     assert.equal(calls.some(c => c.url.endsWith('/disclose')), false);
     await click('Time Machine');
-    await until(() => document.body.textContent.includes('No verified pre-tip expectation at this cutoff.'));
+    await until(() => document.body.textContent.includes('No pregame rating at this cutoff.'));
     assert.ok(!document.body.textContent.includes('BOS 20–5'));
   } finally { await unmount(root); }
 });
@@ -812,12 +813,25 @@ test('stars-only preseason expectation shows named ranked players openly even wi
   });
   try{
     await until(()=>document.body.textContent.includes('Pregame expectation · 6.5 / 10'));
-    assert.ok(document.body.textContent.includes('Known Star 0 (#1)'));
-    assert.ok(document.body.textContent.includes('Star availability is unconfirmed'));
+    assert.ok(document.body.textContent.includes('Known Star 0'));
+    assert.ok(!document.body.textContent.includes('Star availability is unconfirmed'));
+    assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
+    assert.ok(!document.body.textContent.includes('Roster star potential;'));
     assert.ok(!document.body.textContent.includes('undefined–undefined'));
     assert.ok(!document.body.textContent.includes('Sample confidence: 100%'));
     assert.equal(calls.some(c=>c.url.endsWith('/disclose')),false);
     await click('Time Machine');
     await until(()=>document.body.textContent.includes('Pregame expectation · 6.5 / 10'));
+  }finally{await unmount(root);}
+});
+
+test('entering records remain visible when there are too few games for a pregame rating', async()=>{
+  const root=await mount(async(url)=>response(url.includes('/timeline/')?timeline:{...slate,expectations:{},
+    entering_records:{[game]:{basis:'reconstructed',teams:[{team:'BOS',wins:1,losses:0},{team:'NYK',wins:0,losses:1}],
+      observed_at:cursor,available_at:cursor}}}));
+  try{
+    await until(()=>document.body.textContent.includes('BOS 1–0 · NYK 0–1'));
+    assert.ok(document.body.textContent.includes('No pregame rating yet.'));
+    assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
   }finally{await unmount(root);}
 });

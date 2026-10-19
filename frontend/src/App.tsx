@@ -490,6 +490,8 @@ export function App() {
               {slate?.games.map((g) => {
                 const d = details[g.game_id];
                 const expectation = slate.expectations?.[g.game_id];
+                const records = slate.entering_records?.[g.game_id]?.teams ??
+                  (expectation && expectation.coverage !== "stars-only" ? expectation.teams : undefined);
                 return (
                   <article
                     className={
@@ -519,28 +521,14 @@ export function App() {
                         Pregame expectation · {expectation ? `${expectation.rating.toFixed(1)} / 10` :
                           g.pregame_interest !== undefined ? `${g.pregame_interest.toFixed(1)} / 10` : "Not available"}
                       </p>
+                      {records && <p className="pregame-records">{records.map(t => `${t.team} ${t.wins}–${t.losses}`).join(" · ")}</p>}
                       {expectation ? <>
-                        {expectation.coverage !== "stars-only" && <p>{expectation.teams.map(t => `${t.team} ${t.wins}–${t.losses}`).join(" · ")} entering the game</p>}
                         {expectation.star_power && <div className="pregame-stars">
-                          <p><strong>Star potential · {expectation.star_power.rating.toFixed(1)} / 10</strong> · The Ringer Top 100</p>
-                          {expectation.star_power.teams.map(t => <p key={t.team}>{t.team}: {t.players.length ? t.players.map(p => `${p.name} (#${p.rank})`).join(", ") : "No ranked players in this roster snapshot"}</p>)}
+                          {expectation.star_power.teams.map(t => t.players.length > 0 && <p key={t.team}>{t.team}: {t.players.map(p => p.name).join(", ")}</p>)}
                         </div>}
-                        <p>{expectation.explanation}</p>
-                        <p className="muted-note">{expectation.basis === "known-pre-tip" ?
-                          "Roster and rankings known before tip-off. Star availability is unconfirmed; team record strength is unavailable." :
-                          expectation.basis === "mixed" ? "Star potential known before tip-off; entering records reconstructed later. Star availability is unconfirmed." :
-                          "Reconstructed from records collected later. Records only; not an archived pre-tip prediction."}</p>
-                        <details>
-                          <summary>How this expectation is calculated</summary>
-                          <p>{expectation.formula}</p>
-                          {expectation.sample_confidence !== undefined && <p>Sample confidence: {Math.round(expectation.sample_confidence * 100)}%.</p>}
-                          <p>{expectation.star_power ? "Potential contribution" : "Overall rating contribution"}: +{expectation.overall_points.toFixed(2)} before the total cap.{expectation.star_power ? " Postgame star credit uses actual minutes, replacing roster potential." : ""}</p>
-                          <p>Not included: {expectation.missing.join(", ")}.</p>
-                          <p className="muted-note">Model: {expectation.model}. Collected: {new Date(expectation.observed_at).toLocaleString()}. Available: {new Date(expectation.available_at).toLocaleString()}.</p>
-                        </details>
                       </> : <p className="muted-note">{mode === "time-machine" ?
-                        "No verified pre-tip expectation at this cutoff." :
-                        "Needs a pre-tip star ranking with both rosters, or sufficient validated regular-season entering records."}</p>}
+                        "No pregame rating at this cutoff." : "No pregame rating yet."}</p>}
+
                     </div>
                     <div className="game-actions">
                       <button
