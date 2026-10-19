@@ -151,6 +151,6 @@ def combine_expectation(records, stars):
         'sample_confidence':records['sample_confidence'] if records else None,
         'formula': ('Record component: ' + records['formula'] + ' ' if records else '') +
             star_formula(StarSettings()) + ' Expectation combines the available record and star ratings with weights 2 and 1.5 respectively. Postgame star credit uses actual minutes instead of roster potential; the two are not added together.',
-        'source_ref': ';'.join(e['source_ref'] for e in stars['evidence']),
+        'source_ref': ';'.join(([records['source_ref']] if records else []) + [e['source_ref'] for e in stars['evidence']]),
         'observed_at':observed, 'available_at':available, 'star_power':stars,
     }

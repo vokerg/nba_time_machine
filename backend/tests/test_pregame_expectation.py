@@ -47,3 +47,18 @@ def test_overall_rejects_malformed_components_without_raising():
     for values in ({'normalized_value':100}, {'normalized_value':True}, {'weight':0}, {'weight':'10'}):
         bad = replace(score, components=(replace(score.components[0], **values), score.components[1]))
         assert not score_evidence_is_consistent(bad)
+
+
+def test_combined_expectation_retains_record_provenance_and_known_pre_tip_basis():
+    from nba_time_machine.ranking.pregame import combine_expectation, PregameExpectation
+    context=game_record_context(evidence_with_records())
+    context['basis']='known-pre-tip'
+    records=expectation(context,source_ref='pregame-records:fixture',observed_at=NOW,available_at=NOW)
+    stars={'rating':5,'overall_points':.75,'explanation':'Roster potential',
+        'teams':[{'team':team,'normalized':.5,'players':[]} for team in ('LAL','GSW')],
+        'evidence':[{'source_ref':'stars:'+str(i),'observed_at':NOW,'available_at':NOW} for i in range(3)]}
+    combined=combine_expectation(records,stars)
+    assert PregameExpectation.model_validate(combined).basis=='known-pre-tip'
+    assert records['source_ref'] in combined['source_ref']
+    records['basis']='reconstructed'
+    assert combine_expectation(records,stars)['basis']=='mixed'
