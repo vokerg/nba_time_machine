@@ -498,3 +498,178 @@ test("late responses from a previous date cannot overwrite the current slate", a
     await unmount(root);
   }
 });
+
+test("explicit date update is one protected POST, reports progress, refreshes safe cards and never reveals outcomes", async () => {
+  const calls = [];
+  const job = {
+    job_id: "00000000-0000-0000-0000-000000000077",
+    date: null,
+    state: "collecting",
+  };
+  let finish,
+    reads = 0;
+  const root = await mount(async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.includes("/timeline/")) return response(timeline);
+    if (url.endsWith("/guide/update")) {
+      job.date = JSON.parse(options.body).date;
+      return response(job, 202);
+    }
+    if (url.includes("/guide/update/"))
+      return new Promise((resolve) => {
+        finish = () => resolve(response({ ...job, state: "finished" }));
+      });
+    reads++;
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector(".game-card"));
+    assert.equal(
+      calls.some((c) => c.url.includes("/update")),
+      false,
+    );
+    await click("Fetch games & update ratings");
+    await until(() => finish);
+    assert.match(
+      document.querySelector(".update-status").textContent,
+      /Fetching game evidence/,
+    );
+    assert.equal(button("Updating this date").disabled, true);
+    const post = calls.find((c) => c.url.endsWith("/guide/update"));
+    assert.equal(post.options.method, "POST");
+    assert.equal(post.options.headers["X-Guide-Action"], "update-day");
+    assert.equal(JSON.parse(post.options.body).time_cursor, cursor);
+    await act(async () => finish());
+    await until(
+      () =>
+        document
+          .querySelector(".update-status")
+          ?.textContent.includes("Date updated") && reads === 2,
+    );
+    assert.equal(document.querySelector(".result-box"), null);
+    assert.equal(document.querySelector(".guide-results"), null);
+    assert.equal(calls.filter((c) => c.options.method === "POST").length, 1);
+    assert.equal(
+      window.localStorage.getItem(`nba-time-machine:day-update:v1:${profile}`),
+      null,
+    );
+  } finally {
+    await unmount(root);
+  }
+});
+
+test("reload reconnects to the saved job with GET only and Time Machine never exposes collection", async () => {
+  const calls = [];
+  const selectedDay = "2026-10-16";
+  const job = {
+    job_id: "00000000-0000-0000-0000-000000000077",
+    date: selectedDay,
+    state: "finished",
+  };
+  const root = await mount(async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.includes("/timeline/")) {
+      window.localStorage.setItem(
+        `nba-time-machine:day-update:v1:${profile}`,
+        JSON.stringify({ job_id: job.job_id, date: job.date }),
+      );
+      return response(timeline);
+    }
+    if (url.includes("/guide/update/")) return response(job);
+    return response(slate);
+  });
+  try {
+    await until(() =>
+      document
+        .querySelector(".update-status")
+        ?.textContent.includes("Date updated"),
+    );
+    assert.equal(
+      calls.some((c) => c.options.method === "POST"),
+      false,
+    );
+    await click("Time Machine");
+    await until(() => document.querySelector(".time-machine-panel"));
+    assert.equal(button("Fetch games & update ratings"), undefined);
+    assert.match(document.body.textContent, /switch to Browse games/);
+  } finally {
+    await unmount(root);
+  }
+});
+
+test("server restart during update gives retry guidance without another automatic POST", async () => {
+  const calls = [];
+  let day;
+  const root = await mount(async (url, options = {}) => {
+    calls.push({ url, options });
+    if (url.includes("/timeline/")) return response(timeline);
+    if (url.endsWith("/guide/update")) {
+      day = JSON.parse(options.body).date;
+      return response(
+        {
+          job_id: "00000000-0000-0000-0000-000000000077",
+          date: day,
+          state: "collecting",
+        },
+        202,
+      );
+    }
+    if (url.includes("/guide/update/")) return response({}, 404);
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector(".game-card"));
+    await click("Fetch games & update ratings");
+    await until(() => document.querySelector('.update-status[role="alert"]'));
+    assert.match(
+      document.querySelector(".update-status").textContent,
+      /server restarted|replaced/,
+    );
+    assert.equal(calls.filter((c) => c.options.method === "POST").length, 1);
+    assert.ok(button("Fetch games & update ratings"));
+  } finally {
+    await unmount(root);
+  }
+});
+
+test("switching dates during a job ignores its late status and leaves the new date untouched", async () => {
+  let finish;
+  const root = await mount(async (url, options = {}) => {
+    if (url.includes("/timeline/")) return response(timeline);
+    if (url.endsWith("/guide/update"))
+      return response(
+        {
+          job_id: "00000000-0000-0000-0000-000000000077",
+          date: JSON.parse(options.body).date,
+          state: "collecting",
+        },
+        202,
+      );
+    if (url.includes("/guide/update/"))
+      return new Promise((resolve) => {
+        finish = () =>
+          resolve(
+            response({
+              job_id: "00000000-0000-0000-0000-000000000077",
+              date: new Intl.DateTimeFormat("en-CA", {
+                timeZone: "America/New_York",
+              }).format(new Date()),
+              state: "finished",
+            }),
+          );
+      });
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector(".game-card"));
+    await click("Fetch games & update ratings");
+    await until(() => finish);
+    await click("←");
+    await until(() => document.querySelector(".game-card"));
+    await act(async () => finish());
+    assert.equal(document.querySelector(".update-status"), null);
+    assert.ok(document.querySelector(".game-card"));
+  } finally {
+    await unmount(root);
+  }
+});

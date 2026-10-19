@@ -65,3 +65,12 @@ export function updateFailure(code?: string): string {
     return "The update reached its time limit. Saved data is kept; you can retry this date.";
   return "The update could not finish. Saved data is kept; you can retry this date.";
 }
+
+export function forgetUpdate(
+  storage: Pick<Storage, "getItem" | "removeItem">,
+  profile: string,
+  jobId: string,
+) {
+  if (savedUpdate(storage, profile)?.job_id === jobId)
+    storage.removeItem(updateKey(profile));
+}

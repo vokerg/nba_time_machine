@@ -1,3 +1,4 @@
+import { parseDayUpdate } from "./dayUpdate.ts";
 /** Same-origin backend integration. Only allowlisted policy responses enter UI state. */
 import { forwardCursor, parseFull, parseGameList, parseMediaFeed, parseVerdict } from "./dashboard.ts";
 import type { FullReveal, GameList, MediaFeed, Reason, Verdict } from "./dashboard.ts";
@@ -54,11 +55,9 @@ export class BackendClient {
       body: JSON.stringify({ date: day, mode: "browse", time_cursor: cursor }),
     });
     if (!response.ok) throw new ApiError(response.status);
-    const { parseDayUpdate } = await import("./dayUpdate.ts");
     return parseDayUpdate(await response.json());
   }
   async updateStatus(jobId: string, signal?: AbortSignal) {
-    const { parseDayUpdate } = await import("./dayUpdate.ts");
     return parseDayUpdate(await this.request(`/profiles/${this.profileId}/guide/update/${id(jobId)}`, "GET", undefined, signal));
   }
 

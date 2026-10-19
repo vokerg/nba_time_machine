@@ -1,5 +1,5 @@
 import { useDayUpdate } from "./useDayUpdate";
-import { updateFailure } from "./dayUpdate";
+import { savedUpdate, updateFailure } from "./dayUpdate";
 import { useEffect, useRef, useState } from "react";
 import { BackendClient, nbaDate, profileIdentity, type Timeline } from "./api";
 import type { GameCard, GameList, MediaFeed } from "./dashboard";
@@ -75,6 +75,18 @@ export function App() {
         (await connected.resume(controller.signal)) ??
         (await connected.initialize("2025-07-01T04:00:00Z"));
       if (!alive) return;
+      const pendingUpdate = savedUpdate(
+        window.localStorage,
+        connected.profileId,
+      );
+      if (
+        pendingUpdate &&
+        pendingUpdate.date >= FIRST &&
+        pendingUpdate.date <= LAST &&
+        pendingUpdate.date <= today()
+      ) {
+        setDay(pendingUpdate.date);
+      }
       setClient(connected);
       setTimeline(saved);
       setCutoff(new Date(saved.time_cursor).toISOString().slice(0, 16));

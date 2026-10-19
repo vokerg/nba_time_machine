@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, type BackendClient } from "./api";
-import { savedUpdate, updateKey, type DayUpdate } from "./dayUpdate";
+import {
+  forgetUpdate,
+  savedUpdate,
+  updateKey,
+  type DayUpdate,
+} from "./dayUpdate";
 import type { Mode } from "./guide";
 
 export function useDayUpdate(
@@ -38,7 +43,7 @@ export function useDayUpdate(
         setJob(status);
         if (status.state === "finished" || status.state === "failed") {
           try {
-            window.localStorage.removeItem(updateKey(client!.profileId));
+            forgetUpdate(window.localStorage, client!.profileId, jobId);
           } catch {
             /* Status still works without storage. */
           }
@@ -49,7 +54,7 @@ export function useDayUpdate(
         setJob(null);
         if (cause instanceof ApiError && cause.status === 404) {
           try {
-            window.localStorage.removeItem(updateKey(client!.profileId));
+            forgetUpdate(window.localStorage, client!.profileId, jobId);
           } catch {
             /* No write is triggered on reload. */
           }
