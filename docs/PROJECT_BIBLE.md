@@ -217,7 +217,26 @@ AI is **not** the spoiler firewall. The policy engine decides which records/fiel
 
 ## 11. Frontend
 
-React web app first.
+React web app first. Issue #111 supersedes the original dashboard consumer UX:
+the home is a compact basketball viewing guide, opening on today's Eastern date
+in **Browse games**. Browse reads honestly recorded information available now;
+changing date never advances the separate **Time Machine** cutoff. Time Machine
+is deliberate and forward-only; all its disclosures stay bounded by that cutoff.
+See [Viewing guide](VIEWING_GUIDE.md) for the explicit API and consent contract.
+
+Scores, postgame order and exact ratings remain hidden until requested. One
+explicit date-scoped Reveal all action opens eligible results and verified rating
+details. Hints have a coarse verdict, a genuine evidence-based clue when available,
+and opt-in exact rating/components. Favorites filter presentation only, with all
+30 teams available and browser persistence per profile. Queue is absent from the
+consumer screen; News is secondary and always uses the saved media cursor.
+An explicit local **Fetch games & update ratings** action collects one chosen
+Browse date and publishes verified production ratings, with progress and reload
+recovery. Fetching alone never reveals results, advances the cutoff or adopts
+a workbench formula. Daily scheduling remains separate.
+
+The following original surface inventory is historical context; #111 takes
+precedence where it conflicts.
 
 Initial product surfaces:
 

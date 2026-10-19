@@ -1,3 +1,4 @@
+import { parseDayUpdate } from "./dayUpdate.ts";
 /** Same-origin backend integration. Only allowlisted policy responses enter UI state. */
 import { forwardCursor, parseFull, parseGameList, parseMediaFeed, parseVerdict } from "./dashboard.ts";
 import type { FullReveal, GameList, MediaFeed, Reason, Verdict } from "./dashboard.ts";
@@ -46,6 +47,34 @@ export function parseTimeline(value: unknown, profileId: string): Timeline {
 }
 
 export class BackendClient {
+  async startDayUpdate(day: string, cursor: string) {
+    if (!validDate(day) || !instant(cursor)) throw new Error("Invalid update date or timeline.");
+    const response = await this.fetcher(`/api/profiles/${this.profileId}/guide/update`, {
+      method: "POST", cache: "no-store", redirect: "error", credentials: "same-origin",
+      headers: { Accept: "application/json", "Content-Type": "application/json", "X-Guide-Action": "update-day" },
+      body: JSON.stringify({ date: day, mode: "browse", time_cursor: cursor }),
+    });
+    if (!response.ok) throw new ApiError(response.status);
+    return parseDayUpdate(await response.json());
+  }
+  async updateStatus(jobId: string, signal?: AbortSignal) {
+    return parseDayUpdate(await this.request(`/profiles/${this.profileId}/guide/update/${id(jobId)}`, "GET", undefined, signal));
+  }
+
+  async guideGames(day: string, mode: import("./guide").Mode, cursor: string, signal?: AbortSignal): Promise<GameList> {
+    if (!validDate(day)) throw new Error("Choose a valid NBA date.");
+    const result = parseGameList(await this.request(`/profiles/${this.profileId}/guide?date=${day}&mode=${mode}`, "GET", undefined, signal));
+    if (Date.parse(result.time_cursor) !== Date.parse(cursor)) throw new Error("Timeline changed. Reload saved state.");
+    return result;
+  }
+  async guideDisclosure(slate: GameList, day: string, mode: import("./guide").Mode, level: import("./guide").Level, gameId?: string) {
+    const { parseDisclosure } = await import("./guide");
+    const raw = await this.request(`/profiles/${this.profileId}/guide/disclose`, "POST", {
+      date: day, mode, time_cursor: slate.time_cursor, level, consent: true, ...(gameId ? { game_id: id(gameId) } : {}),
+    });
+    return parseDisclosure(raw, slate, level, gameId);
+  }
+
   profileId: string;
   fetcher: typeof fetch;
   constructor(profileId: string, fetcher: typeof fetch = fetch) {

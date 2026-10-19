@@ -1,6 +1,13 @@
 # Morning evidence to watchability (#10)
 
-The morning collector and ranking processor are separate operator steps:
+The morning collector and ranking processor remain separate modules. The local
+viewing guide's explicit **Fetch games & update ratings** action now runs them
+in sequence, publishes this same production model, and refreshes safe cards.
+It does not use workbench proposals or move the Time Machine cutoff. The CLI
+below still supports separate operator steps. No daily scheduler is installed.
+See [Viewing guide](VIEWING_GUIDE.md) for the current consumer disclosure contract,
+including consented numeric ratings and backfilled-day watch order; older public
+watchability endpoint descriptions below apply only to those legacy endpoints.
 
 ```text
 ESPN/CBS response -> policy-limited normalized capture + temporal evidence

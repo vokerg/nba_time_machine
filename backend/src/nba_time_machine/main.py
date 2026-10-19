@@ -19,14 +19,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = DatabaseSettings()
     engine = None
     app.state.session_factory = None
+    app.state.day_updates = None
 
     if settings.is_configured:
         engine = create_database_engine(settings)
         app.state.session_factory = create_session_factory(engine)
+        from nba_time_machine.sports.day_update import DayUpdateJobs
+        app.state.day_updates = DayUpdateJobs(app.state.session_factory)
 
     try:
         yield
     finally:
+        if app.state.day_updates is not None:
+            await app.state.day_updates.close()
         if engine is not None:
             await engine.dispose()
 
@@ -36,6 +41,12 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+from nba_time_machine.api.viewing_guide import router as viewing_guide_router
+
+from nba_time_machine.api.day_update import router as day_update_router
+
+app.include_router(day_update_router)
+app.include_router(viewing_guide_router)
 app.include_router(timeline_router)
 app.include_router(game_disclosure_router)
 app.include_router(game_list_router)

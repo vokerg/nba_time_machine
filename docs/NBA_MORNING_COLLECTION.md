@@ -6,6 +6,15 @@ schedule/GameTracker HTML when discovery or a game's primary evidence fails or i
 partial. It imports one **Eastern NBA calendar date**, including overnight UTC
 games, without fetching seasons. Default date: yesterday in America/New_York.
 
+## Viewing guide action (#111 follow-up)
+
+The local consumer app now offers **Fetch games & update ratings** for one selected
+Browse date. It orchestrates this same bounded collector followed by the existing
+production rating processor; it does not require a terminal or the workbench.
+Progress is score-opaque, and source policies/actual observation times remain
+unchanged. See [Viewing guide](VIEWING_GUIDE.md#fetch-games--update-ratings-owner-follow-up).
+Selecting a date alone still reads stored data, and no daily job is installed.
+
 ## Commands
 
 From `backend/`, a read-only run makes bounded HTTP requests and prints only

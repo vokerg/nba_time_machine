@@ -391,3 +391,13 @@ labels retrospective and cross-season use, and never changes strict consumer
 projections, production scores or old schema-5 tuning configurations. This is a
 separate tuning assumption, not evidence of pre-tip knowledge. See
 [Star Power](../STAR_POWER.md) for the exact selection and failure rules.
+
+
+## Two-mode viewing guide (#111)
+
+[Viewing guide](../VIEWING_GUIDE.md) defines the independent Browse knowledge
+clock and strict Time Machine disclosure boundary. The new guide endpoint never
+uses replay to fake pre-tip knowledge. Its full-result path filters all fields
+by the selected knowledge cutoff before projection, even for acknowledged games.
+Exact ratings and traceable component fields are available only through explicit
+POST consent; ordinary cards and general media never receive these fields.

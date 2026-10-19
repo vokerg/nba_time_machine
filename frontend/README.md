@@ -3,7 +3,8 @@
 React + TypeScript + Vite. Run `npm install`, `npm run dev`, `npm test` and
 `npm run build`; `./dev.py` at the repository root starts both applications.
 
-The dashboard uses real backend timeline, game-list and disclosure endpoints.
+The viewing guide uses real backend timeline and explicit two-mode `/guide` endpoints.
+See [Viewing guide](../docs/VIEWING_GUIDE.md) for Browse / Time Machine and spoiler consent.
 Vite proxies `/api` to the local backend. Production needs equivalent same-origin
 routing. No provider or database credentials belong here.
 
