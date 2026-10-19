@@ -522,7 +522,7 @@ export function App() {
                       {expectation ? <>
                         {expectation.coverage !== "stars-only" && <p>{expectation.teams.map(t => `${t.team} ${t.wins}–${t.losses}`).join(" · ")} entering the game</p>}
                         {expectation.star_power && <div className="pregame-stars">
-                          <p><strong>Star potential · {expectation.star_power.rating.toFixed(1)} / 10</strong></p>
+                          <p><strong>Star potential · {expectation.star_power.rating.toFixed(1)} / 10</strong> · The Ringer Top 100</p>
                           {expectation.star_power.teams.map(t => <p key={t.team}>{t.team}: {t.players.length ? t.players.map(p => `${p.name} (#${p.rank})`).join(", ") : "No ranked players in this roster snapshot"}</p>)}
                         </div>}
                         <p>{expectation.explanation}</p>
@@ -540,7 +540,7 @@ export function App() {
                         </details>
                       </> : <p className="muted-note">{mode === "time-machine" ?
                         "No verified pre-tip expectation at this cutoff." :
-                        "Requires validated regular-season entering records and at least three earlier games per team."}</p>}
+                        "Needs a pre-tip star ranking with both rosters, or sufficient validated regular-season entering records."}</p>}
                     </div>
                     <div className="game-actions">
                       <button

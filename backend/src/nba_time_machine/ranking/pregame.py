@@ -116,6 +116,7 @@ def expectation(context, *, source_ref, observed_at, available_at):
 def combine_expectation(records, stars):
     if stars is None:
         return records
+    from nba_time_machine.ranking.star_power import StarSettings, star_formula
     weight = 1.5 + (2 if records is not None else 0)
     points = stars['overall_points'] + (records['overall_points'] if records else 0)
     def stamp(value):
@@ -133,7 +134,7 @@ def combine_expectation(records, stars):
         'teams':records['teams'] if records else [{'team':t['team']} for t in stars['teams']],
         'sample_confidence':records['sample_confidence'] if records else None,
         'formula': ('Record component: ' + records['formula'] + ' ' if records else '') +
-            'Star potential uses the existing rank curve, top three roster stars per team (weights 1, .4, .15), team normalization 1.55 and the shared two-team metric. Expectation = 10 × available component points / available maximum points. Postgame star credit uses actual minutes instead of roster potential; the two are not added together.',
+            star_formula(StarSettings()) + ' Expectation combines the available record and star ratings with weights 2 and 1.5 respectively. Postgame star credit uses actual minutes instead of roster potential; the two are not added together.',
         'source_ref': ';'.join(e['source_ref'] for e in stars['evidence']),
         'observed_at':observed, 'available_at':available, 'star_power':stars,
     }

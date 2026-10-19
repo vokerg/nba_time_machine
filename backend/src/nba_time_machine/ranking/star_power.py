@@ -61,6 +61,16 @@ def matchup_star_power(home, away, settings):
             + settings.both_teams_weight * sqrt(home * away))
 
 
+def star_formula(settings):
+    s = settings
+    return (f"Rank values: top {s.top5_end} = {s.top5_value:g}; linear interpolation through "
+            f"#{s.top20_end} = {s.top20_value:g}, #{s.top50_end} = {s.top50_value:g}, #100 = {s.top100_value:g}. "
+            f"Top three weights: 1, {s.second_weight:g}, {s.third_weight:g}. "
+            f"Each team = min(1, weighted sum / {s.team_normalizer:g}). "
+            f"Matchup = {1-s.both_teams_weight:g} × stronger team + {s.both_teams_weight:g} × sqrt(home × away). "
+            f"Star expectation = 10 × matchup; potential bonus = {s.max_bonus:g} × matchup.")
+
+
 def star_preview(evidence, snapshot, settings, *, allow_first_snapshot=False):
     s = settings
     result = {'measurement_version': 'star-power-v1', 'status': 'unavailable', 'metric': None,
