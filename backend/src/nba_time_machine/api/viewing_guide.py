@@ -9,10 +9,10 @@ from pydantic import BaseModel, ConfigDict, AwareDatetime, StrictBool
 from nba_time_machine.api.game_list import game_list_response
 from nba_time_machine.api.timeline import _session_factory
 from nba_time_machine.ranking.config import RankingDisclosureSettings
-from nba_time_machine.ranking.evidence import SqlAlchemyRankingEvidenceRepository
-from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
+from nba_time_machine.ranking.verification import RequestScoreVerifier
 from nba_time_machine.ranking.queries import SqlAlchemyPostgameScoreRepository
 from nba_time_machine.spoilers.game_list import SqlAlchemyGameSlateRepository
+from nba_time_machine.spoilers.guide_cache import GuideDayCache, guide_revision
 from nba_time_machine.spoilers.game_reader import SqlAlchemyGameSnapshotRepository
 from nba_time_machine.spoilers.repository import SqlAlchemyGameAcknowledgementRepository
 from nba_time_machine.spoilers.viewing_guide import ViewingGuideService
@@ -24,17 +24,18 @@ Mode = Literal["browse", "time-machine"]
 
 async def get_viewing_guide(request: Request):
     async with _session_factory(request)() as session:
-        async def verify(gid, cutoff):
-            result = await MorningRankingPipeline(session).derive(gid, as_of=cutoff)
-            if result is not None:
-                return result[2]
-            return await SqlAlchemyRankingEvidenceRepository(session).postgame(gid, as_of=cutoff)
+        verify = RequestScoreVerifier(session)
+        if not hasattr(request.app.state, "guide_day_cache"):
+            request.app.state.guide_day_cache = GuideDayCache()
+        async def revision(cutoff):
+            return await guide_revision(session, cutoff)
         yield ViewingGuideService(
             TimelineService(SqlAlchemyTimelineRepository(session)),
             SqlAlchemyGameSlateRepository(session, observed_schedule=True),
-            SqlAlchemyGameSnapshotRepository(session, observed_schedule=True, knowledge_bounded=True),
+            SqlAlchemyGameSnapshotRepository(session, observed_schedule=True, knowledge_bounded=True, cache_snapshots=True),
             SqlAlchemyGameAcknowledgementRepository(session),
-            SqlAlchemyPostgameScoreRepository(session), verify, RankingDisclosureSettings().bands())
+            SqlAlchemyPostgameScoreRepository(session, verifier=verify), verify, RankingDisclosureSettings().bands(),
+            cache=request.app.state.guide_day_cache, revision=revision)
 
 
 class DisclosureRequest(BaseModel):

@@ -132,6 +132,10 @@ class GameListService:
         candidates = await self._slates.game_ids_on_date(
             slate_date=slate_date, time_cursor=cursor,
         )
+        snapshots = (await self._games.get_many(candidates, time_cursor=cursor)
+                     if hasattr(self._games, "get_many") else None)
+        acknowledged_ids = (await self._acknowledgements.acknowledged_game_ids(profile_id, candidates)
+                            if hasattr(self._acknowledgements, "acknowledged_game_ids") else None)
         projections = []
         states: dict[UUID, str] = {}
         seen: set[UUID] = set()
@@ -140,7 +144,8 @@ class GameListService:
             if game_id in seen:
                 continue
             seen.add(game_id)
-            snapshot = await self._games.get(game_id, time_cursor=cursor)
+            snapshot = (snapshots.get(game_id) if snapshots is not None
+                        else await self._games.get(game_id, time_cursor=cursor))
             if type(snapshot) is not TrustedGameSnapshot or snapshot.game_id != game_id:
                 continue  # A missing or invalid trusted snapshot cannot create a card.
             tip = snapshot.tip_at
@@ -148,7 +153,8 @@ class GameListService:
                 continue
             if not begin <= tip.astimezone(timezone.utc) < end:
                 continue  # Guard against disagreement with the date selector.
-            acknowledged = await self._acknowledgements.is_acknowledged(profile_id, game_id)
+            acknowledged = (game_id in acknowledged_ids if acknowledged_ids is not None
+                            else await self._acknowledgements.is_acknowledged(profile_id, game_id))
             context = GameContext(
                 game_id=game_id,
                 time_cursor=cursor,

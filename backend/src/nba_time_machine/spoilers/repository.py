@@ -28,6 +28,16 @@ class SqlAlchemyGameAcknowledgementRepository:
         )
         return record is not None
 
+    async def acknowledged_game_ids(self, profile_id, game_ids):
+        if not game_ids:
+            return set()
+        return set((await self._session.scalars(
+            select(GameAcknowledgementRecord.game_id).where(
+                GameAcknowledgementRecord.profile_id == profile_id,
+                GameAcknowledgementRecord.game_id.in_(game_ids),
+            )
+        )).all())
+
     async def acknowledge(self, profile_id: UUID, game_id: UUID) -> None:
         statement = (
             insert(GameAcknowledgementRecord)

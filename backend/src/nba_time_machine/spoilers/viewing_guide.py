@@ -9,6 +9,7 @@ from uuid import UUID
 
 from nba_time_machine.ranking.scoring import POSTGAME_VERSION, ScoreKind, score_evidence_is_consistent
 from nba_time_machine.spoilers.game_list import GameListService
+from nba_time_machine.spoilers.guide_cache import PreparedDay
 from nba_time_machine.spoilers.policy import DisclosureLayer, GameContext, project_game
 
 
@@ -60,9 +61,10 @@ def rating_detail(score, bands, level):
 
 
 class ViewingGuideService:
-    def __init__(self, timeline, slates, games, acknowledgements, scores, verifier, bands, now=None):
+    def __init__(self, timeline, slates, games, acknowledgements, scores, verifier, bands, now=None, *, cache=None, revision=None):
         self.timeline, self.slates, self.games = timeline, slates, games
         self.acks, self.scores, self.verifier, self.bands = acknowledgements, scores, verifier, bands
+        self.cache, self.revision, self.prepared = cache, revision, None
         self.now = now or (lambda: datetime.now(timezone.utc))
 
     async def context(self, profile_id, day, mode, expected_cursor=None):
@@ -70,14 +72,32 @@ class ViewingGuideService:
         if expected_cursor is not None and state.time_cursor != expected_cursor:
             raise RuntimeError("timeline changed")
         cutoff = self.now() if mode == "browse" else min(state.time_cursor, self.now())
+        if self.cache is None:
+            slate = await self._slate(state, cutoff, day)
+        else:
+            revision = await self.revision(cutoff)
+            key = (profile_id, day, mode, state.time_cursor, revision)
+            async with self.cache.lock:
+                prepared = self.cache.get(key)
+                if prepared is None:
+                    slate = await self._slate(state, cutoff, day)
+                    ids = tuple(g.projection.game_id for g in slate.games)
+                    snapshots = await self.games.get_many(ids, time_cursor=cutoff)
+                    prepared = PreparedDay(slate, snapshots)
+                    self.cache.put(key, prepared)
+                self.prepared = prepared
+            slate = replace(prepared.slate, time_cursor=cutoff)
+        return state, cutoff, slate
+
+    async def _slate(self, state, cutoff, day):
         clock = FixedKnowledgeClock(state, cutoff)
         slate = await GameListService(clock, self.slates, self.games, self.acks,
-                                      observed_schedule=True).list_games(profile_id, slate_date=day)
+                                      observed_schedule=True).list_games(state.profile_id, slate_date=day)
         slate = replace(slate, games=tuple(sorted(slate.games, key=lambda game: (
             game.projection.fields.get("scheduled_tip", ""), str(game.projection.game_id)))))
         if len(slate.games) > 32:
             raise RuntimeError("date exceeds disclosure bound")
-        return state, cutoff, slate
+        return slate
 
     async def list_games(self, profile_id, day, mode):
         state, cutoff, slate = await self.context(profile_id, day, mode)
@@ -89,20 +109,16 @@ class ViewingGuideService:
         if game_id is not None and game_id not in ids:
             raise PermissionError("game is not on this date")
         selected = (game_id,) if game_id else ids
-        archived = await self.scores.postgame_scores_as_of(selected, as_of=cutoff)
-        eligible = {}
-        for gid in selected:
-            matches = [s for s in archived if s.game_id == gid]
-            if len(matches) != 1 or not score_evidence_is_consistent(matches[0]):
-                continue
-            score = matches[0]
-            if score.kind is not ScoreKind.POSTGAME or score.model_version != POSTGAME_VERSION or score.as_of > cutoff:
-                continue
-            # Re-derive only for integrity, never to introduce a new score/model.
-            # Current revoked, revised or incomplete evidence withholds the archive.
-            trusted = await self.verifier(gid, cutoff)
-            if trusted is not None and (trusted.model_version, trusted.value, trusted.components) == (score.model_version, score.value, score.components):
-                eligible[gid] = score
+        if self.prepared is None:
+            eligible = await self._eligible_scores(selected, cutoff)
+        else:
+            # Consent authorizes only the requested response fields. Prepare the
+            # internal day's ratings once so other games/layers reuse the work.
+            async with self.cache.lock:
+                if self.prepared.scores is None:
+                    self.prepared.scores = await self._eligible_scores(ids, cutoff)
+            eligible = {gid: self.prepared.scores[gid] for gid in selected
+                        if gid in self.prepared.scores}
         details = {}
         pending_acks = []
         for gid in selected:
@@ -110,7 +126,8 @@ class ViewingGuideService:
             if gid in eligible and level != "order":
                 item.update(rating_detail(eligible[gid], self.bands, level))
             if level == "full":
-                snapshot = await self.games.get(gid, time_cursor=cutoff)
+                snapshot = (self.prepared.snapshots.get(gid) if self.prepared is not None
+                            else await self.games.get(gid, time_cursor=cutoff))
                 if (snapshot is not None and snapshot.full_available
                         and snapshot.tip_at is not None and snapshot.tip_at < cutoff
                         and snapshot.protection_ends_at is not None
@@ -134,3 +151,20 @@ class ViewingGuideService:
         order = sorted(eligible, key=lambda gid: (-eligible[gid].value, str(gid)))
         return {"time_cursor": state.time_cursor, "as_of": cutoff,
                 "details": details if level != "order" else {}, "game_ids": [str(gid) for gid in order] if game_id is None else []}
+
+    async def _eligible_scores(self, game_ids, cutoff):
+        archived = await self.scores.postgame_scores_as_of(game_ids, as_of=cutoff)
+        eligible = {}
+        for gid in game_ids:
+            matches = [s for s in archived if s.game_id == gid]
+            if len(matches) != 1 or not score_evidence_is_consistent(matches[0]):
+                continue
+            score = matches[0]
+            if score.kind is not ScoreKind.POSTGAME or score.model_version != POSTGAME_VERSION or score.as_of > cutoff:
+                continue
+            # Re-derive only for integrity, never to introduce a new score/model.
+            # Current revoked, revised or incomplete evidence withholds the archive.
+            trusted = await self.verifier(gid, cutoff)
+            if trusted is not None and (trusted.model_version, trusted.value, trusted.components) == (score.model_version, score.value, score.components):
+                eligible[gid] = score
+        return eligible

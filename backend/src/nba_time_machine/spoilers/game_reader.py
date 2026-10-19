@@ -20,21 +20,47 @@ def utc(value: datetime | None) -> datetime | None:
 
 
 class SqlAlchemyGameSnapshotRepository:
-    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False, season_replay: bool = False, knowledge_bounded: bool = False) -> None:
+    def __init__(self, session: AsyncSession, *, observed_schedule: bool = False, season_replay: bool = False, knowledge_bounded: bool = False, cache_snapshots: bool = False) -> None:
+        self._cache = {} if cache_snapshots else None
         self.knowledge_bounded = knowledge_bounded
         self.session = session
         self.observed_schedule = observed_schedule
         self.season_replay = season_replay
 
     async def get(self, game_id: UUID, *, time_cursor: datetime) -> TrustedGameSnapshot | None:
-        game = await self.session.get(GameRecord, game_id)
-        if game is None:
-            return None
-        observations = list((await self.session.scalars(
+        return (await self.get_many((game_id,), time_cursor=time_cursor)).get(game_id)
+
+    async def get_many(self, game_ids, *, time_cursor):
+        """Read a date's snapshots in three queries, retaining the same projection rules."""
+        if self._cache is None:
+            return await self._read_many(game_ids, time_cursor=time_cursor)
+        missing = tuple(gid for gid in game_ids if (gid, time_cursor) not in self._cache)
+        if missing:
+            values = await self._read_many(missing, time_cursor=time_cursor)
+            self._cache.update({(gid, time_cursor): values.get(gid) for gid in missing})
+        return {gid: self._cache[gid, time_cursor] for gid in game_ids
+                if self._cache[gid, time_cursor] is not None}
+
+    async def _read_many(self, game_ids, *, time_cursor):
+        if not game_ids:
+            return {}
+        games = (await self.session.scalars(select(GameRecord).where(GameRecord.id.in_(game_ids)))).all()
+        observations = (await self.session.scalars(
             select(GameObservationRecord)
-            .where(GameObservationRecord.game_id == game_id)
+            .where(GameObservationRecord.game_id.in_(game_ids))
             .order_by(GameObservationRecord.observed_at, GameObservationRecord.id)
-        )).all())
+        )).all()
+        team_ids = {tid for game in games for tid in (game.home_team_id, game.away_team_id)}
+        teams = {team.id: team for team in (await self.session.scalars(
+            select(TeamRecord).where(TeamRecord.id.in_(team_ids)))).all()}
+        grouped = {game.id: [] for game in games}
+        for observation in observations:
+            grouped[observation.game_id].append(observation)
+        return {game.id: self._snapshot(game, grouped[game.id], teams, time_cursor)
+                for game in games}
+
+    def _snapshot(self, game, observations, teams, time_cursor):
+        game_id = game.id
         cursor = utc(time_cursor)
         if cursor is None:
             raise ValueError("cursor must be timezone-aware")
@@ -93,8 +119,8 @@ class SqlAlchemyGameSnapshotRepository:
 
         fields: list[GameField] = []
         if safe is not None:
-            home = await self.session.get(TeamRecord, game.home_team_id)
-            away = await self.session.get(TeamRecord, game.away_team_id)
+            home = teams.get(game.home_team_id)
+            away = teams.get(game.away_team_id)
             if home is not None:
                 fields.append(GameField(GameFieldName.HOME_TEAM, home.name,
                                         safe.available_at, safe.observed_at))
