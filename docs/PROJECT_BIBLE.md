@@ -230,6 +230,10 @@ details. Hints have a coarse verdict, a genuine evidence-based clue when availab
 and opt-in exact rating/components. Favorites filter presentation only, with all
 30 teams available and browser persistence per profile. Queue is absent from the
 consumer screen; News is secondary and always uses the saved media cursor.
+An explicit local **Fetch games & update ratings** action collects one chosen
+Browse date and publishes verified production ratings, with progress and reload
+recovery. Fetching alone never reveals results, advances the cutoff or adopts
+a workbench formula. Daily scheduling remains separate.
 
 The following original surface inventory is historical context; #111 takes
 precedence where it conflicts.

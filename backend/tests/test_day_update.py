@@ -101,6 +101,7 @@ async def test_http_rejects_missing_action_header_before_database_lookup_and_hid
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, client=("127.0.0.1", 1)), base_url="http://localhost") as client:
         payload = {"date": DAY.isoformat(), "mode": "browse", "time_cursor": "2026-10-14T00:00:00Z"}
         assert (await client.post(f"/profiles/{profile}/guide/update", json=payload)).status_code == 403
+        assert (await client.post(f"/profiles/{profile}/guide/update", json={**payload, "date": "2099-10-14"}, headers={"X-Guide-Action": "update-day"})).status_code == 422
         assert (await client.post(f"/profiles/{profile}/guide/update", json={**payload, "mode": "time-machine"})).status_code == 422
         result = await client.get(f"/profiles/{profile}/guide/update/{job}")
         assert result.status_code == 200 and result.json() == jobs.result

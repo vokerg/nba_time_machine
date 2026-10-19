@@ -80,7 +80,7 @@ After installing both sets of dependencies above, start both servers from the re
 ./dev.py
 ```
 
-The launcher requires Python 3 and Node.js/npm on macOS or Linux. It automatically uses `backend/.venv/bin/python` when present, otherwise the Python running the launcher. Both servers' logs appear in the same terminal. Open the frontend URL printed by Vite (normally <http://localhost:5173>); the backend runs at <http://127.0.0.1:8000>. Press Ctrl+C to stop both servers. If either server exits, the launcher stops the other one and its child processes too.
+The launcher requires Python 3 and Node.js/npm on macOS or Linux. It automatically uses `backend/.venv/bin/python` when present, otherwise the Python running the launcher. Both servers' logs appear in the same terminal. Open the frontend URL printed by Vite (normally <http://localhost:5173>); the backend runs at <http://127.0.0.1:8000>. In the viewing guide, select an Eastern NBA date and press **Fetch games & update ratings** to collect evidence and publish valid ratings. Progress reconnects after reload; results stay hidden until requested. This is an explicit local action, not a daily scheduler. Press Ctrl+C to stop both servers. If either server exits, the launcher stops the other one and its child processes too.
 
 For database connection configuration, migrations and source-registry bootstrap, see [Development](docs/DEVELOPMENT.md#neon-setup). The frontend connects to profile-scoped backend data through a same-origin proxy. See [Frontend integration](docs/FRONTEND_INTEGRATION.md) for initialization, season browsing and historical coverage; ingestion is a separate operation.
 
