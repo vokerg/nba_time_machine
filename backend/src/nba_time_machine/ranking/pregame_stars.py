@@ -96,6 +96,7 @@ class PregameStarReader:
                  'rank': ranking[p.espn_id]['rank'], 'factor': 1.}
                 for p in roster.players if p.espn_id in ranking], settings)
             teams.append({'team': roster.team, 'normalized': normalized,
+                          'unranked_players': sorted(p.name for p in roster.players if p.espn_id not in ranking),
                           'players': [{'name':p['name'], 'rank':p['rank'],
                                        'slot_weight':p['slot_weight'], 'contribution':p['contribution']}
                                       for p in players]})

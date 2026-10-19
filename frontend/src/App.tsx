@@ -525,6 +525,12 @@ export function App() {
                       {expectation ? <>
                         {expectation.star_power && <div className="pregame-stars">
                           {expectation.star_power.teams.map(t => t.players.length > 0 && <p key={t.team}>{t.team}: {t.players.map(p => p.name).join(", ")}</p>)}
+                          {expectation.star_power.teams.some(t => (t.unranked_players?.length ?? 0) > 0) &&
+                            <details className="unranked-players">
+                              <summary>Not in Top 100 · {expectation.star_power.teams.filter(t => t.unranked_players?.length).map(t => `${t.team} ${t.unranked_players!.length}`).join(" · ")}</summary>
+                              {expectation.star_power.teams.filter(t => t.unranked_players?.length).map(t =>
+                                <p key={t.team}>{t.team}: {t.unranked_players!.join(", ")}</p>)}
+                            </details>}
                         </div>}
                       </> : <p className="muted-note">{mode === "time-machine" ?
                         "No pregame rating at this cutoff." : "No pregame rating yet."}</p>}

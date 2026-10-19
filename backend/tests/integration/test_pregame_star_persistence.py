@@ -57,7 +57,7 @@ async def seed(factory, monkeypatch):
         session.add(GameObservationRecord(game_id=gid,source_id='espn-nba-games',observed_at=KNOWN,
             available_at=KNOWN,status='scheduled',scheduled_tip_at=TIP))
         rosters=[]
-        for tid,team,ids in [(game.home_team_id,e.home,[1,3,5]),(game.away_team_id,e.away,[2,4,6,8])]:
+        for tid,team,ids in [(game.home_team_id,e.home,[1,3,5,901]),(game.away_team_id,e.away,[2,4,6,8,902])]:
             fact=TemporalFactRecord(subject_type='team',team_id=tid,source_id='espn-nba-games',fact_type=ROSTER_TYPE,
                 value={'team':team.abbreviation,'team_id':team.external_id,'players':[
                     {'espn_id':str(i),'name':f'Fixture Player {i}','team':team.abbreviation} for i in ids]},
@@ -77,6 +77,9 @@ async def test_preseason_stars_without_records_are_open_and_pre_tip_bounded(monk
             value=(await pipeline.expectations((gid,),as_of=CUTOFF))[str(gid)]
             assert value['coverage']=='stars-only' and value['basis']=='known-pre-tip' and value['rating']>0
             assert value['star_power']['teams'][0]['players'][0]['rank']==1
+            assert value['star_power']['teams'][0]['unranked_players']==['Fixture Player 901']
+            assert value['star_power']['teams'][1]['unranked_players']==['Fixture Player 902']
+            assert 'Fixture Player 8' not in value['star_power']['teams'][1]['unranked_players']
             assert all('wins' not in t for t in value['teams'])
             PregameExpectation.model_validate(value)
             strict=(await pipeline.expectations((gid,),as_of=KNOWN+timedelta(hours=1),strict=True))[str(gid)]

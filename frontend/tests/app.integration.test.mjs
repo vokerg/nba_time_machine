@@ -835,3 +835,25 @@ test('entering records remain visible when there are too few games for a pregame
     assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
   }finally{await unmount(root);}
 });
+
+test('missing ranking entries have compact counts and names without claiming injury or absence from the game', async()=>{
+  const known='2026-10-13T10:00:00Z';
+  const expectation={model:'pregame-context-v2',rating:6.4516,overall_points:.9677,coverage:'stars-only',basis:'known-pre-tip',
+    explanation:'Roster potential',missing:[],teams:[{team:'BOS'},{team:'NYK'}],formula:'Shared star formula',
+    source_ref:'fixture:ranking',observed_at:known,available_at:known,
+    star_power:{rating:6.4516,overall_points:.9677,explanation:'Roster potential',
+      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Ranked '+i,rank:i+1,slot_weight:1,contribution:1}],
+        unranked_players:['Unranked '+i]})),
+      evidence:[0,1,2].map(i=>({source_ref:'fixture:'+i,observed_at:known,available_at:known}))}};
+  const root=await mount(async(url)=>response(url.includes('/timeline/')?timeline:{...slate,expectations:{[game]:expectation}}));
+  try{
+    await until(()=>document.body.textContent.includes('Not in Top 100 · BOS 1 · NYK 1'));
+    const disclosure=document.querySelector('.unranked-players');
+    assert.equal(disclosure.open,false);
+    await act(async()=>disclosure.querySelector('summary').click());
+    assert.equal(disclosure.open,true);
+    assert.ok(disclosure.textContent.includes('BOS: Unranked 0'));
+    assert.ok(disclosure.textContent.includes('NYK: Unranked 1'));
+    assert.ok(!disclosure.textContent.match(/injured|not playing|absent/i));
+  }finally{await unmount(root);}
+});

@@ -170,7 +170,7 @@ export { parseGameList };
 
 export type StarPotential = {
   rating: number; overall_points: number; explanation: string;
-  teams: {team: string; normalized: number; players: {name: string; rank: number; slot_weight: number; contribution: number}[]}[];
+  teams: {team: string; normalized: number; unranked_players?: string[]; players: {name: string; rank: number; slot_weight: number; contribution: number}[]}[];
   evidence: {source_ref: string; observed_at: string; available_at: string}[];
 };
 export type Expectation = {
@@ -225,9 +225,12 @@ export function parseGuideList(value: unknown, mode: Mode): GuideList {
         throw new Error("Invalid star potential.");
       for (const rawTeam of star.teams) {
         const team = record(rawTeam);
-        keys(team, ["team", "normalized", "players"]);
+        keys(team, ["team", "normalized", "players", "unranked_players"]);
         if (typeof team.team !== "string" || !number(team.normalized, 1) || !Array.isArray(team.players) || team.players.length > 3)
           throw new Error("Invalid roster star team.");
+        if (team.unranked_players !== undefined && (!Array.isArray(team.unranked_players) ||
+            team.unranked_players.length > 40 || team.unranked_players.some(name => typeof name !== "string" || !name.trim())))
+          throw new Error("Invalid unranked roster players.");
         for (const rawPlayer of team.players) {
           const p = record(rawPlayer);
           keys(p, ["name", "rank", "slot_weight", "contribution"]);

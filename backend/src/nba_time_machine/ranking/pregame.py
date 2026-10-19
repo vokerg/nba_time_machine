@@ -28,6 +28,7 @@ class StarTeam(BaseModel):
     team: str
     normalized: float = Field(ge=0, le=1)
     players: list[StarPlayer] = Field(max_length=3)
+    unranked_players: list[str] = Field(default_factory=list, max_length=40)
 
 
 class StarEvidence(BaseModel):

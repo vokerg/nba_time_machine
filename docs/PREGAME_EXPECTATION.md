@@ -132,3 +132,13 @@ three contributing players per team (Toronto has a fourth ranked roster player,
 excluded by the existing top-three rule), despite ineligible preseason records.
 This is roster reputation potential, not a verified lineup or calibrated game
 quality prediction. No provider collection or owner-database writes were performed.
+
+### Players absent from the ranking (owner follow-up)
+
+A compact **Not in Top 100** disclosure shows per-team counts and names from the
+validated pre-tip roster that are absent from the complete selected ranking.
+This is set membership by stable ESPN ID, not injury or game availability.
+Ranked players outside the three scoring slots are not labeled unranked. Names
+are available on expansion to keep ordinary cards compact. Missing ranking
+entries do not receive invented ranks or change scoring. The same roster/ranking
+provenance and Time Machine cutoff apply to this list.
