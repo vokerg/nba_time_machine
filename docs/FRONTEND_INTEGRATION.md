@@ -1,3 +1,13 @@
+# Current consumer contract (#111)
+
+The [fan viewing guide](VIEWING_GUIDE.md) supersedes the legacy dashboard UX
+and temporal view controls described below. Browse / Time Machine, independent
+date navigation, date-scoped reveal-all, verified rating detail tiers and safe
+watch order now use the explicit `/guide` API. Queue remains API-only. News is
+secondary and still bound to the saved global cursor.
+
+## Historical implementation notes
+
 # Connected dashboard (#74)
 
 Run both applications with `./dev.py`. Vite proxies `/api/*` to the backend at

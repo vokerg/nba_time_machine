@@ -36,6 +36,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+from nba_time_machine.api.viewing_guide import router as viewing_guide_router
+
+app.include_router(viewing_guide_router)
 app.include_router(timeline_router)
 app.include_router(game_disclosure_router)
 app.include_router(game_list_router)
