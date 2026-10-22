@@ -89,7 +89,8 @@ For daily ESPN game evidence with CBS backup, see [Morning NBA collection](docs/
 
 For local rating inspection and tuning against your configured database, run
 `backend/.venv/bin/python backend/scripts/run_scoring_workbench.py` and open
-<http://127.0.0.1:8765>. This separate developer tool uses read-only previews and explicit day collection. It exposes full score
+<http://127.0.0.1:8765>. This dashboard inspects the same [production rating](docs/WATCHABILITY.md)
+as the viewing guide, with explicit actions to collect evidence or publish ratings from stored evidence. It exposes full score
 breakdowns and evidence; see [Scoring workbench](docs/SCORING_WORKBENCH.md).
 Explicitly configured private [Ringer Top 100 automation](docs/STAR_POWER.md) runs
 while this local tool is open, with a durable fourteen-day minimum between fetches.

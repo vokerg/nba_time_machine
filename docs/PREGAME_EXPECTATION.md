@@ -1,5 +1,9 @@
 # Shared pregame expectation (#10)
 
+Postgame publication now uses the unified [watchability formula](WATCHABILITY.md),
+including exceptional performances and game magnitude. Pregame projections keep
+the pre-tip evidence rules below.
+
 The fan guide shows one **pregame expectation**, ranked roster names and
 entering season records. Formula accordions, ranks, model metadata, confidence
 and missing-input paragraphs belong in admin tooling, not consumer cards. It reuses the existing workbench formulas; it does not claim a calibrated prediction of winning,

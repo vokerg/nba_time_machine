@@ -46,8 +46,8 @@ async def test_record_only_inspection_never_requires_history_and_preserves_archi
             assert item['context']['status']=='available' and item['context']['standings']==[]
             assert item['context']['source_method']=='game_records'
             assert item['context']['home']['wins']==6 and item['context']['away']['losses']==6
-            assert item['experiment']['context_bonus']==0 and item['experiment']['coverage']=='complete'
-            assert item['archived']['eligible']
+            assert next(p for p in item['rating']['components'] if p['signal']=='matchup_expectation')['points']==0
+            assert item['published']
         async with factory() as session:
             after=[await session.scalar(select(func.count()).select_from(model)) for model in (TemporalFactRecord,RecommendationScoreRecord)]
             assert before==after

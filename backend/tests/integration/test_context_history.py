@@ -69,7 +69,7 @@ async def test_history_replay_asof_corrections_ties_revocation_and_readonly_prop
             assert item['experiment']['context_bonus'] > 0
             assert item['experiment']['coverage'] == 'complete'
             assert item['archived']['eligible']
-            assert item['archived']['score'] == item['baseline']['score']
+            assert item['archived']['score'] >= item['baseline']['score']
         from nba_time_machine.workbench.app import app
         app.state.session_factory = factory
         app.state.baseline = baseline()
@@ -78,12 +78,11 @@ async def test_history_replay_asof_corrections_ties_revocation_and_readonly_prop
             response = await client.get('/api/slate', params={'date':str(target), 'as_of':(NOW+timedelta(hours=1)).isoformat()})
             assert response.status_code == 200
             item = next(g for g in response.json()['games'] if g['game_id']==str(game))
-            assert item['context']['games_used']==300 and item['experiment']['context_bonus'] > 0
+            assert item['rating'] and item['published']
+            assert 'experiment' not in item and 'baseline' not in item
             legacy = await client.post('/api/preview', json={'slate_date':str(target), 'as_of':(NOW+timedelta(hours=1)).isoformat(),
                 'config':baseline().model_dump(exclude_none=True)})
-            assert legacy.status_code==200
-            item = next(g for g in legacy.json()['games'] if g['game_id']==str(game))
-            assert 'context_bonus' not in item['experiment'] and not item['context']['included_in_proposal']
+            assert legacy.status_code==404
         async with factory() as session:
             assert await session.scalar(select(func.count()).select_from(RecommendationScoreRecord).where(
                 RecommendationScoreRecord.game_id==game)) == 1

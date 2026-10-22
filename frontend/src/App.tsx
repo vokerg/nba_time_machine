@@ -833,6 +833,11 @@ export function App() {
         <footer className="footer">
           <span>NBA Time Machine</span>
           <span>Choose your game. Choose what you know.</span>
+          <nav aria-label="Local admin dashboards">
+            <a href="http://127.0.0.1:8765" target="_blank" rel="noopener noreferrer">Scoring dashboard</a>
+            {" · "}
+            <a href="http://127.0.0.1:8766" target="_blank" rel="noopener noreferrer">Operator dashboard</a>
+          </nav>
         </footer>
       </main>
     </div>

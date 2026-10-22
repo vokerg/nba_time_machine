@@ -1,4 +1,4 @@
-"""Explicit local operator action; previews keep their separate read-only sessions."""
+"""Explicit local collection and production publication; inspection stays read-only."""
 import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -7,6 +7,7 @@ import httpx
 
 from nba_time_machine.sports.morning import MorningCollector, PublicNBAClient
 from nba_time_machine.sports.morning_store import MorningStore
+from nba_time_machine.ranking.day_processing import process_stored_day
 
 
 async def collect_day(factory, day):
@@ -39,19 +40,20 @@ class DayVerification:
         self.task = None
         self.result = {"state": "idle"}
 
-    def start(self, day):
+    def start(self, day, *, fetch=True):
         if self.task and not self.task.done():
             return False
         self.result = {"state": "running", "day": day.isoformat(),
                        "job_id": str(uuid4()),
                        "started_at": datetime.now(timezone.utc).isoformat()}
-        self.task = asyncio.create_task(self._run(day))
+        self.task = asyncio.create_task(self._run(day, fetch=fetch))
         return True
 
-    async def _run(self, day):
+    async def _run(self, day, *, fetch=True):
         try:
             async with asyncio.timeout(180):
-                details = await collect_day(self.factory, day)
+                details = await collect_day(self.factory, day) if fetch else {}
+                details['ratings'] = await process_stored_day(self.factory, day, as_of=datetime.now(timezone.utc))
             self.result.update(state="finished", **details)
         except asyncio.CancelledError:
             self.result.update(state="failed", error="collection_interrupted")

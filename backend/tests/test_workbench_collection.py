@@ -35,6 +35,9 @@ async def test_single_job_failure_redaction_and_recovery(monkeypatch):
 @pytest.mark.asyncio
 async def test_routes_require_explicit_action_and_isolate_consumer(monkeypatch):
     release = asyncio.Event()
+    async def process(factory, day, *, as_of):
+        return {'games': 1, 'eligible': 1, 'unavailable': 0, 'failed': 0}
+    monkeypatch.setattr(collection, 'process_stored_day', process)
     async def fake(factory, day):
         await release.wait()
         return {'games': [], 'errors': [], 'discovery': 'espn'}
@@ -60,6 +63,10 @@ async def test_routes_require_explicit_action_and_isolate_consumer(monkeypatch):
         release.set()
         await job.task
         assert (await client.get('/api/verify')).json()['state'] == 'finished'
+        assert (await client.post('/api/publish', json=body)).status_code == 403
+        assert (await client.post('/api/publish', json=body, headers=headers)).status_code == 202
+        await job.task
+        assert job.result['ratings']['eligible'] == 1
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=consumer), base_url='http://test') as client:
         assert (await client.post('/api/verify', json=body, headers=headers)).status_code == 404
 

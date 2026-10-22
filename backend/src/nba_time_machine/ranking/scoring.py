@@ -44,7 +44,8 @@ PREGAME_VERSION = "pregame-v1"
 POSTGAME_VERSION = "postgame-v1"
 OVERALL_VERSION = "postgame-records-v2"
 STAR_OVERALL_VERSION = "postgame-stars-v3"
-POSTGAME_VERSIONS = (POSTGAME_VERSION, OVERALL_VERSION, STAR_OVERALL_VERSION)
+WATCHABILITY_VERSION = "postgame-watchability-v4"
+POSTGAME_VERSIONS = (POSTGAME_VERSION, OVERALL_VERSION, STAR_OVERALL_VERSION, WATCHABILITY_VERSION)
 
 PREGAME_WEIGHTS: Mapping[PregameSignal, int] = MappingProxyType({
     PregameSignal.TEAM_STRENGTH: 15,
@@ -238,6 +239,10 @@ def add_star_power(score, magnitude, *, source_ref, observed_at, available_at):
 
 def component_points(score):
     """Fan-readable contributions, proportionally capped to reconcile to the total."""
+    if score.model_version == WATCHABILITY_VERSION:
+        points = _watchability_points(score.components)
+        total = sum(points)
+        return [round(p * score.value / total, 4) if total else 0. for p in points]
     base = [p for p in score.components if p.signal not in ("matchup_expectation", "star_power")]
     denominator = sum(p.weight for p in base)
     points = [p.weighted_contribution if p.signal == "matchup_expectation"
@@ -246,6 +251,31 @@ def component_points(score):
     uncapped = sum(points)
     factor = score.value / uncapped if uncapped else 1
     return [round(p * factor, 4) for p in points]
+
+
+def _watchability_points(parts):
+    extras = {"matchup_expectation", "star_power", "individual_performance", "extreme_patterns"}
+    denominator = sum(p.weight for p in parts if p.signal not in extras)
+    return [p.weighted_contribution if p.signal in ("matchup_expectation", "individual_performance", "extreme_patterns")
+            else p.weighted_contribution / 10 if p.signal == "star_power"
+            else 10 * p.weighted_contribution / denominator for p in parts]
+
+
+def add_entertainment(score, *, player, patterns, source_ref, observed_at, available_at):
+    """Publish one additive rating, capping only after all available families."""
+    if score.model_version not in (POSTGAME_VERSION, OVERALL_VERSION, STAR_OVERALL_VERSION) or not score_evidence_is_consistent(score):
+        raise ValueError("watchability requires consistent postgame evidence")
+    parts = list(score.components)
+    for signal, magnitude, cap in (("individual_performance", player, 4), ("extreme_patterns", patterns, 3)):
+        if magnitude is None:
+            continue
+        observation = FeatureObservation(magnitude, source_ref, available_at, observed_at)
+        if max(observation.available_at, observation.observed_at) > score.as_of:
+            raise ValueError("future entertainment evidence")
+        parts.append(ScoreComponent(signal, magnitude, cap, round(cap * magnitude, 6),
+                                    source_ref, available_at, observed_at))
+    return VersionedScore(score.game_id, ScoreKind.POSTGAME, WATCHABILITY_VERSION, score.as_of,
+                          round(min(10, sum(_watchability_points(parts))), 4), tuple(parts))
 
 
 def score_evidence_is_consistent(score: VersionedScore) -> bool:
@@ -257,6 +287,41 @@ def score_evidence_is_consistent(score: VersionedScore) -> bool:
     """
     if type(score) is not VersionedScore:
         return False
+    if score.model_version == WATCHABILITY_VERSION:
+        from dataclasses import replace
+        if any(type(p) is not ScoreComponent for p in score.components):
+            return False
+        extras = tuple(p for p in score.components if p.signal in ("individual_performance", "extreme_patterns"))
+        base = tuple(p for p in score.components if p.signal not in ("individual_performance", "extreme_patterns"))
+        if score.kind is not ScoreKind.POSTGAME or len({p.signal for p in extras}) != len(extras):
+            return False
+        try:
+            for p in extras:
+                FeatureObservation(p.normalized_value, p.source_ref, p.available_at, p.observed_at)
+                cap = 4 if p.signal == "individual_performance" else 3
+                if (type(p.weight) is not int or p.weight != cap
+                        or type(p.weighted_contribution) not in (int, float)
+                        or p.weighted_contribution != round(cap * p.normalized_value, 6)):
+                    return False
+            version = STAR_OVERALL_VERSION if any(p.signal == "star_power" for p in base) else OVERALL_VERSION if any(p.signal == "matchup_expectation" for p in base) else POSTGAME_VERSION
+            drama = tuple(p for p in base if p.signal not in ('star_power', 'matchup_expectation'))
+            value = round(10 * sum(p.weighted_contribution for p in drama) / sum(p.weight for p in drama), 4)
+            for signal, multiplier in (('matchup_expectation', 2), ('star_power', 1.5)):
+                for p in base:
+                    if p.signal == signal:
+                        value = round(min(10, value + round(multiplier * p.normalized_value, 4)), 4)
+            underlying = replace(score, model_version=version, components=base, value=value)
+            if not score_evidence_is_consistent(underlying):
+                return False
+            rebuilt = add_entertainment(underlying,
+                player=next((p.normalized_value for p in extras if p.signal == "individual_performance"), None),
+                patterns=next((p.normalized_value for p in extras if p.signal == "extreme_patterns"), None),
+                source_ref=extras[0].source_ref if extras else "unused",
+                observed_at=extras[0].observed_at if extras else score.as_of,
+                available_at=extras[0].available_at if extras else score.as_of)
+            return rebuilt == score
+        except (ValueError, TypeError, ZeroDivisionError, AttributeError):
+            return False
     if score.model_version == STAR_OVERALL_VERSION:
         from dataclasses import replace
         if score.kind is not ScoreKind.POSTGAME or any(type(p) is not ScoreComponent

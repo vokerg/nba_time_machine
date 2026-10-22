@@ -1,5 +1,10 @@
 # Morning evidence to watchability (#10)
 
+**Current model:** [Production watchability](WATCHABILITY.md) adds exceptional
+player production and game magnitude to drama, record strength and realized Star
+Power. The scoring dashboard and guide share this pipeline. Earlier four-signal
+descriptions below document the preserved v1 archive model.
+
 The morning collector and ranking processor remain separate modules. The local
 viewing guide's explicit **Fetch games & update ratings** action now runs them
 in sequence, publishes this same production model, and refreshes safe cards.

@@ -15,8 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from nba_time_machine.db import DatabaseSettings, create_database_engine, create_session_factory
-from nba_time_machine.workbench.calculations import TuningConfig
-from nba_time_machine.workbench.service import inspect_slate
+from nba_time_machine.workbench.service import inspect_ratings
 from nba_time_machine.workbench.collection import DayVerification
 from nba_time_machine.ingestion.ringer import automatic_checks, source_status
 
@@ -29,8 +28,6 @@ CANDIDATE_CONFIG = DEFAULT_CONFIG.with_name("entertainment-stars-backfill-v6.jso
 async def lifespan(app):
     engine = create_database_engine(DatabaseSettings())
     app.state.session_factory = create_session_factory(engine)
-    app.state.baseline = TuningConfig.model_validate_json(DEFAULT_CONFIG.read_text())
-    app.state.candidate = TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
     app.state.verification = DayVerification(app.state.session_factory)
     rankings_task = asyncio.create_task(automatic_checks(app.state.session_factory))
     try:
@@ -85,13 +82,6 @@ async def read_session(request: Request):
                 raise HTTPException(503, "Database inspection unavailable; no source bodies or credentials logged") from None
 
 
-class PreviewRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    slate_date: date
-    as_of: AwareDatetime
-    config: TuningConfig
-
-
 class VerifyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     slate_date: date
@@ -122,18 +112,20 @@ async def verification_status(request: Request, job_id: UUID | None = None):
     return result
 
 
+@app.post('/api/publish', status_code=202)
+async def publish(payload: VerifyRequest, request: Request):
+    if request.headers.get('x-workbench-action') != 'collect-day':
+        raise HTTPException(403, 'Explicit local publication action required')
+    job = request.app.state.verification
+    if not job.start(payload.slate_date, fetch=False):
+        raise HTTPException(409, 'Day update already running')
+    return job.result
+
+
 @app.get("/api/slate")
 async def slate(request: Request, date: date = Query(), as_of: AwareDatetime | None = None,
                 session=Depends(read_session)):
-    baseline = request.app.state.baseline
-    return await inspect_slate(session, date, as_of or datetime.now(timezone.utc), baseline,
-                               request.app.state.candidate, request.app.state.candidate)
-
-
-@app.post("/api/preview")
-async def compare(payload: PreviewRequest, request: Request, session=Depends(read_session)):
-    return await inspect_slate(session, payload.slate_date, payload.as_of,
-                               request.app.state.baseline, payload.config, request.app.state.candidate)
+    return await inspect_ratings(session, date, as_of or datetime.now(timezone.utc))
 
 
 @app.get("/")

@@ -45,7 +45,11 @@ Exact UX names may change; the separation must remain.
 
 ## 3. Game recommendation model
 
-There are two different scores.
+There is one production postgame watchability formula, shared by the guide and
+admin dashboard. It combines drama, exceptional player production, game magnitude,
+record strength and realized Star Power; see [Watchability](WATCHABILITY.md).
+Pregame expectation is a separate pre-tip projection with the knowledge boundary
+described below. The admin tool does not maintain a proposed-versus-live rating.
 
 ### Pregame Interest
 
@@ -233,7 +237,8 @@ consumer screen; News is secondary and always uses the saved media cursor.
 An explicit local **Fetch games & update ratings** action collects one chosen
 Browse date and publishes verified production ratings, with progress and reload
 recovery. Fetching alone never reveals results, advances the cutoff or adopts
-a workbench formula. Daily scheduling remains separate.
+an independent workbench formula. The scoring dashboard uses the same production
+calculation and can explicitly publish updates from stored evidence. Daily scheduling remains separate.
 
 The following original surface inventory is historical context; #111 takes
 precedence where it conflicts.

@@ -118,11 +118,11 @@ async def test_v5_preview_is_read_only_and_catalog_uses_stored_espn(monkeypatch)
         app.state.candidate=TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
         before=await counts(factory)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app,client=('127.0.0.1',1)),base_url='http://127.0.0.1:8765') as client:
-            response=await client.post('/api/preview',json={'slate_date':str(RECORD_DAY),'as_of':(cutoff).isoformat(),'config':app.state.candidate.model_dump(exclude_none=True)})
+            response=await client.get('/api/slate',params={'date':str(RECORD_DAY),'as_of':cutoff.isoformat()})
             assert response.status_code==200
             item=next(g for g in response.json()['games'] if g['evidence'] and g['evidence']['external_id']==e.external_id)
-            assert item['star_power']['status']=='unavailable' and item['experiment']['star_bonus'] is None
-            assert 'star power' in item['experiment']['missing_families']
+            assert item['star_power']['status']=='unavailable'
+            assert 'star power' in item['missing_families']
             assert item['context']['source_method']=='game_records'
         assert before==await counts(factory)
         async with factory() as session:

@@ -28,9 +28,12 @@ LABELS = {
     "clutch": "Close late-game play", "lead_changes": "Lead changes",
     "comeback": "Comeback", "overtime": "Overtime",
     "individual_performance": "Individual performance", "rarity": "Unusual game",
+    "extreme_patterns": "Exceptional game magnitude",
     "game_quality": "Game quality",
 }
 CLUES = {
+    "individual_performance": "An exceptional individual performance contributed to this rating.",
+    "extreme_patterns": "An extreme game pattern contributed to this rating.",
     "clutch": "There was close play late in the game.",
     "lead_changes": "The lead changed hands repeatedly.",
     "comeback": "A substantial comeback contributed to this rating.",

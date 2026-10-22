@@ -1,5 +1,11 @@
 # Local scoring workbench (#87)
 
+**Current behavior:** [Production watchability](WATCHABILITY.md) supersedes the
+historical tuning workflow below. The dashboard shows one production rating,
+its contributions and publication state. Its update actions publish that same
+formula; loading remains read-only. Formula comparisons/imports are no longer
+exposed by the dashboard or its API.
+
 The workbench is a separately launched developer tool for inspecting and tuning
 ratings against the configured real PostgreSQL database. It deliberately exposes
 numeric scores and outcome-bearing evidence. It is absent from the consumer app:
