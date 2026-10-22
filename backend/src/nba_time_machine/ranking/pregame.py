@@ -27,7 +27,11 @@ class StarTeam(BaseModel):
     model_config = ConfigDict(extra="forbid")
     team: str
     normalized: float = Field(ge=0, le=1)
+    # ``players`` is deliberately the three slots used by the score. The
+    # guide also needs the complete ranked roster so a fourth ranked player
+    # is not mistaken for an absent or unranked player.
     players: list[StarPlayer] = Field(max_length=3)
+    ranked_players: list[StarPlayer] = Field(default_factory=list, max_length=40)
     unranked_players: list[str] = Field(default_factory=list, max_length=40)
 
 

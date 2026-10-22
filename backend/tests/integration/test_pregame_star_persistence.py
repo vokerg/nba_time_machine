@@ -77,6 +77,9 @@ async def test_preseason_stars_without_records_are_open_and_pre_tip_bounded(monk
             value=(await pipeline.expectations((gid,),as_of=CUTOFF))[str(gid)]
             assert value['coverage']=='stars-only' and value['basis']=='known-pre-tip' and value['rating']>0
             assert value['star_power']['teams'][0]['players'][0]['rank']==1
+            assert len(value['star_power']['teams'][1]['players']) == 3
+            assert [p['name'] for p in value['star_power']['teams'][1]['ranked_players']] == [
+                'Fixture Player 2', 'Fixture Player 4', 'Fixture Player 6', 'Fixture Player 8']
             assert value['star_power']['teams'][0]['unranked_players']==['Fixture Player 901']
             assert value['star_power']['teams'][1]['unranked_players']==['Fixture Player 902']
             assert 'Fixture Player 8' not in value['star_power']['teams'][1]['unranked_players']

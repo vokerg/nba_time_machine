@@ -91,11 +91,21 @@ class PregameStarReader:
             fact, roster = eligible[tid]
             if any(ids.count(p.espn_id) != 1 for p in roster.players):
                 return result
-            players, total, normalized = team_star_power([
+            ranked = [
                 {'espn_id': p.espn_id, 'name': ranking[p.espn_id]['name'],
                  'rank': ranking[p.espn_id]['rank'], 'factor': 1.}
-                for p in roster.players if p.espn_id in ranking], settings)
+                for p in roster.players if p.espn_id in ranking
+            ]
+            players, total, normalized = team_star_power(ranked, settings)
+            slots = {p['espn_id']: p for p in players}
+            ranked_players = [
+                {'name': p['name'], 'rank': p['rank'],
+                 'slot_weight': slots.get(p['espn_id'], {}).get('slot_weight', 0.),
+                 'contribution': slots.get(p['espn_id'], {}).get('contribution', 0.)}
+                for p in sorted(ranked, key=lambda player: player['rank'])
+            ]
             teams.append({'team': roster.team, 'normalized': normalized,
+                          'ranked_players': ranked_players,
                           'unranked_players': sorted(p.name for p in roster.players if p.espn_id not in ranking),
                           'players': [{'name':p['name'], 'rank':p['rank'],
                                        'slot_weight':p['slot_weight'], 'contribution':p['contribution']}
