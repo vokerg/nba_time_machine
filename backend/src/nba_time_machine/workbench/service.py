@@ -21,7 +21,7 @@ from nba_time_machine.sports.morning_models import EASTERN, Evidence, assess
 from nba_time_machine.sports.morning_store import source_policy
 from nba_time_machine.workbench.calculations import MISSING, TuningConfig, preview, candidate_preview
 from nba_time_machine.workbench.enrichment import PlayerSettings, PatternSettings, enrichment_preview
-from nba_time_machine.workbench.context import ContextSettings, context_preview, record_preview
+from nba_time_machine.workbench.context import ContextSettings, RecordSettings, context_preview, record_preview
 from nba_time_machine.workbench.evidence import supporting_plays
 from nba_time_machine.ranking.player_ranking_store import read_snapshot
 from nba_time_machine.ranking.star_power import star_preview
@@ -47,7 +47,7 @@ async def slate_observations(session, day: date, as_of: datetime):
     return rows
 
 
-async def inspect_game(session, observation, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig):
+async def inspect_game(session, observation, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig, *, canonical=False):
     game_id = observation.game_id
     game = await session.get(GameRecord, game_id)
     home = await session.get(TeamRecord, game.home_team_id)
@@ -144,6 +144,8 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             result["diagnostics"].append("invalid_evidence_schema")
     else:
         result["diagnostics"].append("no_stored_provider_game_evidence_at_this_as_of")
+    if canonical:
+        return await canonical_report(session, result, derived, parsed, as_of)
     recovery = await preview_recovery(session, observation, as_of) if not derived else None
     if recovery:
         fact, original, parsed, proof = recovery
@@ -204,6 +206,53 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             "score": archived.value if archived else None, "eligible": eligible,
             "status": "Matches current evidence" if eligible else "Withheld / different evidence or invalid archive"}
     return result
+
+
+async def canonical_report(session, result, derived, parsed, as_of):
+    """One production calculation, with its evidence and publication state."""
+    from nba_time_machine.ranking.entertainment import PlayerSettings, PatternSettings
+    from nba_time_machine.ranking.scoring import component_points, WATCHABILITY_VERSION
+    from nba_time_machine.spoilers.viewing_guide import LABELS
+    from nba_time_machine.ranking.star_power import StarSettings
+    for key in ('baseline', 'experiment', 'archived'):
+        result.pop(key, None)
+    result['rating'] = None
+    result['settings'] = {'player': PlayerSettings().model_dump(), 'pattern': PatternSettings().model_dump(),
+                          'star': StarSettings().model_dump()}
+    if parsed is not None:
+        result['enrichment'] = enrichment_preview(entertainment_measurements(parsed), PlayerSettings(), PatternSettings())
+        result['context'] = record_preview(game_record_context(parsed), RecordSettings())
+    if derived is None:
+        return result
+    fact, metrics, score = derived
+    points = component_points(score)
+    result['rating'] = {'score': score.value, 'version': score.model_version,
+        'components': [{'signal': p.signal, 'label': LABELS[p.signal], 'points': points[i],
+                        'normalized': p.normalized_value, 'source_ref': p.source_ref,
+                        'observed_at': p.observed_at.isoformat(), 'available_at': p.available_at.isoformat()}
+                       for i, p in enumerate(score.components)]}
+    result['metrics'] = asdict(metrics)
+    inputs = await MorningRankingPipeline(session).star_inputs(score.game_id, as_of=as_of, tip=parsed.ref.scheduled_at)
+    result['star_power'] = star_preview(parsed, inputs['snapshot'], StarSettings())
+    signals = {p.signal for p in score.components}
+    result['missing_families'] = [label for signal, label in (
+        ('individual_performance', 'player performance'), ('extreme_patterns', 'game magnitude'),
+        ('matchup_expectation', 'record strength'), ('star_power', 'star power')) if signal not in signals]
+    row = await session.scalar(select(RecommendationScoreRecord).where(
+        RecommendationScoreRecord.game_id == score.game_id,
+        RecommendationScoreRecord.model_version == WATCHABILITY_VERSION,
+        RecommendationScoreRecord.as_of <= as_of,
+    ).order_by(RecommendationScoreRecord.as_of.desc()).limit(1))
+    stored = _score_from_row(row) if row else None
+    result['published'] = stored is not None and stored.components == score.components and stored.value == score.value
+    return result
+
+
+async def inspect_ratings(session, day, as_of):
+    games = [await inspect_game(session, observation, as_of, None, None, canonical=True)
+             for observation in await slate_observations(session, day, as_of)]
+    return {'slate_date': day.isoformat(), 'as_of': as_of.isoformat(), 'games': games,
+            'coverage': 'Stored evidence, revalidated with the production formula.'}
 
 
 async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig,

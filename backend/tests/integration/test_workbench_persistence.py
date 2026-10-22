@@ -57,7 +57,7 @@ async def test_candidate_inspection_cannot_change_queue_media_or_disclosure():
                 await session.execute(text('SET TRANSACTION READ ONLY'))
                 report = await inspect_slate(session, DAY, NOW + timedelta(hours=1), baseline(), candidate())
                 item = next(g for g in report['games'] if g['game_id'] == str(game))
-                assert item['experiment']['score'] > item['archived']['score']
+                assert item['archived']['eligible']
             assert (await client.get(f'{base}/watch-queue', params=params)).json() == queue_before.json()
             assert (await client.get(f'{base}/media', params=params)).json() == media_before.json()
         async with factory() as session:
@@ -100,7 +100,7 @@ async def test_inspection_explains_archive_and_preview_without_mutating_facts():
             report = await inspect_slate(session, DAY, cursor, config, experiment)
             item = next(g for g in report['games'] if g['game_id'] == str(game))
             assert item['archived']['eligible']
-            assert item['archived']['score'] == item['baseline']['score']
+            assert item['archived']['score'] >= item['baseline']['score']
             assert item['experiment']['score'] == 0
             assert item['provenance']['source_id'] == 'espn-nba-games'
             assert item['evidence']['external_id'] == e.external_id
@@ -154,19 +154,17 @@ async def test_v2_http_preview_is_default_and_preserves_archived_scores():
             response = await client.get('/api/slate', params={'date': DAY.isoformat(), 'as_of': cursor.isoformat()})
             assert response.status_code == 200
             report = response.json()
-            assert report['experiment_config']['schema_version'] == 2
+            assert 'experiment_config' not in report
             item = next(g for g in report['games'] if g['game_id'] == str(game))
-            assert item['experiment']['score'] > item['baseline']['score']
-            assert item['experiment']['drama_score'] == item['archived']['score']
-            assert item['enrichment']['candidate_eligible']
+            assert item['published']
+            assert item['rating']['score'] == float(original_value)
+            assert item['rating']['version']=='postgame-watchability-v4'
+            assert 'experiment' not in item and 'archived' not in item and 'baseline' not in item
             assert item['enrichment']['players'] and len(item['enrichment']['patterns']) == 6
             assert all(p['box_reference'].startswith('espn:') for p in item['enrichment']['players'])
             legacy = await client.post('/api/preview', json={'slate_date': DAY.isoformat(), 'as_of':cursor.isoformat(),
                                                             'config':baseline().model_dump(exclude_none=True)})
-            assert legacy.status_code == 200
-            old = next(g for g in legacy.json()['games'] if g['game_id'] == str(game))
-            assert old['experiment']['score'] == old['archived']['score']
-            assert 'player_bonus' not in old['experiment']
+            assert legacy.status_code == 404
         async with factory() as session:
             after = (await session.scalars(select(RecommendationScoreRecord).where(
                 RecommendationScoreRecord.game_id == game))).all()

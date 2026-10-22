@@ -1,7 +1,7 @@
 """Inspectable matchup importance heuristics, not playoff outcome probabilities."""
 from pydantic import Field
 
-from nba_time_machine.workbench.enrichment import Settings, clamp, ramp
+from nba_time_machine.ranking.settings import Settings, clamp, ramp
 
 
 class ContextSettings(Settings):

@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>NBA · Scoring workbench</title>
     <link rel="stylesheet" href="/static/workbench.css" />
-    <script src="/static/enrichment.js" defer></script>
-    <script src="/static/context.js" defer></script>
-    <script src="/static/stars.js" defer></script>
-    <script src="/static/workbench.js" defer></script>
+    <script src="/static/ratings.js" defer></script>
   </head>
   <body>
     <header>
@@ -16,12 +13,12 @@
         <span class="eyebrow">NBA TIME MACHINE / INTERNAL TOOLS</span>
         <h1>Scoring workbench<span class="pill">LOCAL ONLY</span></h1>
         <p>
-          See how each game is scored and tune the proposed formula.
+          Inspect the same watchability rating used by the viewing guide.
         </p>
       </div>
       <div class="boundary">
         Full game details · Spoilers visible<br /><strong
-          >Read-only score previews · Automatic Ringer checks</strong
+          >Production formula · Automatic Ringer checks</strong
         >
       </div>
     </header>
@@ -34,82 +31,42 @@
             type="datetime-local"
             step="1" /></label
         ><button id="load">Load stored games</button>
-        <button id="verify">Fetch &amp; verify this day</button>
-        <div class="exports">
-          <button id="export-config" class="secondary" disabled>
-            Export formula settings</button
-          ><button id="export-session" class="secondary" disabled>
-            Export review session</button
-          ><label class="file-button"
-            >Import settings or review<input
-              id="import"
-              type="file"
-              accept=".json,application/json"
-          /></label>
-        </div>
+        <button id="verify">Fetch games &amp; update ratings</button>
+        <button id="publish" class="secondary">Update ratings from stored evidence</button>
       </section>
-      <p class="muted">Fetch &amp; verify saves fresh game evidence, moves the evidence cutoff to now and recalculates your proposed formula. Current app scores stay unchanged. Unfinished games remain pending; Star Power uses an eligible pre-tip ranking, or the first snapshot as a labeled retrospective assumption under the new default formula.</p>
+      <p class="muted">Both update actions publish the production rating and move this dashboard's evidence cutoff to now. Loading is read-only. Unfinished games remain pending. Star Power requires a ranking known before tip-off; missing evidence is listed explicitly.</p>
       <section id="verification" class="panel" hidden aria-live="polite"></section>
       <p id="ringer-status" class="muted" role="status">Checking Ringer source status…</p>
       <p id="status" role="status">Connecting to your configured database…</p>
       <div class="layout">
         <aside class="panel">
-          <span class="eyebrow">PROPOSED FORMULA</span>
-          <h2>Tune the formula</h2>
-          <p>
-            Tune the proposed score here. The consumer app keeps using its current score until a formula is adopted.
-          </p>
-          <label
-            >Formula version<input id="version" maxlength="64"
-          /></label>
-          <div id="controls"></div>
-          <div class="thresholds">
-            <label
-              >Worth considering starts at<input
-                id="medium"
-                type="number"
-                min="0"
-                max="10"
-                step="0.1" /></label
-            ><label
-              >Worth watching starts at<input
-                id="high"
-                type="number"
-                min="0"
-                max="10"
-                step="0.1"
-            /></label>
-          </div>
-          <button id="preview" disabled>Recalculate proposed scores</button
-          ><button id="reset" class="secondary" disabled>
-            Restore default formula
-          </button>
-          <p class="formula" id="formula">
-            Load stored games to see the proposed formula and score breakdown.
-          </p>
-          <details open>
-            <summary>Signals not yet included</summary>
-            <div id="missing"></div>
-          </details>
+          <span class="eyebrow">PRODUCTION FORMULA</span>
+          <h2>One watchability rating</h2>
+          <p>Drama + exceptional player production + game magnitude + matchup strength + realized Star Power, capped at 10.</p>
+          <h3>Exceptional player production</h3>
+          <p>Credit starts above 40 points, 15 assists, 20 rebounds or 8 steals + blocks. Full axis credit at 60 / 25 / 30 / 12 respectively. Efficiency and a triple-double support an already exceptional performance. Turnovers reduce credit.</p>
+          <p>Strongest player + 25% of the runner-up, up to 4 points. Published rank does not affect performance credit.</p>
+          <h3>Other contributions</h3>
+          <p>Drama: clutch time, lead changes, comeback and overtime. Game magnitude: extreme leads, quarters and scoring droughts, up to 3 points. Record strength: up to 2. Star Power: rank × actual minutes, up to 1.5.</p>
+          <p class="muted">Thresholds are explicit heuristics. Historical rarity, exact playoff stakes and tactical quality are still unavailable.</p>
         </aside>
         <div class="workspace">
           <section class="panel">
             <div class="section-heading">
               <div>
                 <span class="eyebrow">STORED SLATE</span>
-                <h2>Proposed scores vs. current app scores</h2>
+                <h2>Watchability ratings</h2>
               </div>
               <span id="coverage" class="muted"></span>
             </div>
-            <p class="muted">Proposed score is the number being tuned. Current app score feeds consumer hints when disclosure rules allow. Change = proposed − current app score; both use the selected evidence cutoff.</p>
+            <p class="muted">One production calculation. Publication status tells you whether the viewing guide has the matching saved rating.</p>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>Game</th>
-                    <th>Proposed score / 10</th>
-                    <th>Current app score / 10</th>
-                    <th>Change vs. app</th>
+                    <th>Rating / 10</th>
+                    <th>Publication</th>
                     <th>Data coverage</th>
                   </tr>
                 </thead>
@@ -124,15 +81,14 @@
           <section class="panel" id="detail">
             <h2>Choose a game</h2>
             <p>
-              Its proposed score, calculation and source evidence will appear here.
+              Its rating, contributions and source evidence will appear here.
             </p>
           </section>
         </div>
       </div>
     </main>
     <footer>
-      Separate developer tool · No changes to timelines, acknowledgements,
-      or current app scores · Game evidence saved by explicit collection · Ringer auto-checks every 14 days · Formula settings are provisional
+      Local admin tool · Shared production scoring · Updates publish ratings without changing timelines or revealing games · Ringer checks every 14 days
     </footer>
   </body>
 </html>

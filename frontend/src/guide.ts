@@ -170,9 +170,11 @@ export { parseGameList };
 
 export type StarPotential = {
   rating: number; overall_points: number; explanation: string;
-  teams: {team: string; normalized: number; unranked_players?: string[]; players: {name: string; rank: number; slot_weight: number; contribution: number}[]}[];
+  teams: {team: string; normalized: number; unranked_players?: string[];
+    players: StarPlayer[]; ranked_players?: StarPlayer[]}[];
   evidence: {source_ref: string; observed_at: string; available_at: string}[];
 };
+type StarPlayer = {name: string; rank: number; slot_weight: number; contribution: number};
 export type Expectation = {
   model: "pregame-records-v1" | "pregame-context-v2"; rating: number; overall_points: number;
   coverage: "records-only" | "stars-only" | "records-and-stars";
@@ -228,18 +230,26 @@ export function parseGuideList(value: unknown, mode: Mode): GuideList {
         throw new Error("Invalid star potential.");
       for (const rawTeam of star.teams) {
         const team = record(rawTeam);
-        keys(team, ["team", "normalized", "players", "unranked_players"]);
-        if (typeof team.team !== "string" || !number(team.normalized, 1) || !Array.isArray(team.players) || team.players.length > 3)
+        keys(team, ["team", "normalized", "players", "ranked_players", "unranked_players"]);
+        if (typeof team.team !== "string" || !number(team.normalized, 1) || !Array.isArray(team.players) || team.players.length > 3 ||
+            team.ranked_players !== undefined && (!Array.isArray(team.ranked_players) || team.ranked_players.length > 40))
           throw new Error("Invalid roster star team.");
         if (team.unranked_players !== undefined && (!Array.isArray(team.unranked_players) ||
             team.unranked_players.length > 40 || team.unranked_players.some(name => typeof name !== "string" || !name.trim())))
           throw new Error("Invalid unranked roster players.");
-        for (const rawPlayer of team.players) {
-          const p = record(rawPlayer);
-          keys(p, ["name", "rank", "slot_weight", "contribution"]);
-          if (typeof p.name !== "string" || !number(p.rank, 100) || !Number.isInteger(p.rank) || Number(p.rank) < 1 || !number(p.slot_weight, 1) || !number(p.contribution, 1))
-            throw new Error("Invalid roster star.");
-        }
+        const validatePlayers = (rawPlayers: unknown[], label: string) => {
+          const seenRanks = new Set<number>();
+          for (const rawPlayer of rawPlayers) {
+            const p = record(rawPlayer);
+            keys(p, ["name", "rank", "slot_weight", "contribution"]);
+            if (typeof p.name !== "string" || !number(p.rank, 100) || !Number.isInteger(p.rank) || Number(p.rank) < 1 || !number(p.slot_weight, 1) || !number(p.contribution, 1))
+              throw new Error(`Invalid ${label}.`);
+            if (seenRanks.has(Number(p.rank))) throw new Error(`Duplicate ${label}.`);
+            seenRanks.add(Number(p.rank));
+          }
+        };
+        validatePlayers(team.players as unknown[], "roster star");
+        if (team.ranked_players !== undefined) validatePlayers(team.ranked_players as unknown[], "ranked roster star");
       }
       for (const rawEvidence of star.evidence) {
         const proof = record(rawEvidence);

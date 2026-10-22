@@ -60,7 +60,7 @@ async def test_dry_run_idempotent_materialization_and_temporal_visibility():
             reader = SqlAlchemyPostgameScoreRepository(session)
             assert await reader.postgame_scores_as_of((game,), as_of=NOW) == ()
             scores = await reader.postgame_scores_as_of((game,), as_of=cursor)
-            assert len(scores) == 1 and len(scores[0].components) == 4
+            assert len(scores) == 1 and len(scores[0].components) == 6
             assert scores[0].components[0].source_ref.endswith(bundles[0].fact_metadata["input_fact_id"])
             # Existing disclosure bridge emits coarse fields, never a numeric score.
             fields = ranking_fields(scores[0], bands=RankingDisclosureSettings().bands())
@@ -75,7 +75,7 @@ async def test_dry_run_idempotent_materialization_and_temporal_visibility():
             response = await client.get(f"/profiles/{profile}/games/{game}/watchability")
             assert response.status_code == 200
             assert response.json() == {"game_id": str(game), "disclosure": "watchability",
-                                       "watchability_verdict": "Lower priority"}
+                                       "watchability_verdict": "Worth considering"}
     finally:
         await engine.dispose()
 

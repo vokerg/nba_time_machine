@@ -252,6 +252,15 @@ class MorningRankingPipeline:
                 source_ref='star-power-v1:' + star_inputs['snapshot']['fact_id'] + ':' + str(fact.id),
                 observed_at=max(fact.observed_at, datetime.fromisoformat(star_inputs['snapshot']['observed_at'])),
                 available_at=max(fact.available_at, datetime.fromisoformat(star_inputs['snapshot']['available_at'])))
+        from nba_time_machine.ranking.entertainment_features import entertainment_measurements
+        from nba_time_machine.ranking.entertainment import enrichment_preview, PlayerSettings, PatternSettings
+        from nba_time_machine.ranking.scoring import add_entertainment
+        production = enrichment_preview(entertainment_measurements(evidence), PlayerSettings(), PatternSettings())
+        score = add_entertainment(score,
+            player=production['player_bonus']['normalized'] if production['player_bonus'] is not None else None,
+            patterns=production['pattern_bonus']['normalized'] if production['pattern_bonus'] is not None else None,
+            source_ref='entertainment-v4:' + str(fact.id),
+            observed_at=fact.observed_at, available_at=fact.available_at)
         return fact, metrics, score
 
     async def process(self, game_id: UUID, *, as_of: datetime, write: bool = False,

@@ -124,6 +124,11 @@ For general media items, initially prefer timeline-based whole-item hiding over 
 
 ## Ranking boundary
 
+The guide and local scoring dashboard share the production watchability pipeline,
+including exceptional player performances and game magnitude. All contributions
+retain source fact references and timestamps; v4 snapshots are appended, never
+overwritten. Admin reads do not publish ratings. See [Watchability](../WATCHABILITY.md).
+
 Favorite teams never alter canonical watchability ranking.
 
 Pregame ranking uses only pre-tip information. Postgame quality can use outcome-aware events, but its score and reasons are themselves spoiler-bearing and must respect the requested disclosure layer.

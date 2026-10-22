@@ -1,6 +1,10 @@
 # Shared pregame expectation (#10)
 
-The fan guide shows one **pregame expectation**, contributing star names and
+Postgame publication now uses the unified [watchability formula](WATCHABILITY.md),
+including exceptional performances and game magnitude. Pregame projections keep
+the pre-tip evidence rules below.
+
+The fan guide shows one **pregame expectation**, ranked roster names and
 entering season records. Formula accordions, ranks, model metadata, confidence
 and missing-input paragraphs belong in admin tooling, not consumer cards. It reuses the existing workbench formulas; it does not claim a calibrated prediction of winning,
 closeness or entertainment. The weak-team floor can produce zero with valid data.
@@ -101,10 +105,13 @@ The top three ranked roster players receive slot weights 1, .4 and .15; team
 strength is their sum divided by 1.55, capped at one. The two-team metric is
 `.4 × max(home, away) + .6 × sqrt(home × away)`. Star potential is that metric
 on a ten-point scale. Its 1.5-point potential bonus is not a promise that all
-stars will play. The card lists the contributing star names without repeating availability or
-formula prose. Pregame includes every ranked roster player regardless of injury;
-there is no injury/availability filter or discount. This does not add a player
-whom the publisher omitted from the ranking; missing rank data is not invented.
+stars will play. The score still uses only the three weighted slots, while the
+card exposes every ranked roster player through `ranked_players` so players
+outside those slots are not mistaken for unranked or missing players. The card
+labels this as a Top 100 roster view with availability unconfirmed. Pregame
+includes every ranked roster player regardless of injury; there is no
+injury/availability filter or discount. This does not add a player whom the
+publisher omitted from the ranking; missing rank data is not invented.
 
 Only a complete, signature-validated same-season Ringer snapshot genuinely
 observed before tip is eligible. Existing permission and retention checks apply;
@@ -130,18 +137,24 @@ Read-only verification for October 16, 2026 TOR–DET found a complete pre-tip r
 and both pre-tip rosters. The shared reader returns 7.6/10 star potential, with
 three contributing players per team (Toronto has a fourth ranked roster player,
 excluded by the existing top-three rule), despite ineligible preseason records.
-This is roster reputation potential, not a verified lineup or calibrated game
-quality prediction. No provider collection or owner-database writes were performed.
+The fan guide keeps those three scoring slots separate from its complete
+`ranked_players` roster display, so the fourth player remains visible without
+changing the score. This is roster reputation potential, not a verified lineup
+or calibrated game quality prediction. No provider collection or owner-database
+writes were performed.
 
 ### Players absent from the ranking (owner follow-up)
 
 A compact **Not in Top 100** disclosure shows per-team counts and names from the
 validated pre-tip roster that are absent from the complete selected ranking.
 This is set membership by stable ESPN ID, not injury or game availability.
-Ranked players outside the three scoring slots are not labeled unranked. Names
-are available on expansion to keep ordinary cards compact. Missing ranking
-entries do not receive invented ranks or change scoring. The same roster/ranking
-provenance and Time Machine cutoff apply to this list.
+Ranked players outside the three scoring slots are exposed separately in
+`ranked_players` and are not labeled unranked. The consumer summary uses
+parenthesized per-team counts, with names available on expansion to keep
+ordinary cards compact. Missing ranking entries do not receive invented ranks
+or change scoring. The same roster/ranking provenance and Time Machine cutoff
+apply to both lists. Neither list establishes who is inactive or unavailable
+for today's game; a trusted availability source is still required for that.
 
 ### Genuine scheduled-game records (#10 continuation)
 

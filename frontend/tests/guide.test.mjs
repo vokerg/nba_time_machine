@@ -88,7 +88,8 @@ test('known pre-tip star potential survives missing records and rejects minutes,
     explanation:'Roster potential; availability unconfirmed.',missing:['Regular-season record strength'],
     teams:[{team:'BOS'},{team:'NYK'}],formula:'Shared rank/slot/team formula',source_ref:'ranking:fixture',observed_at:known,available_at:known,
     star_power:{rating:6.4516,overall_points:.9677,explanation:'Unconfirmed availability',
-      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Fixture '+i,rank:i+1,slot_weight:1,contribution:1}]})),
+      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Fixture '+i,rank:i+1,slot_weight:1,contribution:1}],
+        ranked_players:[{name:'Fixture '+i,rank:i+1,slot_weight:1,contribution:1},{name:'Fourth '+i,rank:i+10,slot_weight:0,contribution:0}]})),
       evidence:[0,1,2].map(i=>({source_ref:'fixture:'+i,observed_at:known,available_at:known}))}
   }}};
   assert.equal(parseGuideList(value,'browse').expectations[id].coverage,'stars-only');
@@ -99,6 +100,10 @@ test('known pre-tip star potential survives missing records and rejects minutes,
   assert.throws(()=>parseGuideList(badTip,'browse'));
   const badCutoff=structuredClone(value);badCutoff.time_cursor='2026-10-13T09:00:00Z';
   assert.throws(()=>parseGuideList(badCutoff,'time-machine'));
+  const duplicateRank=structuredClone(value);duplicateRank.expectations[id].star_power.teams[0].ranked_players[1].rank=1;
+  assert.throws(()=>parseGuideList(duplicateRank,'browse'));
+  const tooMany=structuredClone(value);tooMany.expectations[id].star_power.teams[0].ranked_players=Array.from({length:41},(_,i)=>({name:'Player '+i,rank:i+1,slot_weight:0,contribution:0}));
+  assert.throws(()=>parseGuideList(tooMany,'browse'));
 });
 
 test('entering records are independent of rating coverage and cannot carry results or enter Time Machine', async()=>{

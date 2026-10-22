@@ -654,6 +654,7 @@ h3 {
   margin: 20px 0;
 }
 .footer {
+  flex-wrap: wrap;
   padding: 22px 0;
   display: flex;
   justify-content: space-between;
@@ -852,5 +853,6 @@ h3 {
 
 .pregame-expectation { margin-block: 1rem; }
 .pregame-expectation p { margin-block: .5rem; }
+.pregame-stars .star-roster-note { color: #617466; font-size: .9rem; }
 .pregame-expectation summary { cursor: pointer; font-size: 1rem; }
 .pregame-expectation details { overflow-wrap: anywhere; margin-block: .75rem; }

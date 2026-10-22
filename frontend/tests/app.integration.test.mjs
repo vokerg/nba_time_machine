@@ -805,7 +805,8 @@ test('stars-only preseason expectation shows named ranked players openly even wi
     explanation:'Roster star potential; team record strength is unavailable.',missing:['Regular-season record strength'],
     teams:[{team:'BOS'},{team:'NYK'}],formula:'Shared star formula',source_ref:'fixture:ranking',observed_at:known,available_at:known,
     star_power:{rating:6.4516,overall_points:.9677,explanation:'Availability unconfirmed.',
-      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Known Star '+i,rank:i+1,slot_weight:1,contribution:1}]})),
+      teams:['BOS','NYK'].map((team,i)=>({team,normalized:1/1.55,players:[{name:'Known Star '+i,rank:i+1,slot_weight:1,contribution:1}],
+        ranked_players:[{name:'Known Star '+i,rank:i+1,slot_weight:1,contribution:1},{name:'Joel Embiid',rank:12,slot_weight:0,contribution:0}]})),
       evidence:[0,1,2].map(i=>({source_ref:'fixture:'+i,observed_at:known,available_at:known}))}};
   const root=await mount(async(url,options={})=>{
     calls.push({url,options});
@@ -814,6 +815,8 @@ test('stars-only preseason expectation shows named ranked players openly even wi
   try{
     await until(()=>document.body.textContent.includes('Pregame expectation · 6.5 / 10'));
     assert.ok(document.body.textContent.includes('Known Star 0'));
+    assert.ok(document.body.textContent.includes('Joel Embiid'));
+    assert.ok(document.body.textContent.includes('Top 100 roster · availability unconfirmed'));
     assert.ok(!document.body.textContent.includes('Star availability is unconfirmed'));
     assert.ok(!document.body.textContent.includes('How this expectation is calculated'));
     assert.ok(!document.body.textContent.includes('Roster star potential;'));
@@ -847,7 +850,7 @@ test('missing ranking entries have compact counts and names without claiming inj
       evidence:[0,1,2].map(i=>({source_ref:'fixture:'+i,observed_at:known,available_at:known}))}};
   const root=await mount(async(url)=>response(url.includes('/timeline/')?timeline:{...slate,expectations:{[game]:expectation}}));
   try{
-    await until(()=>document.body.textContent.includes('Not in Top 100 · BOS 1 · NYK 1'));
+    await until(()=>document.body.textContent.includes('Not in Top 100 (BOS 1 · NYK 1)'));
     const disclosure=document.querySelector('.unranked-players');
     assert.equal(disclosure.open,false);
     await act(async()=>disclosure.querySelector('summary').click());

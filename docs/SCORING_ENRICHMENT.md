@@ -1,5 +1,9 @@
 # Inspectable entertainment candidate v2 (#87 / PR #88)
 
+**Historical proposal.** [Production watchability](WATCHABILITY.md) supersedes
+the activation boundary and player thresholds below. Exceptional performance
+and magnitude now contribute to the shared production rating.
+
 The v2 formula is defined in `config/ranking/entertainment-preview-v2.json`.
 The workbench now defaults to [v5](STAR_POWER.md), which retains these terms
 and adds game-record importance and optional eligible Star Power; v2 imports still calculate their original formula.

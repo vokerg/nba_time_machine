@@ -524,10 +524,14 @@ export function App() {
                       {records && <p className="pregame-records">{records.map(t => `${t.team} ${t.wins}–${t.losses}`).join(" · ")}</p>}
                       {expectation ? <>
                         {expectation.star_power && <div className="pregame-stars">
-                          {expectation.star_power.teams.map(t => t.players.length > 0 && <p key={t.team}>{t.team}: {t.players.map(p => p.name).join(", ")}</p>)}
+                          <p className="star-roster-note">Top 100 roster · availability unconfirmed</p>
+                          {expectation.star_power.teams.map(t => {
+                            const players = t.ranked_players ?? t.players;
+                            return players.length > 0 && <p key={t.team}>{t.team}: {players.map(p => p.name).join(", ")}</p>;
+                          })}
                           {expectation.star_power.teams.some(t => (t.unranked_players?.length ?? 0) > 0) &&
                             <details className="unranked-players">
-                              <summary>Not in Top 100 · {expectation.star_power.teams.filter(t => t.unranked_players?.length).map(t => `${t.team} ${t.unranked_players!.length}`).join(" · ")}</summary>
+                              <summary>Not in Top 100 ({expectation.star_power.teams.filter(t => t.unranked_players?.length).map(t => `${t.team} ${t.unranked_players!.length}`).join(" · ")})</summary>
                               {expectation.star_power.teams.filter(t => t.unranked_players?.length).map(t =>
                                 <p key={t.team}>{t.team}: {t.unranked_players!.join(", ")}</p>)}
                             </details>}
@@ -829,6 +833,11 @@ export function App() {
         <footer className="footer">
           <span>NBA Time Machine</span>
           <span>Choose your game. Choose what you know.</span>
+          <nav aria-label="Local admin dashboards">
+            <a href="http://127.0.0.1:8765" target="_blank" rel="noopener noreferrer">Scoring dashboard</a>
+            {" · "}
+            <a href="http://127.0.0.1:8766" target="_blank" rel="noopener noreferrer">Operator dashboard</a>
+          </nav>
         </footer>
       </main>
     </div>

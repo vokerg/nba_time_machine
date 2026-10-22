@@ -11,7 +11,7 @@ from nba_time_machine.db import SourceRecord, TemporalFactRecord, SportsExternal
 from nba_time_machine.ranking.player_rankings import SOURCE_ID, SOURCE_URL
 from nba_time_machine.ranking.player_ranking_store import import_snapshot
 from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
-from nba_time_machine.ranking.scoring import STAR_OVERALL_VERSION
+from nba_time_machine.ranking.scoring import WATCHABILITY_VERSION as STAR_OVERALL_VERSION
 from nba_time_machine.ranking.pregame import PregameExpectation
 from nba_time_machine.sports.morning_store import MorningStore
 from nba_time_machine.sports.player_identities import FACT_TYPE as ROSTER_TYPE
@@ -77,6 +77,9 @@ async def test_preseason_stars_without_records_are_open_and_pre_tip_bounded(monk
             value=(await pipeline.expectations((gid,),as_of=CUTOFF))[str(gid)]
             assert value['coverage']=='stars-only' and value['basis']=='known-pre-tip' and value['rating']>0
             assert value['star_power']['teams'][0]['players'][0]['rank']==1
+            assert len(value['star_power']['teams'][1]['players']) == 3
+            assert [p['name'] for p in value['star_power']['teams'][1]['ranked_players']] == [
+                'Fixture Player 2', 'Fixture Player 4', 'Fixture Player 6', 'Fixture Player 8']
             assert value['star_power']['teams'][0]['unranked_players']==['Fixture Player 901']
             assert value['star_power']['teams'][1]['unranked_players']==['Fixture Player 902']
             assert 'Fixture Player 8' not in value['star_power']['teams'][1]['unranked_players']
@@ -87,7 +90,7 @@ async def test_preseason_stars_without_records_are_open_and_pre_tip_bounded(monk
             assert await pipeline.expectations((gid,),as_of=KNOWN-timedelta(seconds=1),strict=True)=={}
             derived=await pipeline.derive(gid,as_of=CUTOFF)
             assert derived is not None and derived[2].model_version==STAR_OVERALL_VERSION
-            assert derived[2].components[-1].signal=='star_power'
+            assert any(p.signal=='star_power' for p in derived[2].components)
             # The same reader rejects not-yet-known ranking/roster inputs.
             from nba_time_machine.ranking.pregame_stars import PregameStarReader
             from nba_time_machine.db import SeasonRecord

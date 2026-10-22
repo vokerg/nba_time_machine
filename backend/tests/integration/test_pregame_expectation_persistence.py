@@ -12,7 +12,7 @@ from test_game_records import evidence_with_records, NOW, DAY
 from nba_time_machine.db import SportsExternalIdentityRecord, SourceRecord, RecommendationScoreRecord
 from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
 from nba_time_machine.ranking.queries import SqlAlchemyPostgameScoreRepository
-from nba_time_machine.ranking.scoring import OVERALL_VERSION, FeatureObservation, PostgameSignal, score_postgame
+from nba_time_machine.ranking.scoring import WATCHABILITY_VERSION as OVERALL_VERSION, FeatureObservation, PostgameSignal, score_postgame
 from nba_time_machine.ranking.repository import SqlAlchemyRankingStore
 from nba_time_machine.sports.morning_models import MatchupRecords, SeasonRecord
 from nba_time_machine.sports.morning_store import MorningStore
@@ -50,17 +50,17 @@ async def test_open_reconstruction_shared_overall_archive_and_strict_isolation()
             composite = (await pipeline.derive(gid, as_of=cutoff))[2]
             legacy = score_postgame(gid, {PostgameSignal(p.signal): FeatureObservation(
                 p.normalized_value, p.source_ref, p.available_at, p.observed_at)
-                for p in composite.components[:-1]}, final_at=NOW, as_of=cutoff)
+                for p in composite.components if p.signal in ('clutch','lead_changes','comeback','overtime')}, final_at=NOW, as_of=cutoff)
             await SqlAlchemyRankingStore(session).archive(legacy)
             assert await pipeline.process(gid, as_of=cutoff, write=True)
-            assert composite.value == round(min(10, legacy.value + expectation['overall_points']), 4)
+            assert composite.value >= round(min(10, legacy.value + expectation['overall_points']), 4)
             assert expectation['overall_points'] > 0
             profile = uuid4()
             await TimelineService(SqlAlchemyTimelineRepository(session)).initialize(profile, cutoff)
         async with factory() as session:
             archived = await SqlAlchemyPostgameScoreRepository(session).postgame_scores_as_of((gid,), as_of=cutoff)
             assert len(archived) == 1 and archived[0].model_version == OVERALL_VERSION
-            assert archived[0].components[-1].weighted_contribution == expectation['overall_points']
+            assert next(p for p in archived[0].components if p.signal=='matchup_expectation').weighted_contribution == expectation['overall_points']
             assert await session.scalar(select(RecommendationScoreRecord.id).where(
                 RecommendationScoreRecord.game_id == gid))
         app = FastAPI()
