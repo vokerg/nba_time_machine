@@ -91,3 +91,48 @@ actual observation times, verified source status and all existing global
 cursor/spoiler gates. The national publisher sources in the seed remain
 `enabled=false` and `unverified`. This change does not claim live RSS or
 Neon coverage, does not authorize publisher reuse and does not bypass review.
+
+
+## Local operator review queue (partial #91, October 25, 2026)
+
+The operator now has an explicit, local-only path from **already collected**
+captures to the existing review-gated feed. This is **not** a publicly exposed
+review API, a classifier, an ingest scheduler or publisher authorization.
+
+After running Alembic migrations and setting `DATABASE_URL`, from `backend/`:
+
+```bash
+python scripts/review_media.py pending --source-id SOURCE_ID
+python scripts/review_media.py inspect CAPTURE_UUID
+# Only after checking exact source license/terms, title/excerpt, age,
+# publication provenance, all related NBA games, and the safe destination:
+python scripts/review_media.py approve CAPTURE_UUID \
+  --hash EXACT_CONTENT_HASH_FROM_INSPECT \
+  --sensitivity general \
+  --rights-cleared --complete-links-reviewed
+# For an actual game-specific item, choose pregame or outcome_dependent and
+# repeat --game-id GAME_UUID for the complete set. To publish the HTTPS link,
+# additionally give --link-cleared after separately reviewing the link.
+```
+
+`pending` returns only source/capture IDs, observed timestamps and hashes;
+it intentionally does **not** broadcast unreviewed spoilers in bulk.
+`inspect` displays one specifically requested capture's title, limited
+excerpt and original timestamps *in the local terminal*; treat it as
+spoiler-bearing operator material. Do not paste its output into public logs.
+`approve` is a transaction that requires an exact capture hash, independent
+rights approval, explicit classification, complete reviewed game association
+and proven temporal/source facts. It locks the normalized item and only
+permits the latest capture revision; a new unreviewed capture after approval
+will suppress the older headline in the feed. Reviews use actual approval
+wall-clock time, never a manually chosen/backdated time. Repeated approvals
+are rejected; this CLI does not revoke or change earlier review records.
+
+Reviewing a capture does not verify, enable or poll any source. The collector
+and existing media API still require their own approval gates, and a
+reviewed but sealed or post-cursor article is still hidden. **Nothing here
+demonstrates an authorized live source, a populated Neon database or a
+production Buzz feed.** Those #91 obligations remain open. Source access,
+redistribution and deep-link permissions must be determined on an
+individual publisher basis; `--rights-cleared` is the operator's explicit
+attestation, not an automated legal conclusion.
