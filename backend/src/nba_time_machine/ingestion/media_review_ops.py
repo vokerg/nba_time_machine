@@ -66,6 +66,7 @@ async def pending_reviews(session: AsyncSession, *, limit: int = 25, source_id: 
     stmt = (
         select(SourceItemRecord.id, RawCaptureRecord.id, RawCaptureRecord.captured_at,
                RawCaptureRecord.content_hash, SourceRecord.id)
+        .select_from(SourceItemRecord)
         .join(RawCaptureRecord, RawCaptureRecord.id == _latest_revision(SourceItemRecord.id))
         .join(SourceRecord, SourceRecord.id == SourceItemRecord.source_id)
         .outerjoin(MediaReviewRecord, MediaReviewRecord.capture_id == RawCaptureRecord.id)
