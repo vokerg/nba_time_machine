@@ -19,6 +19,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 async def test_explicit_http_update_captures_archives_refreshes_safe_slate_and_never_advances_cursor(monkeypatch):
     engine, factory = await setup()
+    async def no_foundation(*args, **kwargs):
+        return {'status': 'unavailable'}
+    monkeypatch.setattr(day_update, 'ensure_foundation', no_foundation)
     day = date(2026, 8, 1) + timedelta(days=uuid4().int % 28)
     value = evidence()
     value = value.model_copy(update={"season": "update-" + str(uuid4()), "ref": value.ref.model_copy(update={

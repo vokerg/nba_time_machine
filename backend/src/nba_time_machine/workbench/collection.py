@@ -7,17 +7,19 @@ import httpx
 
 from nba_time_machine.sports.morning import MorningCollector, PublicNBAClient
 from nba_time_machine.sports.morning_store import MorningStore
+from nba_time_machine.sports.season_foundation_store import ensure_foundation
 from nba_time_machine.ranking.day_processing import process_stored_day
 
 
 async def collect_day(factory, day):
+    foundation = await ensure_foundation(factory, day)
     async with httpx.AsyncClient() as http:
         collector = MorningCollector(PublicNBAClient(http, max_requests=40), max_games=20)
         report = await MorningStore(factory, manual=True).collect(collector, day)
     # Preserve pending discovery even though the existing morning collector intentionally
     # does not fetch/persist unfinished games. Never infer that they are absent.
     return {
-        "run_id": report.run_id, "discovery": report.discovery,
+        "run_id": report.run_id, "discovery": report.discovery, "season_foundation": foundation,
         "requests": report.requests, "captures_written": report.captures_written,
         "errors": report.errors + report.persistence_errors,
         "games": [{"home": g.ref.home, "away": g.ref.away,

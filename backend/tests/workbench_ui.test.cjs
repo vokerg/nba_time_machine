@@ -84,3 +84,20 @@ test('source evidence loads only when opened and stays tied to the displayed sav
   assert(calls.every(c=>!c.options.method));
   dom.window.close();
 });
+
+test('saved prior-season breakdown explains a champion with a losing current record', async () => {
+  const {dom,w}=await setup(r=>{
+    r.games[0].context={prior_provenance:{season:'2025-2026'},calculation:{
+      home_prior_weight:.86,away_prior_weight:.86,home_smoothed_win_pct:.645,away_smoothed_win_pct:.69},
+      home:{team:'NYK',wins:0,losses:3,prior:{season:'2025-2026',wins:53,losses:29,achievement:'champion'}},
+      away:{team:'OKC',wins:3,losses:0,prior:{season:'2025-2026',wins:64,losses:18,achievement:'none'}}};
+    return r;
+  });
+  const d=[...w.document.querySelectorAll('#detail details')].find(d=>d.textContent.includes('Team importance'));
+  assert.match(d.textContent,/0–3/);
+  assert.match(d.textContent,/53–29/);
+  assert.match(d.textContent,/champion/);
+  assert.match(d.textContent,/86.00%/);
+  assert.match(d.textContent,/64.50%/);
+  dom.window.close();
+});

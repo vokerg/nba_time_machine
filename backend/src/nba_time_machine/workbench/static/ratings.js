@@ -86,7 +86,19 @@ function renderDetail() {
       team.players.map(p => [p.name, p.rank, p.minutes, p.participation, number(p.contribution)])));
     target.append(d);
   }
-  for (const [title, value] of [["Game magnitude measurements", g.enrichment?.patterns], ["Record strength", g.context],
+  if (g.context?.prior_provenance) {
+    const d = node("details"), c = g.context.calculation;
+    d.append(node("summary", "Team importance · previous-season foundation"),
+      node("p", "Last season starts at 20 equivalent games and fades completely by 40 current-season games."),
+      table(["Team", "Current W–L", "Prior season", "Prior W–L", "Finals finish", "Prior share", "Blended win rate"],
+        ["home", "away"].map(side => {
+          const t = g.context[side], p = t.prior;
+          return [t.team, `${t.wins}–${t.losses}`, p.season, `${p.wins}–${p.losses}`, p.achievement,
+            `${number(c[side + "_prior_weight"] * 100)}%`, `${number(c[side + "_smoothed_win_pct"] * 100)}%`];
+        })));
+    target.append(d);
+  }
+  for (const [title, value] of [["Game magnitude measurements", g.enrichment?.patterns], ["Record strength · full calculation", g.context],
     ["Component provenance and settings", {components:g.rating?.components, settings:g.settings}]]) {
     const d = node("details"); d.append(node("summary", title), node("pre", JSON.stringify(value, null, 2))); target.append(d);
   }

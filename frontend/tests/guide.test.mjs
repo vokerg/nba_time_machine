@@ -134,3 +134,12 @@ test('genuine pre-tip records and expectations pass Time Machine only before bot
     }
   }
 });
+
+test('previous-season expectation versions preserve the same safe fields and cutoff checks', async () => {
+  const {parseGuideList} = await import('../src/guide.ts');
+  const prior={...expectation,model:'pregame-records-v2',explanation:'Previous-season foundation; current results take over.'};
+  assert.equal(parseGuideList({...slate,expectations:{[id]:prior}},'browse').expectations[id].model,'pregame-records-v2');
+  assert.throws(()=>parseGuideList({...slate,expectations:{[id]:prior}},'time-machine'));
+  assert.throws(()=>parseGuideList({...slate,expectations:{[id]:{...prior,champion:true}}},'browse'));
+  assert.throws(()=>parseGuideList({...slate,expectations:{[id]:{...prior,model:'unknown-model'}}},'browse'));
+});

@@ -13,9 +13,11 @@ from nba_time_machine.db import CollectionRunRecord
 from nba_time_machine.ranking.day_processing import process_stored_day
 from nba_time_machine.sports.morning import MorningCollector, PublicNBAClient
 from nba_time_machine.sports.morning_store import MorningStore
+from nba_time_machine.sports.season_foundation_store import ensure_foundation
 
 
 async def update_day(factory, day, stage):
+    foundation = await ensure_foundation(factory, day)
     async with httpx.AsyncClient() as http:
         report = await MorningStore(factory, manual=True).collect(
             MorningCollector(PublicNBAClient(http, max_requests=40), max_games=20), day)
@@ -25,7 +27,7 @@ async def update_day(factory, day, stage):
     async with factory.begin() as session:
         run = await session.get(CollectionRunRecord, UUID(report.run_id))
         if run is not None:
-            run.run_metadata = {**run.run_metadata, "rating_update": {
+            run.run_metadata = {**run.run_metadata, "season_foundation": foundation, "rating_update": {
                 **counts, "as_of": as_of.isoformat()}}
     # Technical failures are distinguished from missing/pending/partial evidence.
     # Never expose a count of completed/scored/pending games in the safe status.

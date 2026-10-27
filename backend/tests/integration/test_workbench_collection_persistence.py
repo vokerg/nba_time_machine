@@ -11,6 +11,9 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 async def test_explicit_job_deduplicates_evidence_and_publishes_ratings(monkeypatch):
     engine, factory = await setup()
+    async def no_foundation(*args, **kwargs):
+        return {'status': 'unavailable'}
+    monkeypatch.setattr(collection, 'ensure_foundation', no_foundation)
     e = evidence()
     day = DAY - timedelta(days=100)
     e = e.model_copy(update={'observed_at': e.observed_at-timedelta(days=100),

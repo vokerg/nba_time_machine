@@ -70,6 +70,7 @@ async def read_pregame_records(batch, game_ids, cutoff):
     for row in rows:
         grouped.setdefault(row[0].game_id, []).append(row)
     ratings, records = {}, {}
+    batch.record_contexts = {}
     for gid, values in grouped.items():
         o, f, home_id, away_id, home_name, away_name, mapped = values[0]
         if (gid not in batch.game_rows or f is None or len(values)>1 and
@@ -96,6 +97,8 @@ async def read_pregame_records(batch, game_ids, cutoff):
             continue
         if context['status'] != 'available':
             continue
+        batch.record_contexts[str(gid)] = {'context': context, 'source_ref': 'pregame-records:' + str(f.id),
+            'observed_at': f.observed_at, 'available_at': f.available_at}
         records[str(gid)] = {'basis':'known-pre-tip',
             'teams':[{key:context[side][key] for key in ('team','wins','losses')} for side in ('home','away')],
             'observed_at':f.observed_at, 'available_at':f.available_at}
