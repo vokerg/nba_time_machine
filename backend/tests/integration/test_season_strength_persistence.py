@@ -125,7 +125,7 @@ async def test_prior_is_shared_and_saved_v4_is_not_changed_until_explicit_public
         await engine.dispose()
 
 
-@pytest.mark.parametrize('fault', ['late_for_tip', 'future_cutoff', 'expired', 'malformed', 'identity', 'ambiguous', 'wrong_season'])
+@pytest.mark.parametrize('fault', ['late_for_tip', 'late_validity', 'future_cutoff', 'expired', 'malformed', 'identity', 'ambiguous', 'wrong_season'])
 async def test_prior_reader_withholds_invalid_or_unavailable_inputs(fault):
     engine, factory = await setup()
     try:
@@ -134,6 +134,7 @@ async def test_prior_reader_withholds_invalid_or_unavailable_inputs(fault):
         async with factory.begin() as session:
             fact = await session.get(TemporalFactRecord, fid)
             if fault == 'future_cutoff': fact.available_at = AFTER + timedelta(days=1)
+            if fault == 'late_validity': fact.valid_from = e.ref.scheduled_at + timedelta(hours=1)
             if fault == 'expired': fact.valid_to = KNOWN + timedelta(seconds=1)
             if fault == 'malformed': fact.value = {'broken': True}
             if fault == 'identity':
@@ -147,7 +148,7 @@ async def test_prior_reader_withholds_invalid_or_unavailable_inputs(fault):
         async with factory() as session:
             values = await MorningRankingPipeline(session).expectations((gid,), as_of=AFTER)
             value = values.get(str(gid))
-            if fault == 'late_for_tip':
+            if fault in ('late_for_tip', 'late_validity'):
                 assert value['model'] == 'pregame-records-v2'  # retrospective Browse only
                 # Test the same actual record context against the strict prior reader.
                 pipeline = MorningRankingPipeline(session)

@@ -55,7 +55,7 @@ class SeasonStrengthReader:
             return context
         row = rows[0]
         if (row.valid_from > self.cutoff or row.valid_to is not None and row.valid_to <= self.cutoff
-                or strict and max(row.observed_at, row.available_at) >= tip):
+                or strict and max(row.observed_at, row.available_at, row.valid_from) >= tip):
             return context
         try:
             foundation = SeasonFoundation.model_validate_json(json.dumps(row.value))
@@ -73,7 +73,7 @@ class SeasonStrengthReader:
                     'win_rate': prior_rate(prior), 'equivalent_games': PRIOR_GAMES}}
             enriched['prior_provenance'] = {'source_ref': VERSION + ':' + str(row.id),
                 'observed_at': row.observed_at, 'available_at': row.available_at,
-                'season': previous, 'known_pre_tip': max(row.observed_at, row.available_at) < tip}
+                'season': previous, 'known_pre_tip': max(row.observed_at, row.available_at, row.valid_from) < tip}
             return enriched
         except (ValueError, KeyError, TypeError):
             return context
