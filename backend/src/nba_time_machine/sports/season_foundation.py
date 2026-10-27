@@ -78,7 +78,12 @@ def parse_foundation(standings, finals, season, observed_at):
             raise ValueError('incomplete_prior_standings')
         for entry in entries:
             team = entry['team']
-            stats = {s['name']: s['value'] for s in entry['stats']}
+            stats = {}
+            for stat in entry['stats']:
+                if stat.get('name') in ('wins', 'losses'):
+                    if stat['name'] in stats:
+                        raise ValueError('ambiguous_prior_record')
+                    stats[stat['name']] = stat.get('value')
             def count(name):
                 value = stats[name]
                 if type(value) not in (int, float) or not 0 <= value <= 82 or value != int(value):
@@ -91,6 +96,8 @@ def parse_foundation(standings, finals, season, observed_at):
                                    losses=count('losses'), achievement='none'))
     by_id = {t.external_id: t for t in teams}
     completions = []
+    if finals.get('leagues', [{}])[0].get('abbreviation') != 'NBA':
+        raise ValueError('wrong_finals_league')
     events = finals.get('events')
     if not isinstance(events, list) or len(events) > 30:
         raise ValueError('invalid_finals_coverage')

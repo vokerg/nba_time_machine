@@ -530,6 +530,8 @@ export function App() {
                           g.pregame_interest !== undefined ? `${g.pregame_interest.toFixed(1)} / 10` : "Not available"}
                       </p>
                       {records && <p className="pregame-records">{records.map(t => `${t.team} ${t.wins}–${t.losses}`).join(" · ")}</p>}
+                      {(expectation?.model === "pregame-records-v2" || expectation?.model === "pregame-context-v3") &&
+                        <p className="muted-note">Last season helps set early-season expectations.</p>}
                       {expectation ? <>
                         {expectation.star_power && <div className="pregame-stars">
                           <p className="star-roster-note">Top 100 roster · availability unconfirmed</p>

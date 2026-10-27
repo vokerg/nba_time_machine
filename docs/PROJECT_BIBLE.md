@@ -362,3 +362,15 @@ later reconstructed totals in both pregame and overall record strength. This
 extends the earlier final-only record path without changing its formula, adding
 a scheduler, or relaxing publication/observation provenance. See
 [Pregame expectation](PREGAME_EXPECTATION.md#genuine-scheduled-game-records-10-continuation).
+
+
+### Previous-season foundation for early game importance (#122)
+
+A validated previous-season regular-season record and verified Finals achievement
+can establish early team strength, shared by pregame expectation and the bounded
+postgame matchup-importance contribution. The historical weight starts at twenty
+equivalent games and disappears by forty current-season games. Canonical scoring
+never depends on favorites. Missing prior evidence retains the existing fallback;
+current records remain actual entering W–L. Prior facts are captured once through
+the approved ESPN source with real timestamps; reads never collect and stored
+ratings change only through explicit recalculation. See [Season strength](SEASON_STRENGTH.md).

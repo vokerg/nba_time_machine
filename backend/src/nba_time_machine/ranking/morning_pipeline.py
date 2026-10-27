@@ -18,7 +18,7 @@ from nba_time_machine.db import (
 from nba_time_machine.ranking.evidence import SqlAlchemyRankingEvidenceRepository
 from nba_time_machine.ranking.morning_features import FEATURE_VERSION, trajectory_features
 from nba_time_machine.ranking.repository import SqlAlchemyRankingStore
-from nba_time_machine.ranking.scoring import FeatureObservation, score_postgame
+from nba_time_machine.ranking.scoring import FeatureObservation, score_postgame, SEASON_STRENGTH_VERSION, WATCHABILITY_VERSION
 from nba_time_machine.sports.morning import SOURCE_IDS
 from nba_time_machine.sports.morning_models import Evidence
 from nba_time_machine.sports.morning_store import source_policy
@@ -293,7 +293,7 @@ class MorningRankingPipeline:
             player=production['player_bonus']['normalized'] if production['player_bonus'] is not None else None,
             patterns=production['pattern_bonus']['normalized'] if production['pattern_bonus'] is not None else None,
             source_ref='entertainment-v4:' + str(fact.id),
-            model_version=('postgame-season-strength-v5' if record_context.get('prior_provenance') else 'postgame-watchability-v4'),
+            model_version=(SEASON_STRENGTH_VERSION if record_context.get('prior_provenance') else WATCHABILITY_VERSION),
             observed_at=fact.observed_at, available_at=fact.available_at)
         return fact, metrics, score
 

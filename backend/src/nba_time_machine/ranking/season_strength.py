@@ -59,7 +59,8 @@ class SeasonStrengthReader:
             return context
         try:
             foundation = SeasonFoundation.model_validate_json(json.dumps(row.value))
-            if foundation.season != previous or foundation.season_end >= tip:
+            if (foundation.season != previous or foundation.season_end >= tip
+                    or min(row.observed_at, row.available_at) <= foundation.season_end):
                 return context
             teams = {t.team: t for t in foundation.teams}
             enriched = dict(context)

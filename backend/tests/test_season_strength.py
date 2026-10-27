@@ -16,7 +16,7 @@ def payloads():
     entries = []
     for index, (abbr, name) in enumerate(sorted(TEAM_NAMES.items()), 101):
         entries.append({'team': {'id': str(index), 'abbreviation': abbr, 'displayName': name},
-                        'stats': [{'name': 'wins', 'value': 41.0}, {'name': 'losses', 'value': 41.0}]})
+                        'stats': [{'name': 'wins', 'value': 41.0}, {'name': 'losses', 'value': 41.0}, {'name':'clincher', 'displayValue':'y'}]})
     standings = {'abbreviation': 'NBA', 'season': {'year': 2026, 'endDate': '2026-06-27T06:59Z'},
                  'children': [{'standings': {'entries': entries[:15]}}, {'standings': {'entries': entries[15:]}}]}
     ids = {e['team']['abbreviation']: e['team']['id'] for e in entries}
@@ -105,3 +105,22 @@ def test_missing_prior_keeps_legacy_behavior_and_late_observation_is_reconstruct
     value = expectation(c, source_ref='pregame-records:current', observed_at=NOW, available_at=NOW)
     assert value['basis'] == 'reconstructed'
     assert not any('score' in t or 'achievement' in t for t in value['teams'])
+
+
+def test_new_archive_version_is_reproducible_and_old_snapshots_remain_valid():
+    from uuid import uuid4
+    from nba_time_machine.ranking.scoring import (FeatureObservation, PostgameSignal, score_postgame,
+        add_matchup_expectation, add_entertainment, score_evidence_is_consistent, component_points,
+        SEASON_STRENGTH_VERSION, WATCHABILITY_VERSION)
+    base = score_postgame(uuid4(), {PostgameSignal.CLUTCH: FeatureObservation(.3, 'fixture', NOW, NOW)}, final_at=NOW, as_of=NOW)
+    legacy = add_entertainment(base, player=0., patterns=0., source_ref='fixture', observed_at=NOW, available_at=NOW)
+    enhanced = add_matchup_expectation(base, .6, source_ref='season-strength-v1:current:prior', observed_at=NOW, available_at=NOW)
+    enhanced = add_entertainment(enhanced, player=0., patterns=0., source_ref='fixture', observed_at=NOW,
+                                 available_at=NOW, model_version=SEASON_STRENGTH_VERSION)
+    assert enhanced.model_version == SEASON_STRENGTH_VERSION and enhanced.value == 4.2
+    assert legacy.model_version == WATCHABILITY_VERSION and legacy.value == 3
+    assert score_evidence_is_consistent(legacy) and score_evidence_is_consistent(enhanced)
+    assert sum(component_points(enhanced)) == pytest.approx(4.2, abs=.001)
+    with pytest.raises(ValueError):
+        add_entertainment(base, player=0., patterns=0., source_ref='fixture', observed_at=NOW,
+                          available_at=NOW, model_version=SEASON_STRENGTH_VERSION)

@@ -1,4 +1,5 @@
 """Explicit once-per-season collection through canonical captures and temporal facts."""
+import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -24,6 +25,7 @@ async def ensure_foundation(factory, day, *, force=False):
         return {'status': 'unsupported_season'}
     run_id = None
     client = None
+    stage = 'source_policy'
     try:
         async with factory() as lock:
             if not await lock.scalar(text('SELECT pg_try_advisory_xact_lock(734387)')):
@@ -44,6 +46,7 @@ async def ensure_foundation(factory, day, *, force=False):
                             return {'status': 'stored', 'season': season}
                     except ValueError:
                         pass
+            stage = 'cooldown_check'
             recent = await lock.scalar(select(CollectionRunRecord.id).where(
                 CollectionRunRecord.collector_version == COLLECTOR,
                 CollectionRunRecord.run_metadata['season'].astext == season,
@@ -57,11 +60,15 @@ async def ensure_foundation(factory, day, *, force=False):
             async with httpx.AsyncClient() as http:
                 client = PublicNBAClient(http, max_requests=2)
                 standings_url, finals_url = urls(season)
+                stage = 'standings_fetch'
                 standings = json.loads(await client.fetch('espn', standings_url, COLLECTOR))
+                stage = 'finals_fetch'
                 finals = json.loads(await client.fetch('espn', finals_url, COLLECTOR))
             captured = datetime.now(timezone.utc)
+            stage = 'validation'
             value = parse_foundation(standings, finals, season, captured)
             body = value.model_dump_json()
+            stage = 'persistence'
             async with factory.begin() as session:
                 source = await session.scalar(select(SourceRecord).where(SourceRecord.id == SOURCE_ID).with_for_update())
                 if source_policy(source, 'espn', manual=True) != policy:
@@ -89,15 +96,29 @@ async def ensure_foundation(factory, day, *, force=False):
                     status='ok' if written else 'idle', items_seen=30, captures_written=int(written),
                     finished_at=captured, outcome_metadata=result))
                 return result
-    except Exception:
-        # Only fixed diagnostics; never leak provider bodies or connection details.
+    except BaseException as error:
+        interrupted = isinstance(error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit))
+        # Fixed stages and bounded attempt diagnostics only; no provider bodies,
+        # exception text or connection details. A failing cleanup must not prevent
+        # unrelated game collection from continuing.
+        result = {'status': 'interrupted' if interrupted else 'unavailable', 'season': season,
+                  'error': stage + '_failed', 'requests': client.requests if client else 0,
+                  'attempts': [{'stage': a.stage, 'status': a.status, 'http_status': a.http_status}
+                               for a in client.attempts] if client else []}
         if run_id is not None:
-            async with factory.begin() as session:
-                result = {'status': 'unavailable', 'season': season, 'requests': client.requests if client else 0}
-                run = await session.get(CollectionRunRecord, run_id)
-                run.finished_at = datetime.now(timezone.utc)
-                run.run_metadata = result
-                session.add(SourceOutcomeRecord(collection_run_id=run_id, source_id=SOURCE_ID,
-                    status='parse_error', items_seen=0, captures_written=0, finished_at=run.finished_at,
-                    error_code='season_foundation_unavailable', outcome_metadata=result))
-        return {'status': 'unavailable', 'season': season}
+            try:
+                async with factory.begin() as session:
+                    run = await session.get(CollectionRunRecord, run_id)
+                    run.finished_at = datetime.now(timezone.utc)
+                    run.run_metadata = result
+                    status = ('rate_limited' if any(a.http_status == 429 for a in client.attempts) else
+                              'blocked' if any(a.http_status in (401,403) for a in client.attempts) else
+                              'network_error' if stage.endswith('_fetch') else 'parse_error') if client else 'parse_error'
+                    session.add(SourceOutcomeRecord(collection_run_id=run_id, source_id=SOURCE_ID,
+                        status=status, items_seen=0, captures_written=0, finished_at=run.finished_at,
+                        error_code='season_foundation_unavailable', outcome_metadata=result))
+            except Exception:
+                pass
+        if interrupted:
+            raise
+        return result
