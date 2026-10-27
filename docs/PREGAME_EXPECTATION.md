@@ -191,3 +191,12 @@ layout and disclosure controls are unchanged.
 Pre-tip record reads add one bounded batch query, shared by expectation and
 archive verification; the cold guide budget is now sixteen SELECTs on the
 existing fixture, with the same three-read warm disclosure and two-read warm GET.
+
+
+## Previous-season foundation (#122)
+
+The early-season record calculation now supports a verified prior-season
+foundation, shared with postgame game importance. See [Season strength](SEASON_STRENGTH.md)
+for the diminishing weight, championship evidence, versions and knowledge boundary.
+Earlier formula descriptions above document the no-foundation fallback. Saved
+postgame ratings remain unchanged until explicit recalculation.

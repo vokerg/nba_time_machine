@@ -53,7 +53,7 @@ class StarPotential(BaseModel):
 
 class PregameExpectation(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
-    model: Literal["pregame-records-v1", "pregame-context-v2"]
+    model: Literal["pregame-records-v1", "pregame-records-v2", "pregame-context-v2", "pregame-context-v3"]
     rating: float = Field(ge=0, le=10)
     overall_points: float = Field(ge=0, le=3.5)
     coverage: Literal["records-only", "stars-only", "records-and-stars"]
@@ -99,17 +99,33 @@ def record_preview(context, settings):
         return detail
     h, a = context["home"], context["away"]
     gp = min(h["games_played"], a["games_played"])
-    if gp < settings.minimum_games:
+    prior = all(row.get('prior') is not None for row in (h, a))
+    if gp < settings.minimum_games and not prior:
         return {**detail, "status": "insufficient_sample", "reason": "Too few earlier games for the selected minimum; importance bonus unavailable."}
-    smoothed = [(r["wins"] + settings.prior_games/2)/(r["games_played"] + settings.prior_games) for r in (h,a)]
+    weights = []
+    if prior:
+        smoothed = []
+        for row in (h, a):
+            # Start at twenty equivalent games, taper to zero after forty.
+            equivalent = 20 * clamp(1 - row['games_played'] / 40)
+            denominator = row['games_played'] + equivalent
+            smoothed.append((row['wins'] + equivalent * row['prior']['win_rate']) / denominator)
+            weights.append(equivalent / denominator)
+    else:
+        smoothed = [(r["wins"] + settings.prior_games/2)/(r["games_played"] + settings.prior_games) for r in (h,a)]
     strengths = [ramp(v, settings.win_pct_floor, settings.win_pct_peak) for v in smoothed]
-    confidence = clamp(gp/settings.confidence_games)
-    magnitude = min(strengths) * confidence
+    confidence = 1. if prior else clamp(gp/settings.confidence_games)
+    # One contender retains importance; two strong teams earn more. Legacy
+    # no-foundation calculations retain their previous arithmetic unchanged.
+    magnitude = (.4 * max(strengths) + .6 * (strengths[0]*strengths[1])**.5) if prior else min(strengths)*confidence
     return {**detail, "bonus": round(settings.max_bonus*magnitude, 4), "calculation": {
         "home_smoothed_win_pct": smoothed[0], "away_smoothed_win_pct": smoothed[1],
         "home_strength_magnitude": strengths[0], "away_strength_magnitude": strengths[1],
         "strength_magnitude": min(strengths), "sample_games": gp, "sample_confidence": confidence,
-        "matchup_magnitude": magnitude, "combined_magnitude": magnitude, "max_bonus": settings.max_bonus}}
+        "matchup_magnitude": magnitude, "combined_magnitude": magnitude, "max_bonus": settings.max_bonus,
+        **({'home_prior_weight': weights[0], 'away_prior_weight': weights[1],
+            'prior_equivalent_games_at_start':20, 'prior_fades_by_games':40} if prior else {})}}
+
 
 
 def expectation(context, *, source_ref, observed_at, available_at):
@@ -118,17 +134,24 @@ def expectation(context, *, source_ref, observed_at, available_at):
     if measured["bonus"] is None:
         return None
     calc = measured["calculation"]
+    prior = context.get('prior_provenance')
+    if prior:
+        # Include both current-record and historical-foundation fact identities.
+        source_ref = 'season-strength-v1:' + source_ref.split(':')[-1] + ':' + prior['source_ref'].split(':')[-1]
+        observed_at = max(observed_at, prior['observed_at'])
+        available_at = max(available_at, prior['available_at'])
+    known = context.get('basis') == 'known-pre-tip' and (not prior or prior['known_pre_tip'])
     return {
-        "model": VERSION, "rating": round(10 * calc["matchup_magnitude"], 4),
+        "model": "pregame-records-v2" if prior else VERSION, "rating": round(10 * calc["matchup_magnitude"], 4),
         "overall_points": measured["bonus"], "coverage": "records-only",
-        "basis": "known-pre-tip" if context.get("basis") == "known-pre-tip" else "reconstructed",
-        "explanation": "Both teams' entering win rates, smoothed toward .500; the weaker team and the smaller sample limit the matchup strength. This is not a win probability.",
+        "basis": "known-pre-tip" if known else "reconstructed",
+        "explanation": ("Previous-season records and verified Finals success establish early-season strength; current results take over by game 40. One contender adds importance and two contenders add more. This is not a win probability." if prior else "Both teams' entering win rates, smoothed toward .500; the weaker team and the smaller sample limit the matchup strength. This is not a win probability."),
         "missing": ["Expected lineups and injuries", "Expected competitiveness", "Rest and recent form", "Rivalry and playoff stakes"],
         "teams": [{"team": context[side]["team"], "wins": context[side]["wins"],
                    "losses": context[side]["losses"], "smoothed_win_pct": calc[side + "_smoothed_win_pct"]}
                   for side in ("home", "away")],
         "sample_confidence": calc["sample_confidence"],
-        "formula": "10 × min(team strengths) × min(earlier games / 20, 1); strength = clamp(((wins + 5) / (games + 10) − .50) / .25, 0, 1). Overall bonus = expectation / 5, capped with the total at 10.",
+        "formula": ("Each team: (current wins + k × prior rate) / (current games + k), k = 20 × max(0, 1 − current games / 40). Prior rate = max((last wins + 5) / 92, champion .75 or finalist .68). Strength = clamp((blended rate − .50) / .25, 0, 1). Matchup = .4 × max(strengths) + .6 × sqrt(home × away). Rating = 10 × matchup; overall bonus = 2 × matchup." if prior else "10 × min(team strengths) × min(earlier games / 20, 1); strength = clamp(((wins + 5) / (games + 10) − .50) / .25, 0, 1). Overall bonus = expectation / 5, capped with the total at 10."),
         "source_ref": source_ref, "observed_at": observed_at, "available_at": available_at,
     }
 
@@ -146,7 +169,7 @@ def combine_expectation(records, stars):
     if records:
         observed, available = max(observed, stamp(records['observed_at'])), max(available, stamp(records['available_at']))
     return {
-        'model':'pregame-context-v2', 'rating':round((stars['rating'] * 1.5 + (records['rating'] * 2 if records else 0)) / weight, 4), 'overall_points':round(points, 4),
+        'model':'pregame-context-v3' if records and records['model'] == 'pregame-records-v2' else 'pregame-context-v2', 'rating':round((stars['rating'] * 1.5 + (records['rating'] * 2 if records else 0)) / weight, 4), 'overall_points':round(points, 4),
         'coverage':'records-and-stars' if records else 'stars-only',
         'basis':('mixed' if records['basis'] == 'reconstructed' else 'known-pre-tip') if records else 'known-pre-tip',
         'explanation': ('Entering team records and roster star potential. ' if records else 'Roster star potential; team record strength is unavailable. ') + stars['explanation'],

@@ -45,7 +45,9 @@ POSTGAME_VERSION = "postgame-v1"
 OVERALL_VERSION = "postgame-records-v2"
 STAR_OVERALL_VERSION = "postgame-stars-v3"
 WATCHABILITY_VERSION = "postgame-watchability-v4"
-POSTGAME_VERSIONS = (POSTGAME_VERSION, OVERALL_VERSION, STAR_OVERALL_VERSION, WATCHABILITY_VERSION)
+SEASON_STRENGTH_VERSION = "postgame-season-strength-v5"
+WATCHABILITY_VERSIONS = (WATCHABILITY_VERSION, SEASON_STRENGTH_VERSION)
+POSTGAME_VERSIONS = (POSTGAME_VERSION, OVERALL_VERSION, STAR_OVERALL_VERSION, *WATCHABILITY_VERSIONS)
 
 PREGAME_WEIGHTS: Mapping[PregameSignal, int] = MappingProxyType({
     PregameSignal.TEAM_STRENGTH: 15,
@@ -239,7 +241,7 @@ def add_star_power(score, magnitude, *, source_ref, observed_at, available_at):
 
 def component_points(score):
     """Fan-readable contributions, proportionally capped to reconcile to the total."""
-    if score.model_version == WATCHABILITY_VERSION:
+    if score.model_version in WATCHABILITY_VERSIONS:
         points = _watchability_points(score.components)
         total = sum(points)
         return [round(p * score.value / total, 4) if total else 0. for p in points]
@@ -261,10 +263,14 @@ def _watchability_points(parts):
             else 10 * p.weighted_contribution / denominator for p in parts]
 
 
-def add_entertainment(score, *, player, patterns, source_ref, observed_at, available_at):
+def add_entertainment(score, *, player, patterns, source_ref, observed_at, available_at, model_version=WATCHABILITY_VERSION):
     """Publish one additive rating, capping only after all available families."""
     if score.model_version not in (POSTGAME_VERSION, OVERALL_VERSION, STAR_OVERALL_VERSION) or not score_evidence_is_consistent(score):
         raise ValueError("watchability requires consistent postgame evidence")
+    if model_version not in WATCHABILITY_VERSIONS:
+        raise ValueError('unsupported watchability version')
+    if model_version == SEASON_STRENGTH_VERSION and not any(p.signal == 'matchup_expectation' and p.source_ref.startswith('season-strength-v1:') for p in score.components):
+        raise ValueError('season strength requires prior evidence')
     parts = list(score.components)
     for signal, magnitude, cap in (("individual_performance", player, 4), ("extreme_patterns", patterns, 3)):
         if magnitude is None:
@@ -274,7 +280,7 @@ def add_entertainment(score, *, player, patterns, source_ref, observed_at, avail
             raise ValueError("future entertainment evidence")
         parts.append(ScoreComponent(signal, magnitude, cap, round(cap * magnitude, 6),
                                     source_ref, available_at, observed_at))
-    return VersionedScore(score.game_id, ScoreKind.POSTGAME, WATCHABILITY_VERSION, score.as_of,
+    return VersionedScore(score.game_id, ScoreKind.POSTGAME, model_version, score.as_of,
                           round(min(10, sum(_watchability_points(parts))), 4), tuple(parts))
 
 
@@ -287,7 +293,7 @@ def score_evidence_is_consistent(score: VersionedScore) -> bool:
     """
     if type(score) is not VersionedScore:
         return False
-    if score.model_version == WATCHABILITY_VERSION:
+    if score.model_version in WATCHABILITY_VERSIONS:
         from dataclasses import replace
         if any(type(p) is not ScoreComponent for p in score.components):
             return False
@@ -318,7 +324,8 @@ def score_evidence_is_consistent(score: VersionedScore) -> bool:
                 patterns=next((p.normalized_value for p in extras if p.signal == "extreme_patterns"), None),
                 source_ref=extras[0].source_ref if extras else "unused",
                 observed_at=extras[0].observed_at if extras else score.as_of,
-                available_at=extras[0].available_at if extras else score.as_of)
+                available_at=extras[0].available_at if extras else score.as_of,
+                model_version=score.model_version)
             return rebuilt == score
         except (ValueError, TypeError, ZeroDivisionError, AttributeError):
             return False

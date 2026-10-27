@@ -85,3 +85,12 @@ without displaying competing scores.
 
 The main guide footer links to the scoring dashboard on `127.0.0.1:8765` and the
 operator dashboard on `127.0.0.1:8766`. These remain separate local processes.
+
+
+## Early-season importance (#122)
+
+[Previous-season strength](SEASON_STRENGTH.md) can replace the current-season-only
+record input to the same bounded two-point matchup contribution. Publications using
+that evidence are versioned `postgame-season-strength-v5`; existing v4 ratings are
+retained until explicit recalculation. Exceptional game-pattern magnitude keeps
+its existing measurements and weight.

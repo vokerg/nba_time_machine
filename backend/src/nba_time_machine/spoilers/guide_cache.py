@@ -34,7 +34,7 @@ SELECT 'fact:' || id::text || ':' || xmin::text || ':' ||
 FROM temporal_facts
 WHERE available_at <= :cutoff AND observed_at <= :cutoff
   AND (fact_type = 'provider_game_evidence' OR fact_type LIKE 'ranking.postgame.%'
-       OR fact_type = 'player_rankings.ringer-v1' OR fact_type = 'provider_player_identities.espn-v1')
+       OR fact_type = 'team_strength.season_foundation.v1' OR fact_type = 'player_rankings.ringer-v1' OR fact_type = 'provider_player_identities.espn-v1')
 UNION ALL
 SELECT 'score:' || id::text || ':' || xmin::text FROM recommendation_scores
 WHERE as_of <= :cutoff

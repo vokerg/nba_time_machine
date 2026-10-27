@@ -14,7 +14,7 @@ from sqlalchemy.orm import undefer
 
 from nba_time_machine.db import RecommendationScoreRecord, TemporalFactRecord, SourceRecord
 from nba_time_machine.ranking.scoring import (
-    POSTGAME_VERSIONS, OVERALL_VERSION, STAR_OVERALL_VERSION, WATCHABILITY_VERSION, ScoreComponent, ScoreKind, VersionedScore,
+    POSTGAME_VERSIONS, OVERALL_VERSION, STAR_OVERALL_VERSION, WATCHABILITY_VERSION, SEASON_STRENGTH_VERSION, ScoreComponent, ScoreKind, VersionedScore,
     score_evidence_is_consistent,
 )
 
@@ -79,7 +79,7 @@ async def saved_score_rows(session, game_ids, *, as_of, details=False):
             r.id.label("id"),
             func.row_number().over(
                 partition_by=r.game_id,
-                order_by=(r.as_of.desc(), (r.model_version == WATCHABILITY_VERSION).desc(), (r.model_version == STAR_OVERALL_VERSION).desc(), (r.model_version == OVERALL_VERSION).desc(), r.id.desc()),
+                order_by=(r.as_of.desc(), (r.model_version == SEASON_STRENGTH_VERSION).desc(), (r.model_version == WATCHABILITY_VERSION).desc(), (r.model_version == STAR_OVERALL_VERSION).desc(), (r.model_version == OVERALL_VERSION).desc(), r.id.desc()),
             ).label("position"),
         )
         .where(

@@ -92,6 +92,11 @@ class MorningRankingPipeline:
             if latest is None:
                 continue
             records = pretip.get(str(gid))
+            entry = getattr(batch, 'record_contexts', {}).get(str(gid))
+            if entry is not None:
+                context = await batch.strength_context(entry['context'], gid, as_of, latest.scheduled_tip_at, strict=strict)
+                from nba_time_machine.ranking.pregame import expectation
+                records = expectation(context, **{k:v for k,v in entry.items() if k != 'context'})
             if records is None and str(gid) not in batch.open_records and not strict and latest.status == "final":
                 primary = await batch._observations(gid, SOURCE_IDS["espn"], as_of)
                 ambiguous = len(primary) == 2 and (primary[0].observed_at, primary[0].available_at) == (primary[1].observed_at, primary[1].available_at)
@@ -116,7 +121,27 @@ class MorningRankingPipeline:
             return self._known_records
         batch = _BatchMorningRankingPipeline(self.session)
         await batch.load(game_ids, as_of)
-        return await batch.record_inputs(game_ids, as_of=as_of)
+        self._context_batch = batch
+        result = await batch.record_inputs(game_ids, as_of=as_of)
+        self.record_contexts = getattr(batch, 'record_contexts', {})
+        return result
+
+    async def strength_context(self, context, game_id, as_of, tip, *, strict=False):
+        if context['status'] != 'available':
+            return context
+        if isinstance(self, _BatchMorningRankingPipeline):
+            batch = self
+        else:
+            batch = getattr(self, '_context_batch', None)
+            if batch is None or game_id not in batch.game_rows:
+                batch = _BatchMorningRankingPipeline(self.session)
+                await batch.load((game_id,), as_of)
+                self._context_batch = batch
+        if not hasattr(batch, 'strength_reader'):
+            from nba_time_machine.ranking.season_strength import SeasonStrengthReader
+            batch.strength_reader = SeasonStrengthReader(batch, as_of)
+            await batch.strength_reader.load()
+        return batch.strength_reader.apply(context, game_id, tip, strict=strict)
 
     async def star_inputs(self, game_id, *, as_of, tip):
         if isinstance(self, _BatchMorningRankingPipeline):
@@ -215,8 +240,8 @@ class MorningRankingPipeline:
         from nba_time_machine.ranking.game_records import game_record_context
         from nba_time_machine.ranking.pregame import expectation
         record_context = game_record_context(evidence)
-        pregame = expectation(record_context, source_ref=PREFIX + str(fact.id),
-                              observed_at=fact.observed_at, available_at=fact.available_at)
+        record_params = {'source_ref': PREFIX + str(fact.id),
+                         'observed_at': fact.observed_at, 'available_at': fact.available_at}
         if records_only:
             if record_context['status'] == 'available':
                 self.open_records[str(game_id)] = {
@@ -224,10 +249,18 @@ class MorningRankingPipeline:
                     'teams':[{key:record_context[side][key] for key in ('team','wins','losses')}
                              for side in ('home','away')],
                     'observed_at':fact.observed_at, 'available_at':fact.available_at}
-            return pregame
+            context = await self.strength_context(record_context, game_id, as_of, evidence.ref.scheduled_at)
+            return expectation(context, **record_params)
         known, known_records = await self.record_inputs((game_id,), as_of=as_of)
         if str(game_id) in known_records:
-            pregame = known.get(str(game_id))
+            entry = self.record_contexts[str(game_id)]
+            record_context = entry['context']
+            record_params = {k:v for k,v in entry.items() if k != 'context'}
+        record_context = await self.strength_context(record_context, game_id, as_of, evidence.ref.scheduled_at)
+        pregame = expectation(record_context, **record_params)
+        if not hasattr(self, '_rating_contexts'):
+            self._rating_contexts = {}
+        self._rating_contexts[game_id] = record_context
         metrics = trajectory_features(evidence)
         if metrics is None:
             return None
@@ -260,6 +293,7 @@ class MorningRankingPipeline:
             player=production['player_bonus']['normalized'] if production['player_bonus'] is not None else None,
             patterns=production['pattern_bonus']['normalized'] if production['pattern_bonus'] is not None else None,
             source_ref='entertainment-v4:' + str(fact.id),
+            model_version=('postgame-season-strength-v5' if record_context.get('prior_provenance') else 'postgame-watchability-v4'),
             observed_at=fact.observed_at, available_at=fact.available_at)
         return fact, metrics, score
 
@@ -302,7 +336,7 @@ class MorningRankingPipeline:
             inputs = await self.star_inputs(game_id, as_of=as_of,
                                             tip=Evidence.model_validate({**fact.value, "observed_at": fact.observed_at}).ref.scheduled_at)
             await SqlAlchemyRankingStore(self.session).archive(
-                score, inspection=saved_inspection(fact, metrics, inputs['snapshot']))
+                score, inspection=saved_inspection(fact, metrics, inputs['snapshot'], context=self._rating_contexts.get(game_id)))
         return True
 
 

@@ -176,7 +176,7 @@ export type StarPotential = {
 };
 type StarPlayer = {name: string; rank: number; slot_weight: number; contribution: number};
 export type Expectation = {
-  model: "pregame-records-v1" | "pregame-context-v2"; rating: number; overall_points: number;
+  model: "pregame-records-v1" | "pregame-records-v2" | "pregame-context-v2" | "pregame-context-v3"; rating: number; overall_points: number;
   coverage: "records-only" | "stars-only" | "records-and-stars";
   basis: "reconstructed" | "known-pre-tip" | "mixed"; explanation: string; missing: string[];
   teams: { team: string; wins?: number; losses?: number; smoothed_win_pct?: number }[];
@@ -199,7 +199,7 @@ export function parseGuideList(value: unknown, mode: Mode): GuideList {
     const hasRecords = e.coverage === "records-only" || e.coverage === "records-and-stars";
     const hasStars = e.coverage === "stars-only" || e.coverage === "records-and-stars";
     const maximum = (hasRecords ? 2 : 0) + (hasStars ? 1.5 : 0);
-    if (!card || !maximum || e.model !== (hasStars ? "pregame-context-v2" : "pregame-records-v1") ||
+    if (!card || !maximum || !(hasStars ? (hasRecords ? ["pregame-context-v2", "pregame-context-v3"] : ["pregame-context-v2"]) : ["pregame-records-v1", "pregame-records-v2"]).includes(String(e.model)) ||
         (e.basis !== "known-pre-tip" && e.basis !== (hasRecords ? hasStars ? "mixed" : "reconstructed" : "known-pre-tip")) ||
         !number(e.rating, 10) || !number(e.overall_points, maximum) ||
         (hasRecords ? !number(e.sample_confidence, 1) : e.sample_confidence !== undefined) ||
