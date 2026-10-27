@@ -298,7 +298,11 @@ class MorningRankingPipeline:
                         "finality_basis": "validated_final_observed",
                         "actual_final_at": None},
                 ))
-            await SqlAlchemyRankingStore(self.session).archive(score)
+            from nba_time_machine.ranking.inspection import saved_inspection
+            inputs = await self.star_inputs(game_id, as_of=as_of,
+                                            tip=Evidence.model_validate({**fact.value, "observed_at": fact.observed_at}).ref.scheduled_at)
+            await SqlAlchemyRankingStore(self.session).archive(
+                score, inspection=saved_inspection(fact, metrics, inputs['snapshot']))
         return True
 
 

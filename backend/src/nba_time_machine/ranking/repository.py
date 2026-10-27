@@ -30,7 +30,7 @@ class SqlAlchemyRankingStore:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def archive(self, score: VersionedScore) -> RecommendationScoreRecord:
+    async def archive(self, score: VersionedScore, *, inspection: dict | None = None) -> RecommendationScoreRecord:
         """Idempotent on equal evidence; reject revision collisions, never overwrite.
 
         A re-computation with changed inputs must use a new model version or
@@ -64,6 +64,7 @@ class SqlAlchemyRankingStore:
             as_of=as_of,
             score_value=Decimal(str(score.value)),
             components=evidence,
+            inspection=inspection,
         )
         self._session.add(record)
         await self._session.flush()

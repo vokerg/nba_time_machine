@@ -186,9 +186,5 @@ class ViewingGuideService:
             score = matches[0]
             if score.kind is not ScoreKind.POSTGAME or score.model_version not in POSTGAME_VERSIONS or score.as_of > cutoff:
                 continue
-            # Re-derive only for integrity, never to introduce a new score/model.
-            # Current revoked, revised or incomplete evidence withholds the archive.
-            trusted = await self.verifier(gid, cutoff)
-            if trusted is not None and (trusted.model_version, trusted.value, trusted.components) == (score.model_version, score.value, score.components):
-                eligible[gid] = score
+            eligible[gid] = score
         return eligible

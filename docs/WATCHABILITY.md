@@ -58,13 +58,25 @@ omit the performance family; the dashboard reports it missing. Zero is reserved
 for valid evidence that earns no credit. Ranking snapshots must genuinely predate
 tip-off; the dashboard no longer applies retrospective first-snapshot assumptions.
 Publication archives the calculation with its model version, source fact references
-and actual timestamps. Reads revalidate but never publish. Existing archives are
-preserved; explicit updates append v4 snapshots. Old snapshots whose components
-do not match the current calculation are withheld until an update.
+and actual timestamps. Reads use the saved snapshot and check its schema, arithmetic, source permissions
+and knowledge cutoff; they never run the scoring pipeline. Existing archives stay
+usable across server restarts, source corrections and formula changes until the
+owner explicitly recalculates. A formula change does not silently replace a rating.
+Source permission revocation can withhold access without recalculation or deletion.
+Explicit updates append snapshots and leave prior history intact. If recalculation
+cannot produce a valid new score, the last successful saved rating is retained;
+the update reports unavailable/failed games rather than inventing a replacement.
+
+Migration `0011_saved_rating_details` adds an optional JSON breakdown to the existing
+score row. New publications save player, magnitude, record and Star Power details
+atomically with the rating. Older rows remain readable without an automatic
+backfill; their missing detailed inspection is labeled until explicit recalculation.
+Admin loads one bounded batch of saved ratings/details. Full source evidence is
+fetched only when its disclosure panel is opened, without assessment or scoring.
 
 Both the guide's **Fetch games & update ratings** and the scoring dashboard's
 corresponding action collect and publish this formula. The dashboard also offers
-**Update ratings from stored evidence** with no network collection. Loading
+**Recalculate saved ratings** with no network collection. The guide also offers **Recalculate saved ratings** without collection. Loading
 either dashboard does not reveal games or move a user's timeline. Read-only
 dashboard sessions remain enforced by PostgreSQL. Publication runs in separate,
 explicit write transactions; failures for one game do not prevent other games

@@ -10,7 +10,7 @@ from nba_time_machine.api.game_list import game_list_response
 from nba_time_machine.api.timeline import _session_factory
 from nba_time_machine.ranking.pregame import PregameExpectation, EnteringRecords
 from nba_time_machine.ranking.config import RankingDisclosureSettings
-from nba_time_machine.ranking.verification import RequestScoreVerifier
+from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
 from nba_time_machine.ranking.queries import SqlAlchemyPostgameScoreRepository
 from nba_time_machine.spoilers.game_list import SqlAlchemyGameSlateRepository
 from nba_time_machine.spoilers.guide_cache import GuideDayCache, guide_revision
@@ -25,7 +25,7 @@ Mode = Literal["browse", "time-machine"]
 
 async def get_viewing_guide(request: Request):
     async with _session_factory(request)() as session:
-        verify = RequestScoreVerifier(session)
+        pregame = MorningRankingPipeline(session)
         if not hasattr(request.app.state, "guide_day_cache"):
             request.app.state.guide_day_cache = GuideDayCache()
         async def revision(cutoff):
@@ -35,9 +35,9 @@ async def get_viewing_guide(request: Request):
             SqlAlchemyGameSlateRepository(session, observed_schedule=True),
             SqlAlchemyGameSnapshotRepository(session, observed_schedule=True, knowledge_bounded=True, cache_snapshots=True),
             SqlAlchemyGameAcknowledgementRepository(session),
-            SqlAlchemyPostgameScoreRepository(session, verifier=verify), verify, RankingDisclosureSettings().bands(),
+            SqlAlchemyPostgameScoreRepository(session), None, RankingDisclosureSettings().bands(),
             cache=request.app.state.guide_day_cache, revision=revision,
-            pregame=verify.pipeline)
+            pregame=pregame)
 
 
 class DisclosureRequest(BaseModel):

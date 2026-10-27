@@ -47,12 +47,12 @@ export function parseTimeline(value: unknown, profileId: string): Timeline {
 }
 
 export class BackendClient {
-  async startDayUpdate(day: string, cursor: string) {
+  async startDayUpdate(day: string, cursor: string, fetchEvidence = true) {
     if (!validDate(day) || !instant(cursor)) throw new Error("Invalid update date or timeline.");
     const response = await this.fetcher(`/api/profiles/${this.profileId}/guide/update`, {
       method: "POST", cache: "no-store", redirect: "error", credentials: "same-origin",
       headers: { Accept: "application/json", "Content-Type": "application/json", "X-Guide-Action": "update-day" },
-      body: JSON.stringify({ date: day, mode: "browse", time_cursor: cursor }),
+      body: JSON.stringify({ date: day, mode: "browse", time_cursor: cursor, ...(fetchEvidence ? {} : { fetch_evidence: false }) }),
     });
     if (!response.ok) throw new ApiError(response.status);
     return parseDayUpdate(await response.json());

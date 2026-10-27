@@ -76,13 +76,13 @@ export function useDayUpdate(
     };
   }, [client, job?.job_id, day, mode]);
 
-  async function start() {
+  async function start(fetchEvidence = true) {
     if (!client || !cursor || mode !== "browse" || starting) return;
     setStarting(true);
     setError(null);
     setJob(null);
     try {
-      const incoming = await client.startDayUpdate(day, cursor);
+      const incoming = await client.startDayUpdate(day, cursor, fetchEvidence);
       if (incoming.date !== day) throw new Error("Update date mismatch.");
       try {
         window.localStorage.setItem(

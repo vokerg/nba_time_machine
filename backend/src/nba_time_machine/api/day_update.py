@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import AwareDatetime, BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, StrictBool
 
 from nba_time_machine.api.timeline import _session_factory
 from nba_time_machine.sports.morning_models import EASTERN
@@ -20,6 +20,7 @@ class UpdateRequest(BaseModel):
     date: date
     time_cursor: AwareDatetime
     mode: Literal["browse"]
+    fetch_evidence: StrictBool = True
 
 
 def local_access(request):
@@ -58,7 +59,7 @@ async def start_update(profile_id: UUID, body: UpdateRequest, request: Request, 
         if saved.time_cursor != body.time_cursor:
             raise HTTPException(409, "Timeline changed; reload saved state")
     try:
-        result = manager(request).start(profile_id, body.date)
+        result = manager(request).start(profile_id, body.date, fetch=body.fetch_evidence)
     except ValueError as exc:
         raise HTTPException(409, "Another date update is running") from exc
     response.headers["Cache-Control"] = "no-store"

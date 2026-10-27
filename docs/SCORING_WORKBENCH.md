@@ -325,3 +325,20 @@ uses actual verified minutes instead of adding potential and realized stars twic
 The earlier record-only limitation is superseded for this component. No
 first-snapshot consumer backfill, new collection, old-archive rewrite or global
 media exception is introduced. See [Pregame expectation](PREGAME_EXPECTATION.md).
+
+
+## Saved ratings and explicit recalculation (#120)
+
+The dashboard reads the same durable PostgreSQL score snapshots as the guide.
+Opening a date does not recompute trajectories, player bonuses or Star Power.
+Saved ratings remain until explicit recalculation, even after a source correction,
+formula change or process restart. **Recalculate saved ratings** calculates from
+stored evidence without network collection; **Fetch games & update ratings** also
+collects new evidence. Both append new snapshots. A failed/unavailable calculation
+keeps the last successful rating, with the outcome shown in job status.
+
+New publications store the admin breakdown with the score in one transaction.
+Older saved scores still display their rating/components; detailed inspection is
+labeled unavailable until explicitly recalculated. Raw source evidence loads only
+when its panel opens. Cutoffs, source permissions and read-only transactions remain
+enforced. Apply migration `0011_saved_rating_details` before running the updated app.
