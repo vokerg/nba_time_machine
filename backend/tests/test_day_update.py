@@ -108,3 +108,21 @@ async def test_http_rejects_missing_action_header_before_database_lookup_and_hid
         assert result.headers["cache-control"] == "no-store"
         assert (await client.get(f"/profiles/{uuid4()}/guide/update/{job}")).status_code == 404
         assert (await client.get(f"/profiles/{profile}/guide/update/{job}", headers={"Origin":"https://evil.test"})).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_explicit_recalculation_uses_saved_evidence_without_collection(monkeypatch):
+    from nba_time_machine.sports import day_update
+    calls = []
+    async def collect(*args):
+        raise AssertionError('recalculation must not collect')
+    async def process(factory, day, *, as_of):
+        calls.append((day, as_of))
+        return {'games': 1, 'eligible': 1, 'unavailable': 0, 'failed': 0}
+    monkeypatch.setattr(day_update, 'process_stored_day', process)
+    jobs = DayUpdateJobs(None, runner=collect)
+    result = jobs.start(uuid4(), DAY, fetch=False)
+    assert result['state'] == 'publishing'
+    await jobs.task
+    assert jobs.result['state'] == 'finished'
+    assert len(calls) == 1 and calls[0][0] == DAY

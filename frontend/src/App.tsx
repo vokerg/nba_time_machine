@@ -413,6 +413,7 @@ export function App() {
             season
           </span>
           {mode === "browse" && day <= today() && (
+            <>
             <button
               className="fetch-day"
               disabled={busy || !timeline || update.active}
@@ -422,6 +423,13 @@ export function App() {
                 ? "Updating this date…"
                 : "Fetch games & update ratings"}
             </button>
+            <button
+              disabled={busy || !timeline || update.active}
+              onClick={() => void update.start(false)}
+            >
+              Recalculate saved ratings
+            </button>
+            </>
           )}
           <button
             className="reveal-all"

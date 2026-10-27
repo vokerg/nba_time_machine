@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from nba_time_machine.db import DatabaseSettings, create_database_engine, create_session_factory
-from nba_time_machine.workbench.service import inspect_ratings
+from nba_time_machine.workbench.service import inspect_ratings, saved_evidence
 from nba_time_machine.workbench.collection import DayVerification
 from nba_time_machine.ingestion.ringer import automatic_checks, source_status
 
@@ -131,6 +131,14 @@ async def slate(request: Request, date: date = Query(), as_of: AwareDatetime | N
 @app.get("/")
 async def index():
     return FileResponse(STATIC / "index.html")
+
+
+@app.get('/api/evidence/{game_id}')
+async def evidence(game_id: UUID, as_of: AwareDatetime, session=Depends(read_session)):
+    value = await saved_evidence(session, game_id, as_of)
+    if value is None:
+        raise HTTPException(404, 'Saved rating evidence unavailable at this cutoff')
+    return value
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

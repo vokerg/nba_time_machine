@@ -47,6 +47,8 @@ class RecommendationScoreRecord(Base):
     as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     score_value: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False)
     components: Mapped[list[dict[str, object]]] = mapped_column(JSONB, nullable=False)
+    # Published alongside the score. Ordinary reads never rebuild this payload.
+    inspection: Mapped[dict | None] = mapped_column(JSONB, nullable=True, deferred=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
     )

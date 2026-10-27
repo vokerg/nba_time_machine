@@ -70,7 +70,8 @@ async def test_imported_slate_ratings_bulk_reveal_and_cross_mode_cursor_isolatio
                 assert (await TimelineService(SqlAlchemyTimelineRepository(session)).resume(profile)).time_cursor == cutoff
                 assert await session.scalar(select(GameAcknowledgementRecord.game_id).where(GameAcknowledgementRecord.profile_id == profile, GameAcknowledgementRecord.game_id == game)) == game
                 assert await session.scalar(select(RecommendationScoreRecord.id).where(RecommendationScoreRecord.game_id == game))
-            # A newer nonfinal revision masks old final scores; no zero/result fallback.
+            # A newer nonfinal revision masks the result, but the saved rating
+            # persists until explicit recalculation.
             async with factory.begin() as session:
                 latest = await session.scalar(select(GameObservationRecord).where(GameObservationRecord.game_id == game).order_by(GameObservationRecord.observed_at.desc()))
                 session.add(GameObservationRecord(game_id=game, source_id=latest.source_id,
@@ -79,6 +80,6 @@ async def test_imported_slate_ratings_bulk_reveal_and_cross_mode_cursor_isolatio
             corrected = await client.post(base + "/disclose", json={**body, "level": "full", "game_id": str(game)})
             assert corrected.status_code == 200
             assert "result" not in corrected.json()["details"][str(game)]
-            assert "rating" not in corrected.json()["details"][str(game)]
+            assert corrected.json()["details"][str(game)]["rating"] == detail["rating"]
     finally:
         await engine.dispose()

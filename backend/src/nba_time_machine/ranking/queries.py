@@ -10,8 +10,9 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
-from nba_time_machine.db.ranking_models import RecommendationScoreRecord
+from nba_time_machine.db import RecommendationScoreRecord, TemporalFactRecord, SourceRecord
 from nba_time_machine.ranking.scoring import (
     POSTGAME_VERSIONS, OVERALL_VERSION, STAR_OVERALL_VERSION, WATCHABILITY_VERSION, ScoreComponent, ScoreKind, VersionedScore,
     score_evidence_is_consistent,
@@ -58,55 +59,62 @@ def _score_from_row(row: RecommendationScoreRecord) -> VersionedScore | None:
 
 
 class SqlAlchemyPostgameScoreRepository:
-    def __init__(self, session: AsyncSession, *, verifier=None) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
-        self._verifier = verifier
 
-    async def postgame_scores_as_of(
-        self, game_ids: tuple[UUID, ...], *, as_of: datetime,
-    ) -> tuple[VersionedScore, ...]:
-        if not game_ids:
-            return ()
-        if as_of.tzinfo is None or as_of.utcoffset() is None:
-            raise ValueError("historical ranking read requires an aware cursor")
-        r = RecommendationScoreRecord
-        latest = (
-            select(
-                r.id.label("id"),
-                func.row_number().over(
-                    partition_by=r.game_id,
-                    order_by=(r.as_of.desc(), (r.model_version == WATCHABILITY_VERSION).desc(), (r.model_version == STAR_OVERALL_VERSION).desc(), (r.model_version == OVERALL_VERSION).desc(), r.id.desc()),
-                ).label("position"),
-            )
-            .where(
-                r.game_id.in_(game_ids),
-                r.score_kind == ScoreKind.POSTGAME.value,
-                r.model_version.in_(POSTGAME_VERSIONS),
-                r.as_of <= as_of,
-            )
-            .subquery()
+    async def postgame_scores_as_of(self, game_ids: tuple[UUID, ...], *, as_of: datetime) -> tuple[VersionedScore, ...]:
+        rows = await saved_score_rows(self._session, game_ids, as_of=as_of)
+        # Publication validates evidence. Reads validate only the saved snapshot.
+        return tuple(score for row in rows if (score := _score_from_row(row)) is not None)
+
+
+async def saved_score_rows(session, game_ids, *, as_of, details=False):
+    if not game_ids:
+        return []
+    if as_of.tzinfo is None or as_of.utcoffset() is None:
+        raise ValueError("historical ranking read requires an aware cursor")
+    r = RecommendationScoreRecord
+    latest = (
+        select(
+            r.id.label("id"),
+            func.row_number().over(
+                partition_by=r.game_id,
+                order_by=(r.as_of.desc(), (r.model_version == WATCHABILITY_VERSION).desc(), (r.model_version == STAR_OVERALL_VERSION).desc(), (r.model_version == OVERALL_VERSION).desc(), r.id.desc()),
+            ).label("position"),
         )
-        rows = (await self._session.scalars(
-            select(r)
-            .join(latest, r.id == latest.c.id)
-            .where(latest.c.position == 1)
-            .order_by(r.game_id)
-        )).all()
-        from nba_time_machine.ranking.morning_pipeline import PREFIX
-        from nba_time_machine.ranking.verification import RequestScoreVerifier
-
-        decoded = [score for row in rows if (score := _score_from_row(row)) is not None]
-        morning_ids = tuple(score.game_id for score in decoded
-                            if any(part.source_ref.startswith(PREFIX) for part in score.components))
-        verifier = self._verifier or RequestScoreVerifier(self._session)
-        current_scores = await verifier.morning_many(morning_ids, as_of)
-        scores = []
-        for score in decoded:
-            if score.game_id in current_scores:
-                # New corrections, revoked sources and partial latest traces
-                # invalidate old derived scores without deleting their history.
-                current = current_scores[score.game_id]
-                if current is None or current.components != score.components:
-                    continue
-            scores.append(score)
-        return tuple(scores)
+        .where(
+            r.game_id.in_(game_ids),
+            r.score_kind == ScoreKind.POSTGAME.value,
+            r.model_version.in_(POSTGAME_VERSIONS),
+            r.as_of <= as_of,
+        )
+        .subquery()
+    )
+    query = select(r).join(latest, r.id == latest.c.id).where(latest.c.position == 1).order_by(r.game_id)
+    if details:
+        query = query.options(undefer(r.inspection))
+    rows = (await session.scalars(query)).all()
+    # Registry access revocation is a permission check, not recalculation.
+    # Read IDs/policy columns only; never download or reinterpret source bodies.
+    refs = {}
+    for row in rows:
+        ids = set()
+        for part in row.components if isinstance(row.components, list) else ():
+            ref = part.get('source_ref', '') if isinstance(part, dict) else ''
+            if not isinstance(ref, str):
+                continue
+            for value in ref.split(':')[1:]:
+                try:
+                    ids.add(UUID(value))
+                except ValueError:
+                    pass
+        refs[row.id] = ids
+    fact_ids = set().union(*refs.values()) if refs else set()
+    blocked = set()
+    if fact_ids:
+        policies = (await session.execute(select(TemporalFactRecord.id, SourceRecord.verification_status,
+            SourceRecord.retention_policy).join(SourceRecord, SourceRecord.id == TemporalFactRecord.source_id)
+            .where(TemporalFactRecord.id.in_(fact_ids)))).all()
+        blocked = {fid for fid, verification, retention in policies
+                   if verification != 'verified' or retention not in ('full', 'normalized_full')}
+    return [row for row in rows if not refs[row.id] & blocked]

@@ -114,13 +114,23 @@ async def test_v5_preview_is_read_only_and_catalog_uses_stored_espn(monkeypatch)
         async with factory() as session:
             mapped=await identity_catalog(session,cutoff)
             assert any(row['espn_id']==e.players[0].external_id and row['name']==e.players[0].name for row in mapped)
+        from nba_time_machine.ranking.morning_pipeline import MorningRankingPipeline
+        async with factory.begin() as session:
+            game = await session.scalar(select(SportsExternalIdentityRecord.game_id).where(
+                SportsExternalIdentityRecord.provider_key == 'espn',
+                SportsExternalIdentityRecord.entity_type == 'game',
+                SportsExternalIdentityRecord.external_id == e.external_id))
+            assert await MorningRankingPipeline(session).process(game, as_of=cutoff, write=True)
         app.state.session_factory=factory;app.state.baseline=baseline()
         app.state.candidate=TuningConfig.model_validate_json(CANDIDATE_CONFIG.read_text())
         before=await counts(factory)
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app,client=('127.0.0.1',1)),base_url='http://127.0.0.1:8765') as client:
             response=await client.get('/api/slate',params={'date':str(RECORD_DAY),'as_of':cutoff.isoformat()})
             assert response.status_code==200
-            item=next(g for g in response.json()['games'] if g['evidence'] and g['evidence']['external_id']==e.external_id)
+            item=next(g for g in response.json()['games'] if g['game_id'] == str(game))
+            assert item['evidence'] is None
+            stored = await client.get(f'/api/evidence/{game}', params={'as_of': cutoff.isoformat()})
+            assert stored.status_code == 200 and stored.json()['external_id'] == e.external_id
             assert item['star_power']['status']=='unavailable'
             assert 'star power' in item['missing_families']
             assert item['context']['source_method']=='game_records'

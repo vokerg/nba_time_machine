@@ -1,4 +1,4 @@
-"""Cache reuse must never turn corrected or revoked records into trusted facts."""
+"""Saved ratings survive source revisions; permissions and corrupt archives still fail closed."""
 from datetime import date, timedelta
 from unittest.mock import patch
 from uuid import uuid4
@@ -84,8 +84,11 @@ async def test_warm_cache_invalidates_committed_in_place_edits_and_deletions(cha
                         SportsExternalIdentityRecord.game_id == gid))
             corrected = await client.post(path, json=body)
             assert corrected.status_code == 200
-            assert set(corrected.json()["details"][str(gid)]) == {"game_id"}
-            assert not corrected.json()["game_ids"]
+            if change in ("source", "retention", "archive"):
+                assert set(corrected.json()["details"][str(gid)]) == {"game_id"}
+                assert not corrected.json()["game_ids"]
+            else:
+                assert corrected.json()["details"][str(gid)] == first.json()["details"][str(gid)]
     finally:
         if change in ("source", "retention"):
             async with factory.begin() as session:

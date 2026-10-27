@@ -69,19 +69,19 @@ async def test_guide_read_queries_do_not_grow_per_game_or_repeat_derivation():
             assert one.status_code == 200 and one.json()["game_ids"] == [str(first)]
             one_reads = len(statements)
             await seed(7)
-            for level, gid, expected_derivations in [("order", None, 8), ("order", None, 0),
-                                                      ("verdict", first, 0), ("full", first, 0),
-                                                      ("full", None, 0)]:
+            for level, gid, cold in [("order", None, True), ("order", None, False),
+                                                      ("verdict", first, False), ("full", first, False),
+                                                      ("full", None, False)]:
                 statements.clear()
                 with patch("nba_time_machine.ranking.morning_pipeline.trajectory_features",
                            wraps=trajectory_features) as derive:
                     response = await client.post(path + "/disclose", json={**body, "level": level,
                         **({"game_id": str(gid)} if gid else {})})
                     assert response.status_code == 200, response.text
-                    assert derive.call_count == expected_derivations  # archive + guide share verification
-                assert len(statements) == (one_reads if expected_derivations else 3)
-                # One additional batched read preserves genuine pre-tip records.
-                assert one_reads <= 16
+                    assert derive.call_count == 0  # even cold reads use saved database ratings
+                assert len(statements) == (one_reads if cold else 3)
+                # Bounded pre-tip inputs plus one lightweight source-permission check.
+                assert one_reads <= 17
                 data = response.json()
                 if level == "order":
                     assert len(data["game_ids"]) == 8 and data["details"] == {}

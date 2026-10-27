@@ -65,9 +65,9 @@ def rating_detail(score, bands, level):
 
 
 class ViewingGuideService:
-    def __init__(self, timeline, slates, games, acknowledgements, scores, verifier, bands, now=None, *, cache=None, revision=None, pregame=None):
+    def __init__(self, timeline, slates, games, acknowledgements, scores, bands, now=None, *, cache=None, revision=None, pregame=None):
         self.timeline, self.slates, self.games = timeline, slates, games
-        self.acks, self.scores, self.verifier, self.bands = acknowledgements, scores, verifier, bands
+        self.acks, self.scores, self.bands = acknowledgements, scores, bands
         self.cache, self.revision, self.prepared = cache, revision, None
         self.pregame = pregame
         self.now = now or (lambda: datetime.now(timezone.utc))
@@ -186,9 +186,5 @@ class ViewingGuideService:
             score = matches[0]
             if score.kind is not ScoreKind.POSTGAME or score.model_version not in POSTGAME_VERSIONS or score.as_of > cutoff:
                 continue
-            # Re-derive only for integrity, never to introduce a new score/model.
-            # Current revoked, revised or incomplete evidence withholds the archive.
-            trusted = await self.verifier(gid, cutoff)
-            if trusted is not None and (trusted.model_version, trusted.value, trusted.components) == (score.model_version, score.value, score.components):
-                eligible[gid] = score
+            eligible[gid] = score
         return eligible

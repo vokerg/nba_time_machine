@@ -47,7 +47,7 @@ async def slate_observations(session, day: date, as_of: datetime):
     return rows
 
 
-async def inspect_game(session, observation, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig, *, canonical=False):
+async def inspect_game(session, observation, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig):
     game_id = observation.game_id
     game = await session.get(GameRecord, game_id)
     home = await session.get(TeamRecord, game.home_team_id)
@@ -144,8 +144,6 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
             result["diagnostics"].append("invalid_evidence_schema")
     else:
         result["diagnostics"].append("no_stored_provider_game_evidence_at_this_as_of")
-    if canonical:
-        return await canonical_report(session, result, derived, parsed, as_of)
     recovery = await preview_recovery(session, observation, as_of) if not derived else None
     if recovery:
         fact, original, parsed, proof = recovery
@@ -208,51 +206,74 @@ async def inspect_game(session, observation, as_of: datetime, baseline: TuningCo
     return result
 
 
-async def canonical_report(session, result, derived, parsed, as_of):
-    """One production calculation, with its evidence and publication state."""
-    from nba_time_machine.ranking.entertainment import PlayerSettings, PatternSettings
-    from nba_time_machine.ranking.scoring import component_points, WATCHABILITY_VERSION
+def saved_rating(score):
+    from nba_time_machine.ranking.scoring import component_points
     from nba_time_machine.spoilers.viewing_guide import LABELS
-    from nba_time_machine.ranking.star_power import StarSettings
-    for key in ('baseline', 'experiment', 'archived'):
-        result.pop(key, None)
-    result['rating'] = None
-    result['settings'] = {'player': PlayerSettings().model_dump(), 'pattern': PatternSettings().model_dump(),
-                          'star': StarSettings().model_dump()}
-    if parsed is not None:
-        result['enrichment'] = enrichment_preview(entertainment_measurements(parsed), PlayerSettings(), PatternSettings())
-        result['context'] = record_preview(game_record_context(parsed), RecordSettings())
-    if derived is None:
-        return result
-    fact, metrics, score = derived
     points = component_points(score)
-    result['rating'] = {'score': score.value, 'version': score.model_version,
-        'components': [{'signal': p.signal, 'label': LABELS[p.signal], 'points': points[i],
-                        'normalized': p.normalized_value, 'source_ref': p.source_ref,
-                        'observed_at': p.observed_at.isoformat(), 'available_at': p.available_at.isoformat()}
-                       for i, p in enumerate(score.components)]}
-    result['metrics'] = asdict(metrics)
-    inputs = await MorningRankingPipeline(session).star_inputs(score.game_id, as_of=as_of, tip=parsed.ref.scheduled_at)
-    result['star_power'] = star_preview(parsed, inputs['snapshot'], StarSettings())
-    signals = {p.signal for p in score.components}
-    result['missing_families'] = [label for signal, label in (
-        ('individual_performance', 'player performance'), ('extreme_patterns', 'game magnitude'),
-        ('matchup_expectation', 'record strength'), ('star_power', 'star power')) if signal not in signals]
-    row = await session.scalar(select(RecommendationScoreRecord).where(
-        RecommendationScoreRecord.game_id == score.game_id,
-        RecommendationScoreRecord.model_version == WATCHABILITY_VERSION,
-        RecommendationScoreRecord.as_of <= as_of,
-    ).order_by(RecommendationScoreRecord.as_of.desc()).limit(1))
-    stored = _score_from_row(row) if row else None
-    result['published'] = stored is not None and stored.components == score.components and stored.value == score.value
-    return result
+    return {'score': score.value, 'version': score.model_version, 'as_of': score.as_of.isoformat(),
+            'components': [{'signal': p.signal, 'label': LABELS[p.signal], 'points': points[i],
+                            'normalized': p.normalized_value, 'source_ref': p.source_ref,
+                            'observed_at': p.observed_at.isoformat(), 'available_at': p.available_at.isoformat()}
+                           for i, p in enumerate(score.components)]}
 
 
 async def inspect_ratings(session, day, as_of):
-    games = [await inspect_game(session, observation, as_of, None, None, canonical=True)
-             for observation in await slate_observations(session, day, as_of)]
-    return {'slate_date': day.isoformat(), 'as_of': as_of.isoformat(), 'games': games,
-            'coverage': 'Stored evidence, revalidated with the production formula.'}
+    """Read published database snapshots. Never derive, assess or fetch evidence."""
+    from nba_time_machine.ranking.queries import saved_score_rows
+    observations = await slate_observations(session, day, as_of)
+    ids = tuple(o.game_id for o in observations)
+    rows = {row.game_id: row for row in await saved_score_rows(session, ids, as_of=as_of, details=True)}
+    games = {g.id: g for g in (await session.scalars(select(GameRecord).where(GameRecord.id.in_(ids)))).all()} if ids else {}
+    team_ids = {tid for g in games.values() for tid in (g.home_team_id, g.away_team_id)}
+    teams = {t.id: t.name for t in (await session.scalars(select(TeamRecord).where(TeamRecord.id.in_(team_ids)))).all()} if team_ids else {}
+    result = []
+    for observation in observations:
+        game = games[observation.game_id]
+        row = rows.get(game.id)
+        score = _score_from_row(row) if row else None
+        item = {'game_id': str(game.id), 'home': teams[game.home_team_id], 'away': teams[game.away_team_id],
+                'tip': observation.scheduled_tip_at.isoformat(), 'status': observation.status,
+                'rating': saved_rating(score) if score else None, 'published': score is not None,
+                'diagnostics': [], 'missing_families': [], 'evidence': None}
+        if score:
+            item.update(row.inspection or {})
+            item['calculated_at'] = row.as_of.isoformat()
+            signals = {p.signal for p in score.components}
+            item['missing_families'] = [label for signal, label in (
+                ('individual_performance', 'player performance'), ('extreme_patterns', 'game magnitude'),
+                ('matchup_expectation', 'record strength'), ('star_power', 'star power')) if signal not in signals]
+            if row.inspection is None:
+                item['diagnostics'].append('Detailed inspection was not saved with this older rating. Explicitly recalculate to save it.')
+        else:
+            item['diagnostics'].append('No saved rating at this cutoff. Use Recalculate saved ratings to calculate and publish.')
+        result.append(item)
+    return {'slate_date': day.isoformat(), 'as_of': as_of.isoformat(), 'games': result,
+            'coverage': 'Saved database ratings. Recalculation happens only when explicitly requested.'}
+
+
+async def saved_evidence(session, game_id, as_of):
+    """Optional source evidence read; never run trajectory or score calculations."""
+    from uuid import UUID
+    from nba_time_machine.ranking.queries import saved_score_rows
+    from nba_time_machine.ranking.morning_pipeline import PREFIX
+    rows = await saved_score_rows(session, (game_id,), as_of=as_of, details=True)
+    if not rows or (score := _score_from_row(rows[0])) is None:
+        return None
+    try:
+        fact_ids = {UUID(p.source_ref[len(PREFIX):]) for p in score.components if p.source_ref.startswith(PREFIX)}
+    except ValueError:
+        return None
+    if len(fact_ids) != 1:
+        return None
+    fact = await session.get(TemporalFactRecord, fact_ids.pop())
+    if (fact is None or fact.game_id != game_id or fact.fact_type != 'provider_game_evidence'
+            or fact.observed_at > score.as_of or fact.available_at > score.as_of):
+        return None
+    try:
+        source_policy(await session.get(SourceRecord, fact.source_id), fact.value['provider'], manual=True)
+    except (ValueError, KeyError, TypeError):
+        return None
+    return {**fact.value, 'observed_at': fact.observed_at.isoformat()}
 
 
 async def inspect_slate(session, day: date, as_of: datetime, baseline: TuningConfig, experiment: TuningConfig,

@@ -43,20 +43,26 @@ class DayUpdateJobs:
         self.profile_id = None
         self.result = None
 
-    def start(self, profile_id, day):
+    def start(self, profile_id, day, *, fetch=True):
         if self.task and not self.task.done():
-            if self.profile_id == profile_id and self.result["date"] == day.isoformat():
+            if self.profile_id == profile_id and self.result["date"] == day.isoformat() and self.fetch == fetch:
                 return dict(self.result)  # Double click/retry joins the same job.
             raise ValueError("update_busy")
         self.profile_id = profile_id
-        self.result = {"job_id": str(uuid4()), "date": day.isoformat(), "state": "collecting"}
-        self.task = asyncio.create_task(self._run(day))
+        self.fetch = fetch
+        self.result = {"job_id": str(uuid4()), "date": day.isoformat(), "state": "collecting" if fetch else "publishing"}
+        self.task = asyncio.create_task(self._run(day, fetch=fetch))
         return dict(self.result)
 
-    async def _run(self, day):
+    async def _run(self, day, *, fetch=True):
         try:
             async with asyncio.timeout(self.timeout):
-                await self.runner(self.factory, day, lambda state: self.result.update(state=state))
+                if fetch:
+                    await self.runner(self.factory, day, lambda state: self.result.update(state=state))
+                else:
+                    counts = await process_stored_day(self.factory, day, as_of=datetime.now(timezone.utc))
+                    if counts['failed']:
+                        raise ValueError('update_partly_saved')
             self.result.update(state="finished")
         except asyncio.CancelledError:
             self.result.update(state="failed", error="update_interrupted")

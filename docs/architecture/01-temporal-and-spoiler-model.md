@@ -127,7 +127,10 @@ For general media items, initially prefer timeline-based whole-item hiding over 
 The guide and local scoring dashboard share the production watchability pipeline,
 including exceptional player performances and game magnitude. All contributions
 retain source fact references and timestamps; v4 snapshots are appended, never
-overwritten. Admin reads do not publish ratings. See [Watchability](../WATCHABILITY.md).
+overwritten. Guide and admin reads use saved database ratings without re-deriving them.
+Only explicit recalculation publishes a replacement snapshot; knowledge cutoffs,
+consent and source permissions still apply on reads. Breakdown details are saved
+atomically with new ratings. See [Watchability](../WATCHABILITY.md).
 
 Favorite teams never alter canonical watchability ranking.
 

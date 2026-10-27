@@ -32,9 +32,9 @@
             step="1" /></label
         ><button id="load">Load stored games</button>
         <button id="verify">Fetch games &amp; update ratings</button>
-        <button id="publish" class="secondary">Update ratings from stored evidence</button>
+        <button id="publish" class="secondary">Recalculate saved ratings</button>
       </section>
-      <p class="muted">Both update actions publish the production rating and move this dashboard's evidence cutoff to now. Loading is read-only. Unfinished games remain pending. Star Power requires a ranking known before tip-off; missing evidence is listed explicitly.</p>
+      <p class="muted">Saved ratings stay in the database until you explicitly recalculate. Recalculate saved ratings uses stored evidence without fetching. Both update actions publish new snapshots and move this dashboard's cutoff to now. Loading only reads saved data. Unfinished games remain pending.</p>
       <section id="verification" class="panel" hidden aria-live="polite"></section>
       <p id="ringer-status" class="muted" role="status">Checking Ringer source status…</p>
       <p id="status" role="status">Connecting to your configured database…</p>
@@ -59,7 +59,7 @@
               </div>
               <span id="coverage" class="muted"></span>
             </div>
-            <p class="muted">One production calculation. Publication status tells you whether the viewing guide has the matching saved rating.</p>
+            <p class="muted">The viewing guide and this dashboard read the same saved ratings. New source data or formula changes take effect only after explicit recalculation.</p>
             <div class="table-wrap">
               <table>
                 <thead>

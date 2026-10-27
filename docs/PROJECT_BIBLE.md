@@ -237,8 +237,10 @@ consumer screen; News is secondary and always uses the saved media cursor.
 An explicit local **Fetch games & update ratings** action collects one chosen
 Browse date and publishes verified production ratings, with progress and reload
 recovery. Fetching alone never reveals results, advances the cutoff or adopts
-an independent workbench formula. The scoring dashboard uses the same production
-calculation and can explicitly publish updates from stored evidence. Daily scheduling remains separate.
+an independent workbench formula. The scoring dashboard and guide read the same saved database ratings. Ratings
+and saved breakdowns persist until explicit recalculation, including across server
+restarts and formula/source changes. Both screens offer recalculation from stored
+evidence without fetching; ordinary date loads never recalculate postgame ratings. Daily scheduling remains separate.
 
 The following original surface inventory is historical context; #111 takes
 precedence where it conflicts.

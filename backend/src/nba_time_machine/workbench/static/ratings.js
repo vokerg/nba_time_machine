@@ -70,7 +70,8 @@ function renderDetail() {
       node("p", g.published ? "Published to the viewing guide." : "Update ratings from stored evidence to publish this calculation."),
       table(["Contribution", "Rating points (after cap)", "Magnitude"], g.rating.components.map(p => [p.label, number(p.points), number(p.normalized)])),
       node("p", `Formula: ${g.rating.version}. Contributions are proportionally reduced when the total exceeds 10.`));
-  } else target.append(node("p", "Rating unavailable: a validated final game and complete trajectory are required."));
+    if (g.calculated_at) target.append(node("p", `Saved calculation: ${g.calculated_at}. Use Recalculate saved ratings to replace it.`));
+  } else target.append(node("p", "Rating unavailable: no saved calculation at this cutoff. Use Recalculate saved ratings to calculate from stored evidence."));
   if (g.diagnostics.length) target.append(node("p", g.diagnostics.join(" · ")));
   if (g.enrichment?.players) {
     const details = node("details"); details.append(node("summary", "Player performances · all participants"));
@@ -86,8 +87,27 @@ function renderDetail() {
     target.append(d);
   }
   for (const [title, value] of [["Game magnitude measurements", g.enrichment?.patterns], ["Record strength", g.context],
-    ["Component provenance and settings", {components:g.rating?.components, settings:g.settings}], ["Stored source evidence", g.evidence]]) {
+    ["Component provenance and settings", {components:g.rating?.components, settings:g.settings}]]) {
     const d = node("details"); d.append(node("summary", title), node("pre", JSON.stringify(value, null, 2))); target.append(d);
+  }
+  if (g.rating) {
+    const d = node("details"), body = node("pre", "Open to load stored source evidence.");
+    d.append(node("summary", "Stored source evidence"), body);
+    let requested = false;
+    const cutoff = g.rating.as_of || report.as_of;
+    d.addEventListener("toggle", async () => {
+      if (!d.open || requested) return;
+      requested = true;
+      body.textContent = "Loading saved evidence…";
+      try {
+        const value = g.evidence || await request(`/api/evidence/${encodeURIComponent(g.game_id)}?as_of=${encodeURIComponent(cutoff)}`);
+        body.textContent = JSON.stringify(value, null, 2);
+      } catch {
+        body.textContent = "Saved source evidence unavailable. The saved rating is retained.";
+        requested = false;
+      }
+    });
+    target.append(d);
   }
 }
 async function update(fetchEvidence) {
