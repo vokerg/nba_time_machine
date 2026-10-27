@@ -80,7 +80,7 @@ async def test_dry_run_idempotent_materialization_and_temporal_visibility():
         await engine.dispose()
 
 
-async def test_new_partial_revision_masks_old_score_without_destroying_history():
+async def test_new_partial_revision_keeps_saved_score_until_explicit_recalculation():
     engine, factory = await setup()
     try:
         game, e = await capture(factory)
@@ -93,7 +93,7 @@ async def test_new_partial_revision_masks_old_score_without_destroying_history()
         async with factory() as session:
             reader = SqlAlchemyPostgameScoreRepository(session)
             assert len(await reader.postgame_scores_as_of((game,), as_of=cursor)) == 1
-            assert await reader.postgame_scores_as_of((game,), as_of=NOW + timedelta(hours=3)) == ()
+            assert len(await reader.postgame_scores_as_of((game,), as_of=NOW + timedelta(hours=3))) == 1
             assert not await MorningRankingPipeline(session).process(game, as_of=NOW + timedelta(hours=3))
             assert await session.scalar(select(RecommendationScoreRecord.id).where(
                 RecommendationScoreRecord.game_id == game)) is not None
@@ -165,7 +165,8 @@ async def test_complete_revision_requires_new_snapshot_then_is_available():
         await MorningStore(factory, manual=True).collect(FixtureCollector([revised]), DAY)
         async with factory.begin() as session:
             reader = SqlAlchemyPostgameScoreRepository(session)
-            assert await reader.postgame_scores_as_of((game,), as_of=after) == ()
+            saved = await reader.postgame_scores_as_of((game,), as_of=after)
+            assert len(saved) == 1 and saved[0].as_of == before
             assert await MorningRankingPipeline(session).process(game, as_of=after, write=True)
             assert len(await reader.postgame_scores_as_of((game,), as_of=before)) == 1
             assert len(await reader.postgame_scores_as_of((game,), as_of=after)) == 1

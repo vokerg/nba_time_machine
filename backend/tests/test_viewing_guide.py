@@ -46,9 +46,7 @@ class Scores:
 
 def setup():
     clock, slates, games, acks, scores = Clock(), Slate(), Games(), Acks(), Scores()
-    async def verify(gid, cutoff):
-        return next((s for s in scores.values if s.game_id == gid and s.as_of <= cutoff), None)
-    service = ViewingGuideService(clock, slates, games, acks, scores, verify,
+    service = ViewingGuideService(clock, slates, games, acks, scores,
                                   RankingDisclosureSettings().bands(), now=lambda: NOW)
     return service, clock, slates, games, acks, scores
 
@@ -89,12 +87,9 @@ async def test_order_returns_only_ids_and_unrated_is_not_zero():
 
 
 @pytest.mark.asyncio
-async def test_mismatched_revoked_duplicate_or_corrupt_scores_fail_closed():
+async def test_saved_scores_skip_recalculation_and_reject_duplicates_or_corruption():
     svc, _, _, _, _, scores = setup()
-    async def revoked(gid, cutoff):
-        return None
-    svc.verifier = revoked
-    assert not (await svc.disclose(PROFILE, DAY, "browse", CURSOR, "order"))["game_ids"]
+    assert (await svc.disclose(PROFILE, DAY, "browse", CURSOR, "order"))["game_ids"] == [str(FIRST)]
     svc, _, _, _, _, scores = setup()
     scores.values *= 2
     assert not (await svc.disclose(PROFILE, DAY, "browse", CURSOR, "order"))["game_ids"]

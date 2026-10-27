@@ -860,3 +860,38 @@ test('missing ranking entries have compact counts and names without claiming inj
     assert.ok(!disclosure.textContent.match(/injured|not playing|absent/i));
   }finally{await unmount(root);}
 });
+
+test("recalculate saved ratings explicitly publishes without requesting new evidence", async () => {
+  const calls = [];
+  const job = {job_id:"00000000-0000-0000-0000-000000000078", date:null, state:"publishing"};
+  let finish;
+  const root = await mount(async (url, options={}) => {
+    calls.push({url, options});
+    if (url.includes("/timeline/")) return response(timeline);
+    if (url.endsWith("/guide/update")) {
+      job.date = JSON.parse(options.body).date;
+      return response(job, 202);
+    }
+    if (url.includes("/guide/update/")) return new Promise(resolve => {
+      finish = () => resolve(response({...job, state:"finished"}));
+    });
+    return response(slate);
+  });
+  try {
+    await until(() => document.querySelector(".game-card"));
+    assert.equal(calls.filter(c => c.options.method === "POST").length, 0);
+    await click("Recalculate saved ratings");
+    await until(() => finish);
+    const post = calls.find(c => c.url.endsWith("/guide/update"));
+    assert.equal(post.options.method, "POST");
+    assert.equal(post.options.headers["X-Guide-Action"], "update-day");
+    assert.equal(JSON.parse(post.options.body).fetch_evidence, false);
+    assert.equal(JSON.parse(post.options.body).time_cursor, cursor);
+    await act(async () => finish());
+    await until(() => document.querySelector(".update-status")?.textContent.includes("Date updated"));
+    assert.equal(calls.filter(c => c.options.method === "POST").length, 1);
+    assert.equal(document.querySelector(".result-box"), null);
+  } finally {
+    await unmount(root);
+  }
+});

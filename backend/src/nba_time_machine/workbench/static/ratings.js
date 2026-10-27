@@ -94,7 +94,7 @@ function renderDetail() {
     const d = node("details"), body = node("pre", "Open to load stored source evidence.");
     d.append(node("summary", "Stored source evidence"), body);
     let requested = false;
-    const cutoff = report.as_of;
+    const cutoff = g.rating.as_of || report.as_of;
     d.addEventListener("toggle", async () => {
       if (!d.open || requested) return;
       requested = true;

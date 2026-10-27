@@ -35,7 +35,7 @@ async def get_viewing_guide(request: Request):
             SqlAlchemyGameSlateRepository(session, observed_schedule=True),
             SqlAlchemyGameSnapshotRepository(session, observed_schedule=True, knowledge_bounded=True, cache_snapshots=True),
             SqlAlchemyGameAcknowledgementRepository(session),
-            SqlAlchemyPostgameScoreRepository(session), None, RankingDisclosureSettings().bands(),
+            SqlAlchemyPostgameScoreRepository(session), RankingDisclosureSettings().bands(),
             cache=request.app.state.guide_day_cache, revision=revision,
             pregame=pregame)
 

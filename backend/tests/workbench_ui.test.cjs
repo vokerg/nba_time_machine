@@ -62,3 +62,25 @@ test('stored-evidence update explicitly publishes, then refreshes with GET', asy
   assert.equal(calls.filter(c=>c.url.startsWith('/api/slate')).length,2);
   dom.window.close();
 });
+
+test('source evidence loads only when opened and stays tied to the displayed saved rating', async () => {
+  const {dom,w,calls}=await setup(r=>{
+    r.games[0].evidence=null;
+    r.games[0].rating.as_of='2026-10-14T23:00:00Z';
+    return r;
+  });
+  assert.equal(calls.filter(c=>c.url.startsWith('/api/evidence')).length,0);
+  const detail=[...w.document.querySelectorAll('#detail details')].find(d=>d.textContent.includes('Stored source evidence'));
+  detail.open=true;
+  await tick();
+  const reads=calls.filter(c=>c.url.startsWith('/api/evidence'));
+  assert.equal(reads.length,1);
+  assert.equal(new URL(reads[0].url,'http://localhost').searchParams.get('as_of'),'2026-10-14T23:00:00Z');
+  detail.open=false;
+  await tick();
+  detail.open=true;
+  await tick();
+  assert.equal(calls.filter(c=>c.url.startsWith('/api/evidence')).length,1);
+  assert(calls.every(c=>!c.options.method));
+  dom.window.close();
+});

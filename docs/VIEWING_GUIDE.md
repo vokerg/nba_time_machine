@@ -170,8 +170,9 @@ It shows record-only reconstructed expectations and reasons openly, including
 entering W–L, sample confidence and missing families. Time Machine never admits
 this reconstruction. The same shared record-strength calculation supplies the
 workbench bonus and new `postgame-records-v2` production ratings; archived v1
-ratings remain immutable. Both supported production versions require current
-verified evidence and explicit postgame consent. See
+ratings remain immutable. Published ratings remain saved until explicit
+recalculation; reads check archive consistency, source permissions and cutoff
+without deriving a new rating. Postgame disclosure still requires explicit consent. See
 [Pregame expectation](PREGAME_EXPECTATION.md) for coverage, formulas and timing.
 
 
@@ -202,3 +203,13 @@ Pregame counts ranked roster players without filtering for injury or actual
 participation; actual minutes remain a postgame input. The card must label
 availability as unconfirmed rather than implying that roster membership means
 the player is active today.
+
+
+## Saved ratings (#120)
+
+The guide and scoring dashboard read the same PostgreSQL rating snapshots. Opening
+or revealing a day never recalculates postgame ratings. Saved ratings persist across
+server restarts and source/formula changes until an explicit update publishes a new
+snapshot. **Recalculate saved ratings** uses stored evidence without collecting;
+**Fetch games & update ratings** collects and recalculates. Both remain local-only,
+Browse-only actions, keep results hidden and leave Time Machine unchanged.
